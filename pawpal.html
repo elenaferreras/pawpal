@@ -30,7 +30,8 @@
     --radius-sm: 10px;
     --safe-bottom: env(safe-area-inset-bottom, 20px);
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; max-width: 100%; }
+  html { overflow-x: hidden; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; max-width: 430px; margin: 0 auto; position: relative; overflow-x: hidden; }
   
   /* SCREENS */
@@ -125,9 +126,9 @@
   .empty p { font-size: 14px; line-height: 1.5; }
 
   /* MODAL */
-  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; align-items: flex-end; justify-content: center; }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; align-items: flex-end; justify-content: center; overflow: hidden; }
   .modal-overlay.open { display: flex; }
-  .modal { background: var(--bg); border-radius: 24px 24px 0 0; width: 100%; max-width: 430px; max-height: 90vh; overflow-y: auto; padding-bottom: calc(20px + var(--safe-bottom)); }
+  .modal { background: var(--bg); border-radius: 24px 24px 0 0; width: 100%; max-width: 430px; max-height: 90vh; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding-bottom: calc(20px + var(--safe-bottom)); }
   .modal-handle { width: 36px; height: 4px; background: var(--border-strong); border-radius: 2px; margin: 12px auto 4px; }
   .modal-title { font-size: 18px; font-weight: 700; padding: 8px 20px 16px; }
 
@@ -174,6 +175,10 @@
   .food-log-item { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 0.5px solid var(--border); }
   .food-log-item:last-child { border-bottom: none; }
   .food-log-icon { width: 32px; height: 32px; background: var(--amber-light); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+
+  @keyframes pulse { 0%,100%{opacity:0} 50%{opacity:1} }
+  .weather-btn { padding: 7px 12px; border-radius: 20px; border: 0.5px solid var(--border-strong); background: var(--surface); font-size: 13px; cursor: pointer; color: var(--text); transition: all 0.15s; font-family: inherit; white-space: nowrap; }
+  .weather-btn.selected { background: var(--text); color: white; border-color: var(--text); }
 
   .notif { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--text); color: white; padding: 10px 20px; border-radius: 20px; font-size: 14px; font-weight: 500; z-index: 999; opacity: 0; transition: opacity 0.2s; pointer-events: none; max-width: 300px; text-align: center; }
   .notif.show { opacity: 1; }
@@ -224,7 +229,7 @@
         <div class="qc-label">Log meal</div>
         <div class="qc-sub" id="qc-food-sub">No meals today</div>
       </div>
-      <div class="quick-card" onclick="openModal('modal-walk')">
+      <div class="quick-card" onclick="openWalkChooser()">
         <div class="qc-icon" style="background:var(--teal-light);">🦮</div>
         <div class="qc-label">Start walk</div>
         <div class="qc-sub" id="qc-walk-sub">No walks today</div>
@@ -260,7 +265,7 @@
       <div class="hdr-title">Walks</div>
       <div class="hdr-sub" id="walks-count-label">0 walks logged</div>
     </div>
-    <button class="hdr-btn" onclick="openModal('modal-walk')">+</button>
+    <button class="hdr-btn" onclick="openWalkChooser()">+</button>
   </div>
   <div class="scroll">
     <div class="pills" id="walks-filter-pills">
@@ -458,8 +463,8 @@
         <input class="form-input" id="p-edit-breed" placeholder="e.g. Labrador">
       </div>
       <div>
-        <label class="form-label">Age</label>
-        <input class="form-input" id="p-edit-age" placeholder="e.g. 2 years">
+        <label class="form-label">Birthday</label>
+        <input class="form-input" type="date" id="p-edit-birthday">
       </div>
     </div>
     <div class="form-row">
@@ -490,15 +495,125 @@
 <!-- MODALS -->
 <!-- ======================================================= -->
 
-<!-- WALK MODAL -->
+<!-- WALK CHOOSER MODAL -->
+<div class="modal-overlay" id="modal-walk-choose">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Log a walk 🦮</div>
+    <div style="padding:0 16px 8px;">
+      <button class="btn btn-primary" style="margin:0 0 10px;display:flex;align-items:center;justify-content:center;gap:10px;font-size:16px;" onclick="startLiveWalk()">
+        <span style="font-size:22px;">▶️</span> Start walk now
+      </button>
+      <button class="btn btn-secondary" style="margin:0;display:flex;align-items:center;justify-content:center;gap:10px;font-size:16px;" onclick="openManualWalk()">
+        <span style="font-size:22px;">📝</span> Log previous walk
+      </button>
+    </div>
+    <div style="height:12px;"></div>
+    <button class="btn btn-secondary" style="color:var(--text3);" onclick="closeModal('modal-walk-choose')">Cancel</button>
+    <div style="height:8px;"></div>
+  </div>
+</div>
+
+<!-- LIVE WALK MODAL -->
+<div class="modal-overlay" id="modal-walk-live">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="live-walk-title">Walk in progress 🐾</div>
+
+    <!-- Active tracking view -->
+    <div id="live-walk-active">
+      <div style="background:var(--teal);border-radius:var(--radius);margin:0 16px 16px;padding:24px 16px;text-align:center;position:relative;overflow:hidden;">
+        <div id="live-pulse" style="position:absolute;inset:0;border-radius:var(--radius);background:rgba(255,255,255,0.08);animation:pulse 2s infinite;"></div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.8);font-weight:600;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px;">Duration</div>
+        <div id="live-timer" style="font-size:52px;font-weight:700;color:white;letter-spacing:-1px;line-height:1;">00:00</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:20px;">
+          <div style="background:rgba(255,255,255,0.15);border-radius:10px;padding:10px 8px;">
+            <div id="live-steps" style="font-size:22px;font-weight:700;color:white;">0</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.75);">steps</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.15);border-radius:10px;padding:10px 8px;">
+            <div id="live-distance" style="font-size:22px;font-weight:700;color:white;">0.00</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.75);">km</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.15);border-radius:10px;padding:10px 8px;">
+            <div id="live-pace" style="font-size:22px;font-weight:700;color:white;">—</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.75);">min/km</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:0 16px;margin-bottom:12px;">
+        <div id="live-gps-status" style="font-size:12px;color:var(--text2);text-align:center;padding:6px;background:var(--teal-light);border-radius:8px;margin-bottom:12px;">📍 Acquiring GPS...</div>
+        <!-- Mini route canvas -->
+        <canvas id="route-canvas" width="358" height="140" style="width:100%;height:140px;border-radius:var(--radius-sm);background:#E8F4F0;display:block;margin-bottom:12px;"></canvas>
+      </div>
+      <button class="btn btn-danger" onclick="finishLiveWalk()" style="margin-bottom:8px;">🏁 Finish walk</button>
+      <button class="btn btn-secondary" onclick="cancelLiveWalk()" style="color:var(--text3);">Cancel walk</button>
+      <div style="height:8px;"></div>
+    </div>
+
+    <!-- Summary view after finishing -->
+    <div id="live-walk-summary" style="display:none;">
+      <div style="text-align:center;padding:8px 16px 16px;">
+        <div style="font-size:48px;margin-bottom:8px;">🎉</div>
+        <div style="font-size:20px;font-weight:700;">Great walk!</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 16px 16px;">
+        <div class="stat-chip"><div class="sv" id="sum-duration">0</div><div class="sl">minutes</div></div>
+        <div class="stat-chip"><div class="sv" id="sum-steps">0</div><div class="sl">steps</div></div>
+        <div class="stat-chip"><div class="sv" id="sum-distance">0</div><div class="sl">km</div></div>
+        <div class="stat-chip"><div class="sv" id="sum-pace">—</div><div class="sl">min/km</div></div>
+      </div>
+      <div class="card" style="padding:0;margin-bottom:14px;">
+        <div class="toggle-row" style="border-bottom:0.5px solid var(--border);">
+          <div><div class="toggle-label">💧 Did pipi?</div></div>
+          <label class="toggle"><input type="checkbox" id="w-pipi"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="toggle-row" style="border-bottom:0.5px solid var(--border);">
+          <div><div class="toggle-label">💩 Did popo?</div></div>
+          <label class="toggle"><input type="checkbox" id="w-popo"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div><div class="toggle-label">🐶 Made friends?</div></div>
+          <label class="toggle"><input type="checkbox" id="w-friends"><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Weather</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;" id="w-weather-options">
+          <button type="button" class="weather-btn" data-value="sunny" onclick="selectWeather(this)">☀️ Sunny</button>
+          <button type="button" class="weather-btn" data-value="cloudy" onclick="selectWeather(this)">☁️ Cloudy</button>
+          <button type="button" class="weather-btn" data-value="rainy" onclick="selectWeather(this)">🌧️ Rainy</button>
+          <button type="button" class="weather-btn" data-value="windy" onclick="selectWeather(this)">💨 Windy</button>
+          <button type="button" class="weather-btn" data-value="snowy" onclick="selectWeather(this)">❄️ Snowy</button>
+          <button type="button" class="weather-btn" data-value="hot" onclick="selectWeather(this)">🥵 Hot</button>
+          <button type="button" class="weather-btn" data-value="foggy" onclick="selectWeather(this)">🌫️ Foggy</button>
+          <button type="button" class="weather-btn" data-value="stormy" onclick="selectWeather(this)">⛈️ Stormy</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <textarea class="form-input" id="w-notes-live" placeholder="How was the walk?"></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="saveLiveWalk()">Save walk</button>
+      <div style="height:8px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MANUAL WALK MODAL -->
 <div class="modal-overlay" id="modal-walk">
   <div class="modal">
     <div class="modal-handle"></div>
     <div class="modal-title">Log a walk 🦮</div>
-    <div class="map-ph">
-      <div class="map-icon">🗺️</div>
-      <div style="font-size:13px;font-weight:600;">GPS route tracking</div>
-      <div style="font-size:12px;opacity:0.7;">Works when app is installed on home screen</div>
+    <div class="form-row">
+      <div>
+        <label class="form-label">Date</label>
+        <input class="form-input" type="date" id="w-date">
+      </div>
+      <div>
+        <label class="form-label">Time</label>
+        <input class="form-input" type="time" id="w-time">
+      </div>
     </div>
     <div class="form-row">
       <div>
@@ -510,34 +625,35 @@
         <input class="form-input" type="number" id="w-steps" placeholder="2500">
       </div>
     </div>
-    <div class="form-row">
-      <div>
-        <label class="form-label">Distance (km)</label>
-        <input class="form-input" type="number" step="0.1" id="w-distance" placeholder="1.5">
-      </div>
-      <div>
-        <label class="form-label">Time</label>
-        <input class="form-input" type="time" id="w-time">
-      </div>
+    <div class="form-group">
+      <label class="form-label">Distance (km)</label>
+      <input class="form-input" type="number" step="0.1" id="w-distance" placeholder="1.5">
     </div>
     <div class="card" style="padding:0;margin-bottom:14px;">
       <div class="toggle-row" style="border-bottom:0.5px solid var(--border);">
-        <div>
-          <div class="toggle-label">💧 Did pipi?</div>
-        </div>
-        <label class="toggle"><input type="checkbox" id="w-pipi"><span class="toggle-slider"></span></label>
+        <div><div class="toggle-label">💧 Did pipi?</div></div>
+        <label class="toggle"><input type="checkbox" id="w-pipi-manual"><span class="toggle-slider"></span></label>
       </div>
       <div class="toggle-row" style="border-bottom:0.5px solid var(--border);">
-        <div>
-          <div class="toggle-label">💩 Did popo?</div>
-        </div>
-        <label class="toggle"><input type="checkbox" id="w-popo"><span class="toggle-slider"></span></label>
+        <div><div class="toggle-label">💩 Did popo?</div></div>
+        <label class="toggle"><input type="checkbox" id="w-popo-manual"><span class="toggle-slider"></span></label>
       </div>
       <div class="toggle-row">
-        <div>
-          <div class="toggle-label">🐶 Made friends?</div>
-        </div>
-        <label class="toggle"><input type="checkbox" id="w-friends"><span class="toggle-slider"></span></label>
+        <div><div class="toggle-label">🐶 Made friends?</div></div>
+        <label class="toggle"><input type="checkbox" id="w-friends-manual"><span class="toggle-slider"></span></label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Weather</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;" id="w-weather-options-manual">
+        <button type="button" class="weather-btn" data-value="sunny" onclick="selectWeatherManual(this)">☀️ Sunny</button>
+        <button type="button" class="weather-btn" data-value="cloudy" onclick="selectWeatherManual(this)">☁️ Cloudy</button>
+        <button type="button" class="weather-btn" data-value="rainy" onclick="selectWeatherManual(this)">🌧️ Rainy</button>
+        <button type="button" class="weather-btn" data-value="windy" onclick="selectWeatherManual(this)">💨 Windy</button>
+        <button type="button" class="weather-btn" data-value="snowy" onclick="selectWeatherManual(this)">❄️ Snowy</button>
+        <button type="button" class="weather-btn" data-value="hot" onclick="selectWeatherManual(this)">🥵 Hot</button>
+        <button type="button" class="weather-btn" data-value="foggy" onclick="selectWeatherManual(this)">🌫️ Foggy</button>
+        <button type="button" class="weather-btn" data-value="stormy" onclick="selectWeatherManual(this)">⛈️ Stormy</button>
       </div>
     </div>
     <div class="form-group">
@@ -619,6 +735,15 @@
     <div class="form-group">
       <label class="form-label">Notes</label>
       <textarea class="form-input" id="poop-notes" placeholder="Any observations..." style="min-height:60px;"></textarea>
+    </div>
+    <div class="form-group" id="poop-photo-section" style="display:none;">
+      <label class="form-label">📸 Photos</label>
+      <div id="poop-photo-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;"></div>
+      <label style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1.5px dashed var(--border-strong);border-radius:var(--radius-sm);cursor:pointer;color:var(--text2);font-size:14px;">
+        <span style="font-size:22px;">📷</span>
+        <span>Tap to add a photo</span>
+        <input type="file" id="poop-photo-input" accept="image/*" multiple style="display:none;" onchange="handlePoopPhotos(this)">
+      </label>
     </div>
     <button class="btn btn-primary" onclick="savePoop()">Save</button>
     <div style="height:8px;"></div>
@@ -879,9 +1004,12 @@ function renderHome() {
     return;
   }
   el.innerHTML = recent.map(item => {
-    if(item.kind === 'walk') return `<div class="log-item"><div class="log-dot" style="background:var(--teal-light);">🦮</div><div class="log-info"><div class="log-title">Walk — ${item.duration||'?'} min${item.steps?' · '+item.steps+' steps':''}</div><div class="log-meta">${fmtDate(item.date)} ${item.time||''} ${item.friends?'· 🐶 Made friends':''}</div></div></div>`;
+    if(item.kind === 'walk') { const wIcon = {'sunny':'☀️','cloudy':'☁️','rainy':'🌧️','windy':'💨','snowy':'❄️','hot':'🥵','foggy':'🌫️','stormy':'⛈️'}[item.weather]||''; return `<div class="log-item"><div class="log-dot" style="background:var(--teal-light);">🦮</div><div class="log-info"><div class="log-title">Walk — ${item.duration||'?'} min${item.steps?' · '+item.steps+' steps':''}${wIcon?' · '+wIcon:''}</div><div class="log-meta">${fmtDate(item.date)} ${item.time||''} ${item.friends?'· 🐶 Made friends':''}</div></div></div>`; }
     if(item.kind === 'meal') return `<div class="log-item"><div class="log-dot" style="background:var(--amber-light);">🍖</div><div class="log-info"><div class="log-title">${item.type} — ${item.amount}g</div><div class="log-meta">${fmtDate(item.date)} ${item.time||''}</div></div></div>`;
-    if(item.kind === 'bath') return `<div class="log-item"><div class="log-dot" style="background:#F0F0F0;">${item.type==='pipi'?'💧':'💩'}</div><div class="log-info"><div class="log-title">${item.type === 'pipi' ? 'Pipi' : item.type === 'popo' ? 'Popo' : 'Pipi & Popo'}</div><div class="log-meta">${fmtDate(item.date)} ${item.time||''}</div></div></div>`;
+    if(item.kind === 'bath') {
+      const hasPhotos = item.photos && item.photos.length > 0;
+      return `<div class="log-item"><div class="log-dot" style="background:#F0F0F0;">${item.type==='pipi'?'💧':'💩'}</div><div class="log-info"><div class="log-title">${item.type === 'pipi' ? 'Pipi' : item.type === 'popo' ? 'Popo' : 'Pipi & Popo'}${item.consistency?' · '+item.consistency:''}</div><div class="log-meta">${fmtDate(item.date)} ${item.time||''}</div>${hasPhotos ? `<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">${item.photos.map(src=>`<img src="${src}" style="width:48px;height:48px;object-fit:cover;border-radius:8px;border:0.5px solid var(--border);">`).join('')}</div>` : ''}</div></div>`;
+    }
     return '';
   }).join('');
 
@@ -920,7 +1048,9 @@ function renderWalks(filter) {
     el.innerHTML = '<div class="empty"><div class="empty-icon">🦮</div><p>No walks logged yet.<br>Tap + to record your first walk!</p></div>';
     return;
   }
-  el.innerHTML = walks.map((w,i) => `
+  el.innerHTML = walks.map((w) => {
+    const realIdx = db.walks.indexOf(w);
+    return `
     <div class="log-item">
       <div class="log-dot" style="background:var(--teal-light);">🦮</div>
       <div class="log-info">
@@ -929,6 +1059,7 @@ function renderWalks(filter) {
           ${w.duration?w.duration+' min':''}
           ${w.steps?' · '+w.steps+' steps':''}
           ${w.distance?' · '+w.distance+'km':''}
+          ${w.weather?' · '+{'sunny':'☀️','cloudy':'☁️','rainy':'🌧️','windy':'💨','snowy':'❄️','hot':'🥵','foggy':'🌫️','stormy':'⛈️'}[w.weather]:''}
         </div>
         <div style="display:flex;gap:6px;margin-top:5px;flex-wrap:wrap;">
           ${w.pipi?'<span class="log-badge" style="background:#E3F2FD;color:#1565C0;">💧 pipi</span>':''}
@@ -937,28 +1068,111 @@ function renderWalks(filter) {
         </div>
         ${w.notes?`<div style="font-size:12px;color:var(--text2);margin-top:4px;">${w.notes}</div>`:''}
       </div>
-      <button onclick="deleteWalk(${i})" style="border:none;background:none;color:var(--text3);cursor:pointer;font-size:18px;padding:4px;">×</button>
-    </div>`).join('');
+      <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0;">
+        <button onclick="editWalk(${realIdx})" style="border:none;background:var(--teal-light);color:var(--teal-dark);cursor:pointer;font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;">Edit</button>
+        <button onclick="deleteWalk(${realIdx})" style="border:none;background:none;color:var(--text3);cursor:pointer;font-size:18px;padding:2px 4px;">×</button>
+      </div>
+    </div>`;
+  }).join('');
 }
+let editingWalkIdx = -1;
+let selectedWeather = '';
+
+const weatherMap = {
+  sunny: '☀️', cloudy: '☁️', rainy: '🌧️', windy: '💨',
+  snowy: '❄️', hot: '🥵', foggy: '🌫️', stormy: '⛈️'
+};
+
+function selectWeather(btn) {
+  const val = btn.dataset.value;
+  if(selectedWeather === val) {
+    selectedWeather = '';
+    btn.classList.remove('selected');
+  } else {
+    selectedWeather = val;
+    document.querySelectorAll('#w-weather-options .weather-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  }
+}
+
+let selectedWeatherManual = '';
+function selectWeatherManual(btn) {
+  const val = btn.dataset.value;
+  if(selectedWeatherManual === val) {
+    selectedWeatherManual = '';
+    btn.classList.remove('selected');
+  } else {
+    selectedWeatherManual = val;
+    document.querySelectorAll('#w-weather-options-manual .weather-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  }
+}
+
+function openWalkChooser() {
+  closeModal('modal-walk');
+  closeModal('modal-walk-live');
+  document.getElementById('modal-walk-choose').classList.add('open');
+}
+
+function openManualWalk() {
+  closeModal('modal-walk-choose');
+  const now = new Date();
+  const timeStr = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+  const dateStr = now.toISOString().split('T')[0];
+  document.getElementById('w-date').value = dateStr;
+  document.getElementById('w-time').value = timeStr;
+  document.getElementById('modal-walk').classList.add('open');
+}
+
+function editWalk(idx) {
+  editingWalkIdx = idx;
+  const w = db.walks[idx];
+  document.querySelector('#modal-walk .modal-title').textContent = 'Edit walk 🦮';
+  document.getElementById('w-date').value = w.date || new Date().toISOString().split('T')[0];
+  document.getElementById('w-time').value = w.time || '';
+  document.getElementById('w-duration').value = w.duration || '';
+  document.getElementById('w-steps').value = w.steps || '';
+  document.getElementById('w-distance').value = w.distance || '';
+  document.getElementById('w-pipi-manual').checked = !!w.pipi;
+  document.getElementById('w-popo-manual').checked = !!w.popo;
+  document.getElementById('w-friends-manual').checked = !!w.friends;
+  document.getElementById('w-notes').value = w.notes || '';
+  selectedWeatherManual = w.weather || '';
+  document.querySelectorAll('#w-weather-options-manual .weather-btn').forEach(b => {
+    b.classList.toggle('selected', b.dataset.value === selectedWeatherManual);
+  });
+  document.getElementById('modal-walk').classList.add('open');
+}
+
 function saveWalk() {
   const d = {
-    date: new Date().toISOString().split('T')[0],
+    date: document.getElementById('w-date').value || new Date().toISOString().split('T')[0],
     time: document.getElementById('w-time').value,
     duration: document.getElementById('w-duration').value,
     steps: document.getElementById('w-steps').value,
     distance: document.getElementById('w-distance').value,
-    pipi: document.getElementById('w-pipi').checked,
-    popo: document.getElementById('w-popo').checked,
-    friends: document.getElementById('w-friends').checked,
+    pipi: document.getElementById('w-pipi-manual').checked,
+    popo: document.getElementById('w-popo-manual').checked,
+    friends: document.getElementById('w-friends-manual').checked,
+    weather: selectedWeatherManual,
     notes: document.getElementById('w-notes').value,
-    created: new Date().toISOString()
+    created: editingWalkIdx >= 0 ? db.walks[editingWalkIdx].created : new Date().toISOString()
   };
-  db.walks.push(d);
+  if(editingWalkIdx >= 0) {
+    db.walks[editingWalkIdx] = d;
+    toast('Walk updated! ✓');
+  } else {
+    db.walks.push(d);
+    toast('Walk saved! 🦮');
+  }
   save();
+  editingWalkIdx = -1;
+  document.querySelector('#modal-walk .modal-title').textContent = 'Log a walk 🦮';
   closeModal('modal-walk');
-  toast('Walk saved! 🦮');
   ['w-duration','w-steps','w-distance','w-notes'].forEach(id => document.getElementById(id).value='');
-  ['w-pipi','w-popo','w-friends'].forEach(id => document.getElementById(id).checked=false);
+  ['w-pipi-manual','w-popo-manual','w-friends-manual'].forEach(id => document.getElementById(id).checked=false);
+  selectedWeatherManual = '';
+  document.querySelectorAll('#w-weather-options-manual .weather-btn').forEach(b => b.classList.remove('selected'));
   if(currentScreen==='home') renderHome();
   if(currentScreen==='walks') renderWalks(walksFilter);
 }
@@ -1032,6 +1246,8 @@ function deleteMeal(idx) {
 // BATHROOM
 // ============================================================
 let selectedPoopType = 'pipi';
+let pendingPoopPhotos = [];
+
 function selectPoopType(t) {
   selectedPoopType = t;
   ['pipi','popo','both'].forEach(x => {
@@ -1039,8 +1255,38 @@ function selectPoopType(t) {
     document.getElementById('poop-'+x+'-btn').style.color = x===t ? 'white' : '';
     document.getElementById('poop-'+x+'-btn').style.borderColor = x===t ? 'var(--teal)' : '';
   });
+  const showPhoto = (t === 'popo' || t === 'both');
+  document.getElementById('poop-photo-section').style.display = showPhoto ? 'block' : 'none';
 }
 selectPoopType('pipi');
+
+function handlePoopPhotos(input) {
+  const files = Array.from(input.files);
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      pendingPoopPhotos.push(e.target.result);
+      renderPoopPhotoPreview();
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function renderPoopPhotoPreview() {
+  const el = document.getElementById('poop-photo-preview');
+  el.innerHTML = pendingPoopPhotos.map((src, i) => `
+    <div style="position:relative;width:72px;height:72px;">
+      <img src="${src}" style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:0.5px solid var(--border);">
+      <button onclick="removePoopPhoto(${i})" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--text);color:white;border:none;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">×</button>
+    </div>`).join('');
+}
+
+function removePoopPhoto(i) {
+  pendingPoopPhotos.splice(i, 1);
+  renderPoopPhotoPreview();
+}
+
 function savePoop() {
   const d = {
     date: new Date().toISOString().split('T')[0],
@@ -1048,6 +1294,7 @@ function savePoop() {
     type: selectedPoopType,
     consistency: document.getElementById('poop-consistency').value,
     notes: document.getElementById('poop-notes').value,
+    photos: [...pendingPoopPhotos],
     created: new Date().toISOString()
   };
   db.bathroom.push(d);
@@ -1055,6 +1302,8 @@ function savePoop() {
   closeModal('modal-poop');
   toast('Logged! 👍');
   document.getElementById('poop-notes').value='';
+  pendingPoopPhotos = [];
+  document.getElementById('poop-photo-preview').innerHTML = '';
   if(currentScreen==='home') renderHome();
 }
 
@@ -1216,7 +1465,7 @@ function showProfileEdit() {
   const p = db.profile;
   document.getElementById('p-edit-name').value = p.name || '';
   document.getElementById('p-edit-breed').value = p.breed || '';
-  document.getElementById('p-edit-age').value = p.age || '';
+  document.getElementById('p-edit-birthday').value = p.birthday || '';
   document.getElementById('p-edit-weight').value = p.weight || '';
   document.getElementById('p-edit-food-goal').value = p.foodGoal || 300;
   document.getElementById('p-edit-vet').value = p.vet || '';
@@ -1231,7 +1480,7 @@ function saveProfile() {
   db.profile = {
     name: document.getElementById('p-edit-name').value,
     breed: document.getElementById('p-edit-breed').value,
-    age: document.getElementById('p-edit-age').value,
+    birthday: document.getElementById('p-edit-birthday').value,
     weight: document.getElementById('p-edit-weight').value,
     foodGoal: parseInt(document.getElementById('p-edit-food-goal').value) || 300,
     vet: document.getElementById('p-edit-vet').value,
@@ -1243,17 +1492,38 @@ function saveProfile() {
   renderProfile();
   toast('Profile saved! 🐾');
 }
+function calcAge(birthday) {
+  if(!birthday) return null;
+  const birth = new Date(birthday + 'T12:00:00');
+  const now = new Date();
+  const totalMonths = (now.getFullYear() - birth.getFullYear()) * 12 + (now.getMonth() - birth.getMonth());
+  if(totalMonths < 1) {
+    const days = Math.floor((now - birth) / 86400000);
+    return days + ' day' + (days !== 1 ? 's' : '') + ' old';
+  }
+  if(totalMonths < 24) {
+    const months = totalMonths;
+    return months + ' month' + (months !== 1 ? 's' : '') + ' old';
+  }
+  const years = Math.floor(totalMonths / 12);
+  const remMonths = totalMonths % 12;
+  let str = years + ' year' + (years !== 1 ? 's' : '');
+  if(remMonths > 0) str += ' ' + remMonths + ' month' + (remMonths !== 1 ? 's' : '');
+  return str + ' old';
+}
+
 function renderProfile() {
   const p = db.profile;
   document.getElementById('profile-emoji-display').textContent = p.emoji || '🐕';
   document.getElementById('profile-name-display').textContent = p.name || 'My Dog';
+  const age = calcAge(p.birthday);
   const parts = [];
   if(p.breed) parts.push(p.breed);
-  if(p.age) parts.push(p.age);
+  if(age) parts.push(age);
   if(p.weight) parts.push(p.weight + 'kg');
   document.getElementById('profile-sub-display').textContent = parts.join(' · ') || 'Tap Edit to set up your profile';
   document.getElementById('p-breed').textContent = p.breed || '—';
-  document.getElementById('p-age').textContent = p.age || '—';
+  document.getElementById('p-age').textContent = age || (p.birthday ? p.birthday : '—');
   document.getElementById('p-weight').textContent = p.weight ? p.weight + ' kg' : '—';
   document.getElementById('p-food-goal').textContent = (p.foodGoal || 300) + 'g / day';
   document.getElementById('p-vet').textContent = p.vet || '—';
@@ -1265,6 +1535,271 @@ function clearAllData() {
   save();
   toast('All data cleared');
   renderProfile();
+}
+
+
+// ============================================================
+// LIVE WALK TRACKER
+// ============================================================
+let liveWalk = {
+  active: false,
+  startTime: null,
+  timerInterval: null,
+  steps: 0,
+  distanceKm: 0,
+  gpsCoords: [],
+  watchId: null,
+  lastAccel: null,
+  stepThreshold: 12,
+  stepCooldown: 300,
+  lastStepTime: 0,
+  accelListener: null
+};
+
+function startLiveWalk() {
+  closeModal('modal-walk-choose');
+  // Reset state
+  liveWalk.active = true;
+  liveWalk.startTime = Date.now();
+  liveWalk.steps = 0;
+  liveWalk.distanceKm = 0;
+  liveWalk.gpsCoords = [];
+  liveWalk.lastAccel = null;
+  liveWalk.lastStepTime = 0;
+
+  // Reset UI
+  document.getElementById('live-walk-active').style.display = 'block';
+  document.getElementById('live-walk-summary').style.display = 'none';
+  document.getElementById('live-walk-title').textContent = 'Walk in progress 🐾';
+  document.getElementById('live-timer').textContent = '00:00';
+  document.getElementById('live-steps').textContent = '0';
+  document.getElementById('live-distance').textContent = '0.00';
+  document.getElementById('live-pace').textContent = '—';
+  document.getElementById('live-gps-status').textContent = '📍 Acquiring GPS...';
+  clearCanvas();
+
+  document.getElementById('modal-walk-live').classList.add('open');
+
+  // Start timer
+  liveWalk.timerInterval = setInterval(updateLiveTimer, 1000);
+
+  // Start GPS
+  if(navigator.geolocation) {
+    liveWalk.watchId = navigator.geolocation.watchPosition(
+      pos => {
+        const coord = { lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy };
+        if(coord.acc < 50) {
+          if(liveWalk.gpsCoords.length > 0) {
+            const prev = liveWalk.gpsCoords[liveWalk.gpsCoords.length - 1];
+            liveWalk.distanceKm += haversine(prev.lat, prev.lng, coord.lat, coord.lng);
+            document.getElementById('live-distance').textContent = liveWalk.distanceKm.toFixed(2);
+            updatePace();
+          }
+          liveWalk.gpsCoords.push(coord);
+          drawRoute();
+          document.getElementById('live-gps-status').textContent = '📍 GPS active · accuracy ' + Math.round(coord.acc) + 'm';
+          document.getElementById('live-gps-status').style.background = 'var(--teal-light)';
+          document.getElementById('live-gps-status').style.color = 'var(--teal-dark)';
+        }
+      },
+      err => {
+        document.getElementById('live-gps-status').textContent = '⚠️ GPS unavailable — distance won’t be tracked';
+        document.getElementById('live-gps-status').style.background = '#FFF3E0';
+        document.getElementById('live-gps-status').style.color = '#E65100';
+      },
+      { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
+    );
+  } else {
+    document.getElementById('live-gps-status').textContent = '⚠️ GPS not supported on this device';
+  }
+
+  // Start accelerometer step counting
+  const handleMotion = (e) => {
+    if(!liveWalk.active) return;
+    const a = e.accelerationIncludingGravity;
+    if(!a) return;
+    const mag = Math.sqrt(a.x*a.x + a.y*a.y + a.z*a.z);
+    const now = Date.now();
+    if(liveWalk.lastAccel !== null) {
+      const delta = Math.abs(mag - liveWalk.lastAccel);
+      if(delta > liveWalk.stepThreshold && (now - liveWalk.lastStepTime) > liveWalk.stepCooldown) {
+        liveWalk.steps++;
+        liveWalk.lastStepTime = now;
+        document.getElementById('live-steps').textContent = liveWalk.steps;
+        updatePace();
+      }
+    }
+    liveWalk.lastAccel = mag;
+  };
+
+  // iOS requires permission for DeviceMotion
+  if(typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+    DeviceMotionEvent.requestPermission().then(state => {
+      if(state === 'granted') {
+        liveWalk.accelListener = handleMotion;
+        window.addEventListener('devicemotion', liveWalk.accelListener);
+      }
+    }).catch(() => {});
+  } else {
+    liveWalk.accelListener = handleMotion;
+    window.addEventListener('devicemotion', liveWalk.accelListener);
+  }
+}
+
+function updateLiveTimer() {
+  if(!liveWalk.active) return;
+  const elapsed = Math.floor((Date.now() - liveWalk.startTime) / 1000);
+  const m = Math.floor(elapsed / 60).toString().padStart(2, '0');
+  const s = (elapsed % 60).toString().padStart(2, '0');
+  document.getElementById('live-timer').textContent = m + ':' + s;
+}
+
+function updatePace() {
+  const elapsedMin = (Date.now() - liveWalk.startTime) / 60000;
+  if(liveWalk.distanceKm > 0.05 && elapsedMin > 0) {
+    const paceMinPerKm = elapsedMin / liveWalk.distanceKm;
+    const pm = Math.floor(paceMinPerKm);
+    const ps = Math.round((paceMinPerKm - pm) * 60).toString().padStart(2, '0');
+    document.getElementById('live-pace').textContent = pm + ':' + ps;
+  }
+}
+
+function finishLiveWalk() {
+  liveWalk.active = false;
+  clearInterval(liveWalk.timerInterval);
+  if(liveWalk.watchId !== null) navigator.geolocation.clearWatch(liveWalk.watchId);
+  if(liveWalk.accelListener) window.removeEventListener('devicemotion', liveWalk.accelListener);
+
+  const elapsedSec = Math.floor((Date.now() - liveWalk.startTime) / 1000);
+  const mins = Math.round(elapsedSec / 60);
+  const distStr = liveWalk.distanceKm.toFixed(2);
+  let paceStr = '—';
+  if(liveWalk.distanceKm > 0.05) {
+    const p = (elapsedSec / 60) / liveWalk.distanceKm;
+    paceStr = Math.floor(p) + ':' + Math.round((p % 1) * 60).toString().padStart(2,'0');
+  }
+
+  document.getElementById('sum-duration').textContent = mins;
+  document.getElementById('sum-steps').textContent = liveWalk.steps;
+  document.getElementById('sum-distance').textContent = distStr;
+  document.getElementById('sum-pace').textContent = paceStr;
+
+  document.getElementById('live-walk-active').style.display = 'none';
+  document.getElementById('live-walk-summary').style.display = 'block';
+  document.getElementById('live-walk-title').textContent = 'Walk complete! 🎉';
+
+  selectedWeather = '';
+  document.querySelectorAll('#w-weather-options .weather-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('w-notes-live').value = '';
+  ['w-pipi','w-popo','w-friends'].forEach(id => { const el = document.getElementById(id); if(el) el.checked = false; });
+}
+
+function cancelLiveWalk() {
+  liveWalk.active = false;
+  clearInterval(liveWalk.timerInterval);
+  if(liveWalk.watchId !== null) navigator.geolocation.clearWatch(liveWalk.watchId);
+  if(liveWalk.accelListener) window.removeEventListener('devicemotion', liveWalk.accelListener);
+  closeModal('modal-walk-live');
+}
+
+function saveLiveWalk() {
+  const elapsedSec = Math.floor((Date.now() - liveWalk.startTime) / 1000);
+  const start = new Date(liveWalk.startTime);
+  const d = {
+    date: start.toISOString().split('T')[0],
+    time: start.getHours().toString().padStart(2,'0') + ':' + start.getMinutes().toString().padStart(2,'0'),
+    duration: Math.round(elapsedSec / 60),
+    steps: liveWalk.steps,
+    distance: parseFloat(liveWalk.distanceKm.toFixed(2)),
+    pipi: document.getElementById('w-pipi').checked,
+    popo: document.getElementById('w-popo').checked,
+    friends: document.getElementById('w-friends').checked,
+    weather: selectedWeather,
+    notes: document.getElementById('w-notes-live').value,
+    gpsRoute: liveWalk.gpsCoords.slice(0, 500),
+    created: new Date().toISOString()
+  };
+  db.walks.push(d);
+  save();
+  closeModal('modal-walk-live');
+  toast('Walk saved! 🦮');
+  selectedWeather = '';
+  if(currentScreen === 'home') renderHome();
+  if(currentScreen === 'walks') renderWalks(walksFilter);
+}
+
+// GPS distance helper
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// Draw GPS route on canvas
+function clearCanvas() {
+  const canvas = document.getElementById('route-canvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#E8F4F0';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#2AA98B';
+  ctx.font = '13px -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Route will appear here as you walk', canvas.width/2, canvas.height/2);
+}
+
+function drawRoute() {
+  const coords = liveWalk.gpsCoords;
+  if(coords.length < 2) return;
+  const canvas = document.getElementById('route-canvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const pad = 16;
+  const W = canvas.width - pad*2;
+  const H = canvas.height - pad*2;
+
+  const lats = coords.map(c => c.lat);
+  const lngs = coords.map(c => c.lng);
+  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+  const dLat = maxLat - minLat || 0.001;
+  const dLng = maxLng - minLng || 0.001;
+  const scale = Math.min(W/dLng, H/dLat);
+
+  const toX = lng => pad + (lng - minLng) * scale;
+  const toY = lat => pad + H - (lat - minLat) * scale;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#E8F4F0';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.beginPath();
+  ctx.moveTo(toX(coords[0].lng), toY(coords[0].lat));
+  for(let i = 1; i < coords.length; i++) ctx.lineTo(toX(coords[i].lng), toY(coords[i].lat));
+  ctx.strokeStyle = '#2AA98B';
+  ctx.lineWidth = 3;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // Start dot (green)
+  ctx.beginPath();
+  ctx.arc(toX(coords[0].lng), toY(coords[0].lat), 5, 0, Math.PI*2);
+  ctx.fillStyle = '#0F6E56';
+  ctx.fill();
+
+  // Current position dot (pulsing orange)
+  const last = coords[coords.length-1];
+  ctx.beginPath();
+  ctx.arc(toX(last.lng), toY(last.lat), 7, 0, Math.PI*2);
+  ctx.fillStyle = '#F5A623';
+  ctx.fill();
+  ctx.strokeStyle = 'white';
+  ctx.lineWidth = 2;
+  ctx.stroke();
 }
 
 // ============================================================
