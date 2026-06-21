@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="PawPal">
+<title>PawPal</title>
+<style>
+  :root {
+    --amber: #F5A623;
+    --amber-light: #FEF3E2;
+    --amber-dark: #C07D0A;
+    --teal: #2AA98B;
+    --teal-light: #E1F5EE;
+    --teal-dark: #0F6E56;
+    --coral: #E8714A;
+    --coral-light: #FAECE7;
+    --purple: #7F77DD;
+    --purple-light: #EEEDFE;
+    --bg: #FAF8F5;
+    --surface: #FFFFFF;
+    --border: rgba(0,0,0,0.08);
+    --border-strong: rgba(0,0,0,0.15);
+    --text: #1A1A1A;
+    --text2: #666;
+    --text3: #999;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --safe-bottom: env(safe-area-inset-bottom, 20px);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; max-width: 430px; margin: 0 auto; position: relative; overflow-x: hidden; }
+  
+  /* SCREENS */
+  .screen { display: none; min-height: 100vh; padding-bottom: calc(80px + var(--safe-bottom)); }
+  .screen.active { display: block; }
+
+  /* HEADER */
+  .hdr { padding: 16px 20px 12px; display: flex; align-items: center; justify-content: space-between; background: var(--bg); position: sticky; top: 0; z-index: 10; border-bottom: 0.5px solid var(--border); }
+  .hdr-title { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+  .hdr-sub { font-size: 13px; color: var(--text2); margin-top: 1px; }
+  .hdr-btn { width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--amber); color: white; font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+
+  /* NAV */
+  .nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; background: rgba(255,255,255,0.95); backdrop-filter: blur(12px); border-top: 0.5px solid var(--border); display: flex; padding-bottom: var(--safe-bottom); z-index: 100; }
+  .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 4px; cursor: pointer; border: none; background: none; color: var(--text3); font-size: 10px; font-family: inherit; transition: color 0.15s; }
+  .nav-item .nav-icon { font-size: 22px; line-height: 1; }
+  .nav-item.active { color: var(--amber-dark); }
+  .nav-item.active .nav-icon { font-size: 22px; }
+
+  /* CARDS */
+  .card { background: var(--surface); border-radius: var(--radius); border: 0.5px solid var(--border); padding: 16px; margin: 0 16px 12px; }
+  .card-sm { padding: 12px 14px; margin: 0 16px 8px; }
+  .section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.5px; color: var(--text3); text-transform: uppercase; margin: 20px 16px 8px; }
+
+  /* SCROLL CONTENT */
+  .scroll { padding: 8px 0; }
+
+  /* HOME SCREEN */
+  .dog-hero { margin: 16px; padding: 20px; background: var(--amber); border-radius: 20px; color: white; position: relative; overflow: hidden; }
+  .dog-hero-emoji { font-size: 56px; position: absolute; right: 16px; top: 50%; transform: translateY(-50%); }
+  .dog-hero h2 { font-size: 26px; font-weight: 700; }
+  .dog-hero p { font-size: 13px; opacity: 0.85; margin-top: 2px; }
+  .dog-hero-stats { display: flex; gap: 16px; margin-top: 14px; }
+  .dog-hero-stat { background: rgba(255,255,255,0.22); border-radius: 10px; padding: 8px 12px; flex: 1; }
+  .dog-hero-stat .val { font-size: 18px; font-weight: 700; }
+  .dog-hero-stat .lbl { font-size: 10px; opacity: 0.85; }
+
+  .quick-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0 16px 8px; }
+  .quick-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 14px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: transform 0.1s; }
+  .quick-card:active { transform: scale(0.97); }
+  .quick-card .qc-icon { font-size: 24px; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+  .quick-card .qc-label { font-size: 13px; font-weight: 600; }
+  .quick-card .qc-sub { font-size: 11px; color: var(--text2); }
+
+  /* LOG ITEM */
+  .log-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; border-bottom: 0.5px solid var(--border); }
+  .log-item:last-child { border-bottom: none; }
+  .log-dot { width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .log-info { flex: 1; }
+  .log-title { font-size: 14px; font-weight: 600; }
+  .log-meta { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .log-badge { font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 500; }
+
+  /* PILLS ROW */
+  .pills { display: flex; gap: 8px; overflow-x: auto; padding: 0 16px 4px; scrollbar-width: none; }
+  .pills::-webkit-scrollbar { display: none; }
+  .pill { flex-shrink: 0; padding: 6px 14px; border-radius: 20px; font-size: 13px; border: 0.5px solid var(--border-strong); background: var(--surface); cursor: pointer; white-space: nowrap; color: var(--text2); transition: all 0.15s; }
+  .pill.active { background: var(--text); color: white; border-color: var(--text); }
+
+  /* FORM */
+  .form-group { margin: 0 16px 14px; }
+  .form-label { font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 6px; display: block; text-transform: uppercase; letter-spacing: 0.4px; }
+  .form-input { width: 100%; padding: 12px 14px; border: 0.5px solid var(--border-strong); border-radius: var(--radius-sm); font-size: 15px; font-family: inherit; background: var(--surface); color: var(--text); outline: none; transition: border-color 0.15s; }
+  .form-input:focus { border-color: var(--amber); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0 16px 14px; }
+  textarea.form-input { resize: vertical; min-height: 80px; }
+  select.form-input { appearance: none; cursor: pointer; }
+
+  /* TOGGLE ROW */
+  .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 0.5px solid var(--border); }
+  .toggle-row:last-child { border-bottom: none; }
+  .toggle-label { font-size: 14px; font-weight: 500; }
+  .toggle-sub { font-size: 12px; color: var(--text2); }
+  .toggle { position: relative; width: 44px; height: 26px; flex-shrink: 0; }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider { position: absolute; inset: 0; background: #ccc; border-radius: 13px; cursor: pointer; transition: background 0.2s; }
+  .toggle-slider:before { content: ''; position: absolute; width: 20px; height: 20px; left: 3px; top: 3px; background: white; border-radius: 50%; transition: transform 0.2s; }
+  .toggle input:checked + .toggle-slider { background: var(--amber); }
+  .toggle input:checked + .toggle-slider:before { transform: translateX(18px); }
+
+  /* BTN */
+  .btn { display: block; width: calc(100% - 32px); margin: 0 16px; padding: 14px; border-radius: var(--radius-sm); border: none; font-size: 16px; font-weight: 600; font-family: inherit; cursor: pointer; transition: all 0.15s; text-align: center; }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary { background: var(--amber); color: white; }
+  .btn-secondary { background: var(--surface); border: 0.5px solid var(--border-strong); color: var(--text); }
+  .btn-danger { background: #FF3B30; color: white; }
+  .btn-sm { width: auto; padding: 8px 16px; font-size: 14px; display: inline-block; margin: 0; }
+
+  /* EMPTY STATE */
+  .empty { text-align: center; padding: 48px 24px; color: var(--text2); }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty p { font-size: 14px; line-height: 1.5; }
+
+  /* MODAL */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; align-items: flex-end; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--bg); border-radius: 24px 24px 0 0; width: 100%; max-width: 430px; max-height: 90vh; overflow-y: auto; padding-bottom: calc(20px + var(--safe-bottom)); }
+  .modal-handle { width: 36px; height: 4px; background: var(--border-strong); border-radius: 2px; margin: 12px auto 4px; }
+  .modal-title { font-size: 18px; font-weight: 700; padding: 8px 20px 16px; }
+
+  /* WALK MAP PLACEHOLDER */
+  .map-ph { height: 200px; background: #E8F4F0; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; color: var(--teal-dark); margin: 0 16px 14px; border: 1px dashed var(--teal); }
+  .map-ph .map-icon { font-size: 36px; }
+
+  /* STAT CHIPS */
+  .stat-row { display: flex; gap: 8px; margin: 0 16px 14px; }
+  .stat-chip { flex: 1; background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 10px 8px; text-align: center; }
+  .stat-chip .sv { font-size: 20px; font-weight: 700; }
+  .stat-chip .sl { font-size: 10px; color: var(--text2); margin-top: 1px; }
+
+  /* VET RECORD */
+  .vet-section { margin: 0 16px 8px; background: var(--surface); border-radius: var(--radius); border: 0.5px solid var(--border); overflow: hidden; }
+  .vet-section-hdr { padding: 12px 14px; background: var(--teal-light); display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--teal-dark); }
+  .vet-section-hdr .icon { font-size: 18px; }
+
+  /* PROFILE */
+  .profile-avatar { width: 90px; height: 90px; border-radius: 50%; background: var(--amber-light); border: 3px solid var(--amber); display: flex; align-items: center; justify-content: center; font-size: 48px; margin: 20px auto 12px; }
+  .profile-name { text-align: center; font-size: 22px; font-weight: 700; }
+  .profile-sub { text-align: center; font-size: 13px; color: var(--text2); margin-top: 4px; margin-bottom: 20px; }
+
+  /* REMINDER ITEM */
+  .reminder-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 0.5px solid var(--border); }
+  .reminder-item:last-child { border-bottom: none; }
+  .reminder-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .reminder-info { flex: 1; }
+  .reminder-title { font-size: 14px; font-weight: 500; }
+  .reminder-date { font-size: 12px; color: var(--text2); }
+
+  /* MEDICATION */
+  .med-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 0.5px solid var(--border); }
+  .med-item:last-child { border-bottom: none; }
+  .med-icon { width: 36px; height: 36px; background: var(--purple-light); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .med-info { flex: 1; }
+  .med-name { font-size: 14px; font-weight: 600; }
+  .med-detail { font-size: 12px; color: var(--text2); }
+
+  /* FOOD */
+  .food-meter { height: 10px; background: var(--border); border-radius: 5px; margin: 10px 0; overflow: hidden; }
+  .food-meter-fill { height: 100%; background: var(--amber); border-radius: 5px; transition: width 0.3s; }
+
+  .food-log-item { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 0.5px solid var(--border); }
+  .food-log-item:last-child { border-bottom: none; }
+  .food-log-icon { width: 32px; height: 32px; background: var(--amber-light); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+
+  .notif { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--text); color: white; padding: 10px 20px; border-radius: 20px; font-size: 14px; font-weight: 500; z-index: 999; opacity: 0; transition: opacity 0.2s; pointer-events: none; max-width: 300px; text-align: center; }
+  .notif.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- NOTIFICATION TOAST -->
+<div class="notif" id="notif"></div>
+
+<!-- ======= SCREEN: HOME ======= -->
+<div class="screen active" id="screen-home">
+  <div class="hdr">
+    <div>
+      <div class="hdr-title" id="home-greeting">Good morning 🌅</div>
+      <div class="hdr-sub" id="home-date"></div>
+    </div>
+    <div id="home-avatar" style="width:40px;height:40px;border-radius:50%;background:var(--amber-light);border:2px solid var(--amber);display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;" onclick="goScreen('profile')">🐾</div>
+  </div>
+  <div class="scroll">
+    <div class="dog-hero" id="home-hero">
+      <div>
+        <div class="hdr-title" style="color:white;font-size:13px;opacity:0.85;font-weight:500;margin-bottom:4px;">YOUR DOG</div>
+        <h2 id="hero-name">Set up profile</h2>
+        <p id="hero-breed">Tap to add your dog's info</p>
+        <div class="dog-hero-stats">
+          <div class="dog-hero-stat">
+            <div class="val" id="hero-walks">0</div>
+            <div class="lbl">walks today</div>
+          </div>
+          <div class="dog-hero-stat">
+            <div class="val" id="hero-food">0%</div>
+            <div class="lbl">food given</div>
+          </div>
+          <div class="dog-hero-stat">
+            <div class="val" id="hero-steps">0</div>
+            <div class="lbl">steps today</div>
+          </div>
+        </div>
+      </div>
+      <div class="dog-hero-emoji" id="hero-emoji">🐕</div>
+    </div>
+
+    <div class="section-label">Quick log</div>
+    <div class="quick-row">
+      <div class="quick-card" onclick="openModal('modal-food')">
+        <div class="qc-icon" style="background:var(--amber-light);">🍖</div>
+        <div class="qc-label">Log meal</div>
+        <div class="qc-sub" id="qc-food-sub">No meals today</div>
+      </div>
+      <div class="quick-card" onclick="openModal('modal-walk')">
+        <div class="qc-icon" style="background:var(--teal-light);">🦮</div>
+        <div class="qc-label">Start walk</div>
+        <div class="qc-sub" id="qc-walk-sub">No walks today</div>
+      </div>
+      <div class="quick-card" onclick="goScreen('vet')">
+        <div class="qc-icon" style="background:var(--coral-light);">🏥</div>
+        <div class="qc-label">Vet record</div>
+        <div class="qc-sub">History & reminders</div>
+      </div>
+      <div class="quick-card" onclick="openModal('modal-poop')">
+        <div class="qc-icon" style="background:#F0F0F0;">💩</div>
+        <div class="qc-label">Bathroom</div>
+        <div class="qc-sub" id="qc-poop-sub">Log pipi/popo</div>
+      </div>
+    </div>
+
+    <div class="section-label">Recent activity</div>
+    <div class="card" style="padding:0;">
+      <div id="home-recent-list">
+        <div class="empty" style="padding:28px 24px;">
+          <div class="empty-icon">🐾</div>
+          <p>No activity yet today.<br>Log a walk or meal to get started!</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======= SCREEN: WALKS ======= -->
+<div class="screen" id="screen-walks">
+  <div class="hdr">
+    <div>
+      <div class="hdr-title">Walks</div>
+      <div class="hdr-sub" id="walks-count-label">0 walks logged</div>
+    </div>
+    <button class="hdr-btn" onclick="openModal('modal-walk')">+</button>
+  </div>
+  <div class="scroll">
+    <div class="pills" id="walks-filter-pills">
+      <div class="pill active" onclick="filterWalks('all', this)">All</div>
+      <div class="pill" onclick="filterWalks('today', this)">Today</div>
+      <div class="pill" onclick="filterWalks('week', this)">This week</div>
+    </div>
+
+    <div class="stat-row" style="margin-top:12px;">
+      <div class="stat-chip"><div class="sv" id="ws-total">0</div><div class="sl">Total walks</div></div>
+      <div class="stat-chip"><div class="sv" id="ws-steps">0</div><div class="sl">Avg steps</div></div>
+      <div class="stat-chip"><div class="sv" id="ws-friends">0</div><div class="sl">Friends met</div></div>
+    </div>
+
+    <div class="card" style="padding:0;" id="walks-list-card">
+      <div id="walks-list">
+        <div class="empty">
+          <div class="empty-icon">🦮</div>
+          <p>No walks logged yet.<br>Tap + to record your first walk!</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======= SCREEN: FOOD ======= -->
+<div class="screen" id="screen-food">
+  <div class="hdr">
+    <div>
+      <div class="hdr-title">Food tracker</div>
+      <div class="hdr-sub">Daily portions</div>
+    </div>
+    <button class="hdr-btn" onclick="openModal('modal-food')">+</button>
+  </div>
+  <div class="scroll">
+    <div class="card">
+      <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px;">Today's portions</div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;">
+        <span style="font-size:32px;font-weight:700;" id="food-today-g">0g</span>
+        <span style="font-size:14px;color:var(--text2);">/ <span id="food-target-g">300g</span> daily goal</span>
+      </div>
+      <div class="food-meter"><div class="food-meter-fill" id="food-meter-fill" style="width:0%"></div></div>
+      <div style="font-size:12px;color:var(--text2);" id="food-remaining-label">300g remaining today</div>
+    </div>
+
+    <div class="section-label">Meal history</div>
+    <div class="card" style="padding:0;">
+      <div id="food-log-list">
+        <div class="empty">
+          <div class="empty-icon">🍖</div>
+          <p>No meals logged yet.<br>Tap + to log a meal!</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======= SCREEN: VET ======= -->
+<div class="screen" id="screen-vet">
+  <div class="hdr">
+    <div>
+      <div class="hdr-title">Vet & Health</div>
+      <div class="hdr-sub">History, vaccines & meds</div>
+    </div>
+    <button class="hdr-btn" onclick="openModal('modal-vet-add')">+</button>
+  </div>
+  <div class="scroll">
+
+    <!-- Reminders -->
+    <div class="section-label">Upcoming reminders</div>
+    <div class="card" style="padding:0;" id="vet-reminders-card">
+      <div id="vet-reminders-list">
+        <div class="empty" style="padding:24px;">
+          <div class="empty-icon">🔔</div>
+          <p>No upcoming reminders.<br>Add a vet visit or medication!</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Medications -->
+    <div class="section-label">Current medications</div>
+    <div class="card" style="padding:0;" id="vet-meds-card">
+      <div id="vet-meds-list">
+        <div class="empty" style="padding:24px;">
+          <div class="empty-icon">💊</div>
+          <p>No medications logged.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vaccinations -->
+    <div class="section-label">Vaccinations</div>
+    <div class="card" style="padding:0;" id="vet-vaccines-card">
+      <div id="vet-vaccines-list">
+        <div class="empty" style="padding:24px;">
+          <div class="empty-icon">💉</div>
+          <p>No vaccinations recorded.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Checkups -->
+    <div class="section-label">Checkup history</div>
+    <div class="card" style="padding:0;" id="vet-checkups-card">
+      <div id="vet-checkups-list">
+        <div class="empty" style="padding:24px;">
+          <div class="empty-icon">📋</div>
+          <p>No checkups recorded.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======= SCREEN: PROFILE ======= -->
+<div class="screen" id="screen-profile">
+  <div class="hdr">
+    <div class="hdr-title">Profile</div>
+  </div>
+  <div class="scroll" id="profile-view">
+    <div class="profile-avatar" id="profile-emoji-display">🐕</div>
+    <div class="profile-name" id="profile-name-display">My Dog</div>
+    <div class="profile-sub" id="profile-sub-display">Tap Edit to set up your profile</div>
+
+    <div class="section-label">About</div>
+    <div class="card" style="padding:0;">
+      <div class="toggle-row" style="border-bottom:0.5px solid var(--border);">
+        <div>
+          <div class="toggle-label">Breed</div>
+          <div class="toggle-sub" id="p-breed">—</div>
+        </div>
+      </div>
+      <div class="toggle-row" style="border-bottom:0.5px solid var(--border);">
+        <div>
+          <div class="toggle-label">Age</div>
+          <div class="toggle-sub" id="p-age">—</div>
+        </div>
+      </div>
+      <div class="toggle-row" style="border-bottom:0.5px solid var(--border);">
+        <div>
+          <div class="toggle-label">Weight</div>
+          <div class="toggle-sub" id="p-weight">—</div>
+        </div>
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Daily food goal</div>
+          <div class="toggle-sub" id="p-food-goal">300g</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Vet info</div>
+    <div class="card" style="padding:0;">
+      <div class="toggle-row" style="border-bottom:0.5px solid var(--border);">
+        <div>
+          <div class="toggle-label">Vet name</div>
+          <div class="toggle-sub" id="p-vet">—</div>
+        </div>
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Vet phone</div>
+          <div class="toggle-sub" id="p-vet-phone">—</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:16px;"></div>
+    <button class="btn btn-primary" onclick="showProfileEdit()">Edit profile</button>
+    <div style="height:12px;"></div>
+    <button class="btn btn-secondary" onclick="clearAllData()" style="color:#FF3B30;">Clear all data</button>
+  </div>
+
+  <!-- Edit form (hidden initially) -->
+  <div id="profile-edit" style="display:none;">
+    <div style="text-align:center;margin:16px 0 8px;">
+      <div style="font-size:14px;color:var(--text2);">Pick an emoji</div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:10px;padding:0 16px;">
+        <span style="font-size:28px;cursor:pointer;" onclick="selectEmoji('🐕')">🐕</span>
+        <span style="font-size:28px;cursor:pointer;" onclick="selectEmoji('🐶')">🐶</span>
+        <span style="font-size:28px;cursor:pointer;" onclick="selectEmoji('🐩')">🐩</span>
+        <span style="font-size:28px;cursor:pointer;" onclick="selectEmoji('🦮')">🦮</span>
+        <span style="font-size:28px;cursor:pointer;" onclick="selectEmoji('🐾')">🐾</span>
+        <span style="font-size:28px;cursor:pointer;" onclick="selectEmoji('🦴')">🦴</span>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Dog's name</label>
+      <input class="form-input" id="p-edit-name" placeholder="e.g. Luna">
+    </div>
+    <div class="form-row">
+      <div>
+        <label class="form-label">Breed</label>
+        <input class="form-input" id="p-edit-breed" placeholder="e.g. Labrador">
+      </div>
+      <div>
+        <label class="form-label">Age</label>
+        <input class="form-input" id="p-edit-age" placeholder="e.g. 2 years">
+      </div>
+    </div>
+    <div class="form-row">
+      <div>
+        <label class="form-label">Weight (kg)</label>
+        <input class="form-input" type="number" id="p-edit-weight" placeholder="e.g. 12">
+      </div>
+      <div>
+        <label class="form-label">Daily food (g)</label>
+        <input class="form-input" type="number" id="p-edit-food-goal" placeholder="300">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Vet clinic name</label>
+      <input class="form-input" id="p-edit-vet" placeholder="e.g. Happy Paws Clinic">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Vet phone</label>
+      <input class="form-input" type="tel" id="p-edit-vet-phone" placeholder="+34 ...">
+    </div>
+    <button class="btn btn-primary" onclick="saveProfile()">Save profile</button>
+    <div style="height:8px;"></div>
+    <button class="btn btn-secondary" onclick="cancelProfileEdit()">Cancel</button>
+  </div>
+</div>
+
+<!-- ======================================================= -->
+<!-- MODALS -->
+<!-- ======================================================= -->
+
+<!-- WALK MODAL -->
+<div class="modal-overlay" id="modal-walk">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Log a walk 🦮</div>
+    <div class="map-ph">
+      <div class="map-icon">🗺️</div>
+      <div style="font-size:13px;font-weight:600;">GPS route tracking</div>
+      <div style="font-size:12px;opacity:0.7;">Works when app is installed on home screen</div>
+    </div>
+    <div class="form-row">
+      <div>
+        <label class="form-label">Duration (min)</label>
+        <input class="form-input" type="number" id="w-duration" placeholder="30">
+      </div>
+      <div>
+        <label class="form-label">Steps</label>
+        <input class="form-input" type="number" id="w-steps" placeholder="2500">
+      </div>
+    </div>
+    <div class="form-row">
+      <div>
+        <label class="form-label">Distance (km)</label>
+        <input class="form-input" type="number" step="0.1" id="w-distance" placeholder="1.5">
+      </div>
+      <div>
+        <label class="form-label">Time</label>
+        <input class="form-input" type="time" id="w-time">
+      </div>
+    </div>
+    <div class="card" style="padding:0;margin-bottom:14px;">
+      <div class="toggle-row" style="border-bottom:0.5px solid var(--border);">
+        <div>
+          <div class="toggle-label">💧 Did pipi?</div>
+        </div>
+        <label class="toggle"><input type="checkbox" id="w-pipi"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="toggle-row" style="border-bottom:0.5px solid var(--border);">
+        <div>
+          <div class="toggle-label">💩 Did popo?</div>
+        </div>
+        <label class="toggle"><input type="checkbox" id="w-popo"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">🐶 Made friends?</div>
+        </div>
+        <label class="toggle"><input type="checkbox" id="w-friends"><span class="toggle-slider"></span></label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notes</label>
+      <textarea class="form-input" id="w-notes" placeholder="How was the walk? Any highlights..."></textarea>
+    </div>
+    <button class="btn btn-primary" onclick="saveWalk()">Save walk</button>
+    <div style="height:8px;"></div>
+    <button class="btn btn-secondary" onclick="closeModal('modal-walk')">Cancel</button>
+    <div style="height:8px;"></div>
+  </div>
+</div>
+
+<!-- FOOD MODAL -->
+<div class="modal-overlay" id="modal-food">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Log a meal 🍖</div>
+    <div class="form-group">
+      <label class="form-label">Food type</label>
+      <select class="form-input" id="f-type">
+        <option>Dry kibble</option>
+        <option>Wet food</option>
+        <option>Raw food</option>
+        <option>Treat</option>
+        <option>Home cooked</option>
+        <option>Other</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <div>
+        <label class="form-label">Amount (g)</label>
+        <input class="form-input" type="number" id="f-amount" placeholder="150">
+      </div>
+      <div>
+        <label class="form-label">Time</label>
+        <input class="form-input" type="time" id="f-time">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Brand / notes</label>
+      <input class="form-input" id="f-notes" placeholder="e.g. Royal Canin Adult">
+    </div>
+    <button class="btn btn-primary" onclick="saveMeal()">Save meal</button>
+    <div style="height:8px;"></div>
+    <button class="btn btn-secondary" onclick="closeModal('modal-food')">Cancel</button>
+    <div style="height:8px;"></div>
+  </div>
+</div>
+
+<!-- POOP MODAL -->
+<div class="modal-overlay" id="modal-poop">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Bathroom log</div>
+    <div class="form-group">
+      <label class="form-label">Type</label>
+      <div style="display:flex;gap:10px;padding:0 0 4px;">
+        <button class="btn btn-secondary btn-sm" id="poop-pipi-btn" onclick="selectPoopType('pipi')" style="flex:1;border-color:var(--teal);">💧 Pipi</button>
+        <button class="btn btn-secondary btn-sm" id="poop-popo-btn" onclick="selectPoopType('popo')" style="flex:1;">💩 Popo</button>
+        <button class="btn btn-secondary btn-sm" id="poop-both-btn" onclick="selectPoopType('both')" style="flex:1;">Both</button>
+      </div>
+    </div>
+    <div class="form-row">
+      <div>
+        <label class="form-label">Time</label>
+        <input class="form-input" type="time" id="poop-time">
+      </div>
+      <div>
+        <label class="form-label">Consistency</label>
+        <select class="form-input" id="poop-consistency">
+          <option>Normal</option>
+          <option>Soft</option>
+          <option>Liquid</option>
+          <option>Hard</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notes</label>
+      <textarea class="form-input" id="poop-notes" placeholder="Any observations..." style="min-height:60px;"></textarea>
+    </div>
+    <button class="btn btn-primary" onclick="savePoop()">Save</button>
+    <div style="height:8px;"></div>
+    <button class="btn btn-secondary" onclick="closeModal('modal-poop')">Cancel</button>
+    <div style="height:8px;"></div>
+  </div>
+</div>
+
+<!-- VET ADD MODAL -->
+<div class="modal-overlay" id="modal-vet-add">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Add vet record</div>
+    <div class="form-group">
+      <label class="form-label">Type</label>
+      <select class="form-input" id="vet-type" onchange="updateVetForm()">
+        <option value="checkup">Checkup / visit</option>
+        <option value="vaccine">Vaccination</option>
+        <option value="reminder">Reminder</option>
+        <option value="medication">Medication</option>
+      </select>
+    </div>
+    <!-- Checkup fields -->
+    <div id="vet-checkup-fields">
+      <div class="form-group">
+        <label class="form-label">Reason / diagnosis</label>
+        <input class="form-input" id="vet-reason" placeholder="e.g. Annual checkup">
+      </div>
+      <div class="form-row">
+        <div>
+          <label class="form-label">Date</label>
+          <input class="form-input" type="date" id="vet-date">
+        </div>
+        <div>
+          <label class="form-label">Vet / clinic</label>
+          <input class="form-input" id="vet-clinic" placeholder="Clinic name">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes / treatment</label>
+        <textarea class="form-input" id="vet-notes" placeholder="Notes from the visit..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">📎 Attach PDF / document</label>
+        <input type="file" accept=".pdf,image/*" id="vet-file" class="form-input" style="padding:10px 14px;font-size:13px;">
+      </div>
+    </div>
+    <!-- Vaccine fields -->
+    <div id="vet-vaccine-fields" style="display:none;">
+      <div class="form-group">
+        <label class="form-label">Vaccine name</label>
+        <input class="form-input" id="v-name" placeholder="e.g. Rabies, Parvovirus">
+      </div>
+      <div class="form-row">
+        <div>
+          <label class="form-label">Date given</label>
+          <input class="form-input" type="date" id="v-date">
+        </div>
+        <div>
+          <label class="form-label">Next due</label>
+          <input class="form-input" type="date" id="v-next">
+        </div>
+      </div>
+    </div>
+    <!-- Reminder fields -->
+    <div id="vet-reminder-fields" style="display:none;">
+      <div class="form-group">
+        <label class="form-label">Reminder title</label>
+        <input class="form-input" id="r-title" placeholder="e.g. Annual checkup due">
+      </div>
+      <div class="form-row">
+        <div>
+          <label class="form-label">Date</label>
+          <input class="form-input" type="date" id="r-date">
+        </div>
+        <div>
+          <label class="form-label">Priority</label>
+          <select class="form-input" id="r-priority">
+            <option>Low</option>
+            <option>Medium</option>
+            <option>High</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <!-- Medication fields -->
+    <div id="vet-med-fields" style="display:none;">
+      <div class="form-group">
+        <label class="form-label">Medication name</label>
+        <input class="form-input" id="m-name" placeholder="e.g. Bravecto, Milbemax">
+      </div>
+      <div class="form-row">
+        <div>
+          <label class="form-label">Dose</label>
+          <input class="form-input" id="m-dose" placeholder="e.g. 1 tablet">
+        </div>
+        <div>
+          <label class="form-label">Frequency</label>
+          <select class="form-input" id="m-freq">
+            <option>Daily</option>
+            <option>Every 2 days</option>
+            <option>Weekly</option>
+            <option>Monthly</option>
+            <option>Every 3 months</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label class="form-label">Start date</label>
+          <input class="form-input" type="date" id="m-start">
+        </div>
+        <div>
+          <label class="form-label">End date</label>
+          <input class="form-input" type="date" id="m-end">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <input class="form-input" id="m-notes" placeholder="e.g. Give with food">
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="saveVetRecord()">Save record</button>
+    <div style="height:8px;"></div>
+    <button class="btn btn-secondary" onclick="closeModal('modal-vet-add')">Cancel</button>
+    <div style="height:8px;"></div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="nav">
+  <button class="nav-item active" id="nav-home" onclick="goScreen('home')">
+    <span class="nav-icon">🏠</span>
+    <span>Home</span>
+  </button>
+  <button class="nav-item" id="nav-walks" onclick="goScreen('walks')">
+    <span class="nav-icon">🦮</span>
+    <span>Walks</span>
+  </button>
+  <button class="nav-item" id="nav-food" onclick="goScreen('food')">
+    <span class="nav-icon">🍖</span>
+    <span>Food</span>
+  </button>
+  <button class="nav-item" id="nav-vet" onclick="goScreen('vet')">
+    <span class="nav-icon">🏥</span>
+    <span>Vet</span>
+  </button>
+  <button class="nav-item" id="nav-profile" onclick="goScreen('profile')">
+    <span class="nav-icon">🐾</span>
+    <span>Profile</span>
+  </button>
+</nav>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+let db = {
+  profile: { name: '', breed: '', age: '', weight: '', foodGoal: 300, vet: '', vetPhone: '', emoji: '🐕' },
+  walks: [],
+  meals: [],
+  bathroom: [],
+  vetRecords: { checkups: [], vaccines: [], reminders: [], medications: [] }
+};
+
+function load() {
+  try { const d = localStorage.getItem('pawpal'); if(d) db = JSON.parse(d); } catch(e){}
+}
+function save() {
+  try { localStorage.setItem('pawpal', JSON.stringify(db)); } catch(e){}
+}
+load();
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+let currentScreen = 'home';
+function goScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const nav = document.getElementById('nav-' + id);
+  if(nav) nav.classList.add('active');
+  currentScreen = id;
+  if(id === 'home') renderHome();
+  if(id === 'walks') renderWalks('all');
+  if(id === 'food') renderFood();
+  if(id === 'vet') renderVet();
+  if(id === 'profile') renderProfile();
+  window.scrollTo(0, 0);
+}
+
+// ============================================================
+// MODALS
+// ============================================================
+function openModal(id) {
+  const m = document.getElementById(id);
+  m.classList.add('open');
+  // Set default times
+  const now = new Date();
+  const timeStr = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+  const dateStr = now.toISOString().split('T')[0];
+  m.querySelectorAll('input[type=time]').forEach(i => i.value = timeStr);
+  m.querySelectorAll('input[type=date]').forEach(i => { if(!i.value) i.value = dateStr; });
+  // Vet type reset
+  if(id === 'modal-vet-add') { document.getElementById('vet-type').value = 'checkup'; updateVetForm(); }
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if(e.target === o) o.classList.remove('open'); });
+});
+
+// ============================================================
+// TOAST
+// ============================================================
+function toast(msg) {
+  const n = document.getElementById('notif');
+  n.textContent = msg;
+  n.classList.add('show');
+  setTimeout(() => n.classList.remove('show'), 2200);
+}
+
+// ============================================================
+// HOME
+// ============================================================
+function renderHome() {
+  const p = db.profile;
+  document.getElementById('hero-name').textContent = p.name || 'Set up profile';
+  document.getElementById('hero-breed').textContent = p.breed ? (p.breed + (p.age ? ', ' + p.age : '')) : 'Tap Profile to add your dog\'s info';
+  document.getElementById('hero-emoji').textContent = p.emoji || '🐕';
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayWalks = db.walks.filter(w => w.date === todayStr);
+  const todayMeals = db.meals.filter(m => m.date === todayStr);
+  const todaySteps = todayWalks.reduce((a,w) => a + (parseInt(w.steps)||0), 0);
+  const todayFood = todayMeals.reduce((a,m) => a + (parseInt(m.amount)||0), 0);
+  const goal = p.foodGoal || 300;
+  const foodPct = Math.min(100, Math.round((todayFood/goal)*100));
+
+  document.getElementById('hero-walks').textContent = todayWalks.length;
+  document.getElementById('hero-food').textContent = foodPct + '%';
+  document.getElementById('hero-steps').textContent = todaySteps > 999 ? (todaySteps/1000).toFixed(1)+'k' : todaySteps;
+  document.getElementById('qc-walk-sub').textContent = todayWalks.length ? todayWalks.length + ' walk' + (todayWalks.length>1?'s':'') + ' today' : 'No walks today';
+  document.getElementById('qc-food-sub').textContent = todayMeals.length ? todayMeals.length + ' meal' + (todayMeals.length>1?'s':'') + ' today' : 'No meals today';
+
+  // Recent activity (last 5 events)
+  const all = [];
+  db.walks.forEach(w => all.push({...w, kind:'walk'}));
+  db.meals.forEach(m => all.push({...m, kind:'meal'}));
+  db.bathroom.forEach(b => all.push({...b, kind:'bath'}));
+  all.sort((a,b) => new Date(b.created||b.date) - new Date(a.created||a.date));
+  const recent = all.slice(0, 5);
+  const el = document.getElementById('home-recent-list');
+  if(!recent.length) {
+    el.innerHTML = '<div class="empty" style="padding:28px 24px;"><div class="empty-icon">🐾</div><p>No activity yet today.<br>Log a walk or meal to get started!</p></div>';
+    return;
+  }
+  el.innerHTML = recent.map(item => {
+    if(item.kind === 'walk') return `<div class="log-item"><div class="log-dot" style="background:var(--teal-light);">🦮</div><div class="log-info"><div class="log-title">Walk — ${item.duration||'?'} min${item.steps?' · '+item.steps+' steps':''}</div><div class="log-meta">${fmtDate(item.date)} ${item.time||''} ${item.friends?'· 🐶 Made friends':''}</div></div></div>`;
+    if(item.kind === 'meal') return `<div class="log-item"><div class="log-dot" style="background:var(--amber-light);">🍖</div><div class="log-info"><div class="log-title">${item.type} — ${item.amount}g</div><div class="log-meta">${fmtDate(item.date)} ${item.time||''}</div></div></div>`;
+    if(item.kind === 'bath') return `<div class="log-item"><div class="log-dot" style="background:#F0F0F0;">${item.type==='pipi'?'💧':'💩'}</div><div class="log-info"><div class="log-title">${item.type === 'pipi' ? 'Pipi' : item.type === 'popo' ? 'Popo' : 'Pipi & Popo'}</div><div class="log-meta">${fmtDate(item.date)} ${item.time||''}</div></div></div>`;
+    return '';
+  }).join('');
+
+  // Greeting
+  const h = new Date().getHours();
+  const g = h < 12 ? 'Good morning 🌅' : h < 18 ? 'Good afternoon ☀️' : 'Good evening 🌙';
+  document.getElementById('home-greeting').textContent = g;
+  document.getElementById('home-date').textContent = new Date().toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'});
+}
+
+// ============================================================
+// WALKS
+// ============================================================
+let walksFilter = 'all';
+function filterWalks(f, el) {
+  walksFilter = f;
+  document.querySelectorAll('#walks-filter-pills .pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  renderWalks(f);
+}
+function renderWalks(filter) {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate()-7);
+  let walks = [...db.walks].sort((a,b) => new Date(b.created||b.date) - new Date(a.created||a.date));
+  if(filter === 'today') walks = walks.filter(w => w.date === todayStr);
+  if(filter === 'week') walks = walks.filter(w => new Date(w.date) >= weekAgo);
+
+  document.getElementById('walks-count-label').textContent = walks.length + ' walk' + (walks.length!==1?'s':'') + ' logged';
+  document.getElementById('ws-total').textContent = db.walks.length;
+  const avgSteps = db.walks.length ? Math.round(db.walks.reduce((a,w)=>a+(parseInt(w.steps)||0),0)/db.walks.length) : 0;
+  document.getElementById('ws-steps').textContent = avgSteps > 999 ? (avgSteps/1000).toFixed(1)+'k' : avgSteps;
+  document.getElementById('ws-friends').textContent = db.walks.filter(w=>w.friends).length;
+
+  const el = document.getElementById('walks-list');
+  if(!walks.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">🦮</div><p>No walks logged yet.<br>Tap + to record your first walk!</p></div>';
+    return;
+  }
+  el.innerHTML = walks.map((w,i) => `
+    <div class="log-item">
+      <div class="log-dot" style="background:var(--teal-light);">🦮</div>
+      <div class="log-info">
+        <div class="log-title">${fmtDate(w.date)}${w.time?' at '+w.time:''}</div>
+        <div class="log-meta">
+          ${w.duration?w.duration+' min':''}
+          ${w.steps?' · '+w.steps+' steps':''}
+          ${w.distance?' · '+w.distance+'km':''}
+        </div>
+        <div style="display:flex;gap:6px;margin-top:5px;flex-wrap:wrap;">
+          ${w.pipi?'<span class="log-badge" style="background:#E3F2FD;color:#1565C0;">💧 pipi</span>':''}
+          ${w.popo?'<span class="log-badge" style="background:#FFF3E0;color:#E65100;">💩 popo</span>':''}
+          ${w.friends?'<span class="log-badge" style="background:var(--amber-light);color:var(--amber-dark);">🐶 friends</span>':''}
+        </div>
+        ${w.notes?`<div style="font-size:12px;color:var(--text2);margin-top:4px;">${w.notes}</div>`:''}
+      </div>
+      <button onclick="deleteWalk(${i})" style="border:none;background:none;color:var(--text3);cursor:pointer;font-size:18px;padding:4px;">×</button>
+    </div>`).join('');
+}
+function saveWalk() {
+  const d = {
+    date: new Date().toISOString().split('T')[0],
+    time: document.getElementById('w-time').value,
+    duration: document.getElementById('w-duration').value,
+    steps: document.getElementById('w-steps').value,
+    distance: document.getElementById('w-distance').value,
+    pipi: document.getElementById('w-pipi').checked,
+    popo: document.getElementById('w-popo').checked,
+    friends: document.getElementById('w-friends').checked,
+    notes: document.getElementById('w-notes').value,
+    created: new Date().toISOString()
+  };
+  db.walks.push(d);
+  save();
+  closeModal('modal-walk');
+  toast('Walk saved! 🦮');
+  ['w-duration','w-steps','w-distance','w-notes'].forEach(id => document.getElementById(id).value='');
+  ['w-pipi','w-popo','w-friends'].forEach(id => document.getElementById(id).checked=false);
+  if(currentScreen==='home') renderHome();
+  if(currentScreen==='walks') renderWalks(walksFilter);
+}
+function deleteWalk(idx) {
+  if(!confirm('Delete this walk?')) return;
+  db.walks.splice(idx, 1); save();
+  renderWalks(walksFilter);
+  toast('Walk deleted');
+}
+
+// ============================================================
+// FOOD
+// ============================================================
+function renderFood() {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const meals = db.meals.filter(m => m.date === todayStr).sort((a,b) => b.created - a.created);
+  const total = meals.reduce((a,m) => a + (parseInt(m.amount)||0), 0);
+  const goal = db.profile.foodGoal || 300;
+  const pct = Math.min(100, Math.round((total/goal)*100));
+
+  document.getElementById('food-today-g').textContent = total + 'g';
+  document.getElementById('food-target-g').textContent = goal + 'g';
+  document.getElementById('food-meter-fill').style.width = pct + '%';
+  document.getElementById('food-meter-fill').style.background = pct >= 100 ? 'var(--coral)' : 'var(--amber)';
+  document.getElementById('food-remaining-label').textContent = total >= goal ? '✓ Daily goal reached!' : (goal-total) + 'g remaining today';
+
+  const allMeals = [...db.meals].sort((a,b) => new Date(b.created||b.date) - new Date(a.created||a.date));
+  const el = document.getElementById('food-log-list');
+  if(!allMeals.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">🍖</div><p>No meals logged yet.<br>Tap + to log a meal!</p></div>';
+    return;
+  }
+  el.innerHTML = allMeals.map((m,i) => `
+    <div class="food-log-item">
+      <div class="food-log-icon">🍖</div>
+      <div style="flex:1;">
+        <div style="font-size:14px;font-weight:600;">${m.type} — ${m.amount}g</div>
+        <div style="font-size:12px;color:var(--text2);">${fmtDate(m.date)}${m.time?' at '+m.time:''} ${m.notes?'· '+m.notes:''}</div>
+      </div>
+      <button onclick="deleteMeal(${i})" style="border:none;background:none;color:var(--text3);cursor:pointer;font-size:18px;padding:4px;">×</button>
+    </div>`).join('');
+}
+function saveMeal() {
+  const amount = document.getElementById('f-amount').value;
+  if(!amount) { toast('Enter an amount'); return; }
+  const d = {
+    date: new Date().toISOString().split('T')[0],
+    time: document.getElementById('f-time').value,
+    type: document.getElementById('f-type').value,
+    amount: parseInt(amount),
+    notes: document.getElementById('f-notes').value,
+    created: new Date().toISOString()
+  };
+  db.meals.push(d);
+  save();
+  closeModal('modal-food');
+  toast('Meal logged! 🍖');
+  document.getElementById('f-amount').value='';
+  document.getElementById('f-notes').value='';
+  if(currentScreen==='home') renderHome();
+  if(currentScreen==='food') renderFood();
+}
+function deleteMeal(idx) {
+  if(!confirm('Delete this meal?')) return;
+  db.meals.splice(idx, 1); save();
+  renderFood();
+  toast('Meal deleted');
+}
+
+// ============================================================
+// BATHROOM
+// ============================================================
+let selectedPoopType = 'pipi';
+function selectPoopType(t) {
+  selectedPoopType = t;
+  ['pipi','popo','both'].forEach(x => {
+    document.getElementById('poop-'+x+'-btn').style.background = x===t ? 'var(--teal)' : '';
+    document.getElementById('poop-'+x+'-btn').style.color = x===t ? 'white' : '';
+    document.getElementById('poop-'+x+'-btn').style.borderColor = x===t ? 'var(--teal)' : '';
+  });
+}
+selectPoopType('pipi');
+function savePoop() {
+  const d = {
+    date: new Date().toISOString().split('T')[0],
+    time: document.getElementById('poop-time').value,
+    type: selectedPoopType,
+    consistency: document.getElementById('poop-consistency').value,
+    notes: document.getElementById('poop-notes').value,
+    created: new Date().toISOString()
+  };
+  db.bathroom.push(d);
+  save();
+  closeModal('modal-poop');
+  toast('Logged! 👍');
+  document.getElementById('poop-notes').value='';
+  if(currentScreen==='home') renderHome();
+}
+
+// ============================================================
+// VET
+// ============================================================
+function updateVetForm() {
+  const t = document.getElementById('vet-type').value;
+  ['checkup-fields','vaccine-fields','reminder-fields','med-fields'].forEach(id => {
+    document.getElementById('vet-'+id).style.display = 'none';
+  });
+  const map = {checkup:'checkup-fields', vaccine:'vaccine-fields', reminder:'reminder-fields', medication:'med-fields'};
+  document.getElementById('vet-'+map[t]).style.display = 'block';
+}
+function saveVetRecord() {
+  const t = document.getElementById('vet-type').value;
+  if(t === 'checkup') {
+    db.vetRecords.checkups.push({
+      reason: document.getElementById('vet-reason').value || 'Visit',
+      date: document.getElementById('vet-date').value,
+      clinic: document.getElementById('vet-clinic').value,
+      notes: document.getElementById('vet-notes').value,
+      hasFile: document.getElementById('vet-file').files.length > 0,
+      fileName: document.getElementById('vet-file').files[0]?.name || '',
+      created: new Date().toISOString()
+    });
+  } else if(t === 'vaccine') {
+    const name = document.getElementById('v-name').value;
+    if(!name) { toast('Enter a vaccine name'); return; }
+    db.vetRecords.vaccines.push({
+      name, date: document.getElementById('v-date').value,
+      nextDue: document.getElementById('v-next').value,
+      created: new Date().toISOString()
+    });
+    // Add reminder if next due set
+    if(document.getElementById('v-next').value) {
+      db.vetRecords.reminders.push({
+        title: name + ' booster due',
+        date: document.getElementById('v-next').value,
+        priority: 'High', created: new Date().toISOString()
+      });
+    }
+  } else if(t === 'reminder') {
+    const title = document.getElementById('r-title').value;
+    if(!title) { toast('Enter a reminder title'); return; }
+    db.vetRecords.reminders.push({
+      title, date: document.getElementById('r-date').value,
+      priority: document.getElementById('r-priority').value,
+      created: new Date().toISOString()
+    });
+  } else if(t === 'medication') {
+    const name = document.getElementById('m-name').value;
+    if(!name) { toast('Enter a medication name'); return; }
+    db.vetRecords.medications.push({
+      name, dose: document.getElementById('m-dose').value,
+      freq: document.getElementById('m-freq').value,
+      start: document.getElementById('m-start').value,
+      end: document.getElementById('m-end').value,
+      notes: document.getElementById('m-notes').value,
+      created: new Date().toISOString()
+    });
+  }
+  save();
+  closeModal('modal-vet-add');
+  toast('Record saved! 📋');
+  renderVet();
+}
+function renderVet() {
+  // Reminders
+  const reminders = [...db.vetRecords.reminders].sort((a,b) => new Date(a.date) - new Date(b.date));
+  const rEl = document.getElementById('vet-reminders-list');
+  if(!reminders.length) {
+    rEl.innerHTML = '<div class="empty" style="padding:24px;"><div class="empty-icon">🔔</div><p>No upcoming reminders.</p></div>';
+  } else {
+    const priorityColor = {High:'#FF3B30', Medium:'var(--amber)', Low:'var(--teal)'};
+    rEl.innerHTML = reminders.map((r,i) => `
+      <div class="reminder-item">
+        <div class="reminder-dot" style="background:${priorityColor[r.priority]||'var(--teal)'};"></div>
+        <div class="reminder-info">
+          <div class="reminder-title">${r.title}</div>
+          <div class="reminder-date">${r.date ? fmtDate(r.date) : 'No date set'} · ${r.priority||'Medium'} priority</div>
+        </div>
+        <button onclick="deleteVetItem('reminders',${i})" style="border:none;background:none;color:var(--text3);cursor:pointer;font-size:18px;">×</button>
+      </div>`).join('');
+  }
+
+  // Medications
+  const meds = db.vetRecords.medications;
+  const mEl = document.getElementById('vet-meds-list');
+  if(!meds.length) {
+    mEl.innerHTML = '<div class="empty" style="padding:24px;"><div class="empty-icon">💊</div><p>No medications logged.</p></div>';
+  } else {
+    mEl.innerHTML = meds.map((m,i) => `
+      <div class="med-item">
+        <div class="med-icon">💊</div>
+        <div class="med-info">
+          <div class="med-name">${m.name}</div>
+          <div class="med-detail">${m.dose||''} ${m.freq?'· '+m.freq:''} ${m.notes?'· '+m.notes:''}</div>
+          ${m.end?`<div class="med-detail" style="color:var(--teal-dark);">Until ${fmtDate(m.end)}</div>`:''}
+        </div>
+        <button onclick="deleteVetItem('medications',${i})" style="border:none;background:none;color:var(--text3);cursor:pointer;font-size:18px;">×</button>
+      </div>`).join('');
+  }
+
+  // Vaccines
+  const vax = [...db.vetRecords.vaccines].sort((a,b) => new Date(b.date) - new Date(a.date));
+  const vEl = document.getElementById('vet-vaccines-list');
+  if(!vax.length) {
+    vEl.innerHTML = '<div class="empty" style="padding:24px;"><div class="empty-icon">💉</div><p>No vaccinations recorded.</p></div>';
+  } else {
+    vEl.innerHTML = vax.map((v,i) => `
+      <div class="log-item">
+        <div class="log-dot" style="background:var(--purple-light);">💉</div>
+        <div class="log-info">
+          <div class="log-title">${v.name}</div>
+          <div class="log-meta">${v.date?'Given '+fmtDate(v.date):''}${v.nextDue?' · Next: '+fmtDate(v.nextDue):''}</div>
+        </div>
+        <button onclick="deleteVetItem('vaccines',${i})" style="border:none;background:none;color:var(--text3);cursor:pointer;font-size:18px;">×</button>
+      </div>`).join('');
+  }
+
+  // Checkups
+  const checks = [...db.vetRecords.checkups].sort((a,b) => new Date(b.date) - new Date(a.date));
+  const cEl = document.getElementById('vet-checkups-list');
+  if(!checks.length) {
+    cEl.innerHTML = '<div class="empty" style="padding:24px;"><div class="empty-icon">📋</div><p>No checkups recorded.</p></div>';
+  } else {
+    cEl.innerHTML = checks.map((c,i) => `
+      <div class="log-item">
+        <div class="log-dot" style="background:var(--coral-light);">📋</div>
+        <div class="log-info">
+          <div class="log-title">${c.reason}</div>
+          <div class="log-meta">${c.date?fmtDate(c.date):''}${c.clinic?' · '+c.clinic:''}</div>
+          ${c.notes?`<div style="font-size:12px;color:var(--text2);margin-top:3px;">${c.notes}</div>`:''}
+          ${c.hasFile?`<div style="font-size:12px;color:var(--teal-dark);margin-top:3px;">📎 ${c.fileName}</div>`:''}
+        </div>
+        <button onclick="deleteVetItem('checkups',${i})" style="border:none;background:none;color:var(--text3);cursor:pointer;font-size:18px;">×</button>
+      </div>`).join('');
+  }
+}
+function deleteVetItem(collection, idx) {
+  if(!confirm('Delete this record?')) return;
+  db.vetRecords[collection].splice(idx, 1); save();
+  renderVet();
+  toast('Deleted');
+}
+
+// ============================================================
+// PROFILE
+// ============================================================
+let selectedEmoji = '🐕';
+function selectEmoji(e) {
+  selectedEmoji = e;
+  toast(e + ' selected!');
+}
+function showProfileEdit() {
+  document.getElementById('profile-view').style.display = 'none';
+  document.getElementById('profile-edit').style.display = 'block';
+  const p = db.profile;
+  document.getElementById('p-edit-name').value = p.name || '';
+  document.getElementById('p-edit-breed').value = p.breed || '';
+  document.getElementById('p-edit-age').value = p.age || '';
+  document.getElementById('p-edit-weight').value = p.weight || '';
+  document.getElementById('p-edit-food-goal').value = p.foodGoal || 300;
+  document.getElementById('p-edit-vet').value = p.vet || '';
+  document.getElementById('p-edit-vet-phone').value = p.vetPhone || '';
+  selectedEmoji = p.emoji || '🐕';
+}
+function cancelProfileEdit() {
+  document.getElementById('profile-view').style.display = 'block';
+  document.getElementById('profile-edit').style.display = 'none';
+}
+function saveProfile() {
+  db.profile = {
+    name: document.getElementById('p-edit-name').value,
+    breed: document.getElementById('p-edit-breed').value,
+    age: document.getElementById('p-edit-age').value,
+    weight: document.getElementById('p-edit-weight').value,
+    foodGoal: parseInt(document.getElementById('p-edit-food-goal').value) || 300,
+    vet: document.getElementById('p-edit-vet').value,
+    vetPhone: document.getElementById('p-edit-vet-phone').value,
+    emoji: selectedEmoji
+  };
+  save();
+  cancelProfileEdit();
+  renderProfile();
+  toast('Profile saved! 🐾');
+}
+function renderProfile() {
+  const p = db.profile;
+  document.getElementById('profile-emoji-display').textContent = p.emoji || '🐕';
+  document.getElementById('profile-name-display').textContent = p.name || 'My Dog';
+  const parts = [];
+  if(p.breed) parts.push(p.breed);
+  if(p.age) parts.push(p.age);
+  if(p.weight) parts.push(p.weight + 'kg');
+  document.getElementById('profile-sub-display').textContent = parts.join(' · ') || 'Tap Edit to set up your profile';
+  document.getElementById('p-breed').textContent = p.breed || '—';
+  document.getElementById('p-age').textContent = p.age || '—';
+  document.getElementById('p-weight').textContent = p.weight ? p.weight + ' kg' : '—';
+  document.getElementById('p-food-goal').textContent = (p.foodGoal || 300) + 'g / day';
+  document.getElementById('p-vet').textContent = p.vet || '—';
+  document.getElementById('p-vet-phone').textContent = p.vetPhone || '—';
+}
+function clearAllData() {
+  if(!confirm('Clear ALL data? This cannot be undone.')) return;
+  db = { profile:{name:'',breed:'',age:'',weight:'',foodGoal:300,vet:'',vetPhone:'',emoji:'🐕'}, walks:[], meals:[], bathroom:[], vetRecords:{checkups:[],vaccines:[],reminders:[],medications:[]} };
+  save();
+  toast('All data cleared');
+  renderProfile();
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function fmtDate(d) {
+  if(!d) return '';
+  const dt = new Date(d + 'T12:00:00');
+  const today = new Date().toISOString().split('T')[0];
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+  if(d === today) return 'Today';
+  if(d === yesterday) return 'Yesterday';
+  return dt.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+}
+
+// ============================================================
+// INIT
+// ============================================================
+renderHome();
+renderProfile();
+</script>
+</body>
+</html>
