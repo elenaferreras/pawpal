@@ -167,6 +167,10 @@ if('serviceWorker' in navigator) {
   .av-thumb img { width:100%; height:100%; object-fit:contain; }
   .av-colour-swatch { width:100%; aspect-ratio:1; border-radius:12px; }
   @keyframes pulse { 0%,100%{opacity:0} 50%{opacity:1} }
+  .med-freq-opt { padding:10px 8px; border-radius:var(--radius-sm); border:1.5px solid var(--border-strong); background:var(--surface); font-size:13px; font-weight:600; cursor:pointer; color:var(--text2); text-align:center; transition:all 0.15s; }
+  .med-freq-opt.selected { background:var(--text); color:white; border-color:var(--text); }
+  .med-days-preset { padding:6px 14px; border-radius:var(--radius-pill); border:1.5px solid var(--border-strong); background:var(--surface); font-size:12px; font-weight:600; cursor:pointer; color:var(--text2); transition:all 0.15s; }
+  .med-days-preset:active { background:var(--amber-light); border-color:var(--amber); color:var(--amber); }
   .notif { position:fixed; top:24px; left:50%; transform:translateX(-50%); background:var(--text); color:white; padding:11px 22px; border-radius:var(--radius-pill); font-size:14px; font-weight:600; z-index:999; opacity:0; transition:opacity 0.2s; pointer-events:none; max-width:300px; text-align:center; }
   .notif.show { opacity:1; }
 </style>
@@ -486,6 +490,31 @@ if('serviceWorker' in navigator) {
 
     <div style="margin-top:16px;"></div>
     <button class="btn btn-primary" onclick="showProfileEdit()">Edit profile</button>
+
+    <div class="section-label">Data</div>
+    <div class="card" style="padding:0;">
+      <div class="toggle-row" style="border-bottom:0.5px solid var(--border);cursor:pointer;" onclick="exportJSON()">
+        <div>
+          <div class="toggle-label"><i class="ph ph-file-arrow-down" style="margin-right:6px;"></i>Export as JSON</div>
+          <div class="toggle-sub">Full backup of all your data</div>
+        </div>
+        <i class="ph ph-caret-right" style="color:var(--text3);"></i>
+      </div>
+      <div class="toggle-row" style="border-bottom:0.5px solid var(--border);cursor:pointer;" onclick="exportCSV()">
+        <div>
+          <div class="toggle-label"><i class="ph ph-table" style="margin-right:6px;"></i>Export walks as CSV</div>
+          <div class="toggle-sub">Open in Excel or Google Sheets</div>
+        </div>
+        <i class="ph ph-caret-right" style="color:var(--text3);"></i>
+      </div>
+      <div class="toggle-row" style="cursor:pointer;" onclick="openModal('modal-supabase');updateSupabaseUI()">
+        <div>
+          <div class="toggle-label"><i class="ph ph-cloud-arrow-up" style="margin-right:6px;"></i>Supabase sync</div>
+          <div class="toggle-sub" id="supabase-status-label">Not connected</div>
+        </div>
+        <i class="ph ph-caret-right" style="color:var(--text3);"></i>
+      </div>
+    </div>
     <div class="section-label">Notifications</div>
     <div class="card" style="padding:0;" id="notif-settings-card">
       <div class="toggle-row" style="border-bottom:0.5px solid var(--border);">
@@ -1033,40 +1062,121 @@ if('serviceWorker' in navigator) {
         <label class="form-label">Medication name</label>
         <input class="form-input" id="m-name" placeholder="e.g. Bravecto, Milbemax">
       </div>
-      <div class="form-row">
-        <div>
-          <label class="form-label">Dose</label>
-          <input class="form-input" id="m-dose" placeholder="e.g. 1 tablet">
-        </div>
-        <div>
-          <label class="form-label">Frequency</label>
-          <select class="form-input" id="m-freq">
-            <option>Daily</option>
-            <option>Every 2 days</option>
-            <option>Weekly</option>
-            <option>Monthly</option>
-            <option>Every 3 months</option>
-          </select>
-        </div>
+      <div class="form-group">
+        <label class="form-label">Dose</label>
+        <input class="form-input" id="m-dose" placeholder="e.g. 1 tablet, 5ml">
       </div>
-      <div class="form-row">
-        <div>
-          <label class="form-label">Start date</label>
-          <input class="form-input" type="date" id="m-start">
-        </div>
-        <div>
-          <label class="form-label">End date</label>
-          <input class="form-input" type="date" id="m-end">
+      <div class="form-group">
+        <label class="form-label">How often?</label>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;" id="m-freq-grid">
+          <div class="med-freq-opt selected" data-freq="Once a day" onclick="selectMedFreq(this)">Once a day</div>
+          <div class="med-freq-opt" data-freq="Twice a day" onclick="selectMedFreq(this)">Twice a day</div>
+          <div class="med-freq-opt" data-freq="3× a day" onclick="selectMedFreq(this)">3× a day</div>
+          <div class="med-freq-opt" data-freq="Every 2 days" onclick="selectMedFreq(this)">Every 2 days</div>
+          <div class="med-freq-opt" data-freq="Weekly" onclick="selectMedFreq(this)">Weekly</div>
+          <div class="med-freq-opt" data-freq="Monthly" onclick="selectMedFreq(this)">Monthly</div>
         </div>
       </div>
       <div class="form-group">
+        <label class="form-label">For how many days?</label>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button onclick="stepMedDays(-1)" style="width:40px;height:40px;border-radius:50%;border:1.5px solid var(--border-strong);background:var(--surface);font-size:22px;font-weight:300;cursor:pointer;display:flex;align-items:center;justify-content:center;">−</button>
+          <div style="flex:1;text-align:center;">
+            <span id="m-days-num" style="font-size:36px;font-weight:900;letter-spacing:-1px;">7</span>
+            <span style="font-size:14px;font-weight:500;color:var(--text2);margin-left:4px;">days</span>
+          </div>
+          <button onclick="stepMedDays(1)" style="width:40px;height:40px;border-radius:50%;border:none;background:var(--text);color:white;font-size:22px;font-weight:300;cursor:pointer;display:flex;align-items:center;justify-content:center;">+</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+          <div class="med-days-preset" onclick="setMedDays(3)">3 days</div>
+          <div class="med-days-preset" onclick="setMedDays(5)">5 days</div>
+          <div class="med-days-preset" onclick="setMedDays(7)">1 week</div>
+          <div class="med-days-preset" onclick="setMedDays(14)">2 weeks</div>
+          <div class="med-days-preset" onclick="setMedDays(30)">1 month</div>
+          <div class="med-days-preset" onclick="setMedDays(0)">Ongoing</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Start date</label>
+        <input class="form-input" type="date" id="m-start" onchange="updateMedEndDate()">
+      </div>
+      <!-- Auto-calculated schedule summary -->
+      <div id="m-schedule-summary" style="background:var(--amber-light);border-radius:var(--radius-sm);padding:14px 16px;margin:0 18px 16px;display:none;">
+        <div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.4px;">Schedule</div>
+        <div id="m-schedule-text" style="font-size:14px;font-weight:600;color:var(--text);line-height:1.5;"></div>
+        <div id="m-schedule-doses" style="font-size:12px;color:var(--text2);margin-top:4px;"></div>
+      </div>
+      <div class="form-group">
         <label class="form-label">Notes</label>
-        <input class="form-input" id="m-notes" placeholder="e.g. Give with food">
+        <input class="form-input" id="m-notes" placeholder="e.g. Give with food, before meals">
       </div>
     </div>
     <button class="btn btn-primary" onclick="saveVetRecord()">Save record</button>
     <div style="height:8px;"></div>
     <button class="btn btn-secondary" onclick="closeModal('modal-vet-add')">Cancel</button>
+    <div style="height:8px;"></div>
+  </div>
+</div>
+
+<!-- SUPABASE MODAL -->
+<div class="modal-overlay" id="modal-supabase">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Supabase sync</div>
+
+    <div id="supabase-connected-view" style="display:none;padding:0 16px 8px;">
+      <div style="background:var(--green-light);border-radius:var(--radius-sm);padding:14px;margin-bottom:16px;display:flex;align-items:center;gap:10px;">
+        <i class="ph ph-check-circle" style="color:var(--green);font-size:22px;"></i>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--green);">Connected — syncing automatically</div>
+          <div style="font-size:12px;color:var(--green);opacity:0.8;" id="supabase-project-label">—</div>
+        </div>
+      </div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.5;">
+        Every time you log data it syncs to Supabase in the background. No manual push needed.
+      </div>
+      <div style="font-size:12px;color:var(--text3);text-align:center;margin-bottom:16px;" id="supabase-last-sync">Never synced</div>
+      <button class="btn btn-secondary" onclick="syncFromSupabase()" style="margin:0 0 10px;">
+        <i class="ph ph-cloud-arrow-down"></i> Pull data from cloud
+      </button>
+      <button class="btn btn-secondary" onclick="disconnectSupabase()" style="margin:0;color:#FF3B30;">Disconnect</button>
+    </div>
+
+    <div id="supabase-setup-view" style="padding:0 16px 8px;">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.5;">
+        Connect to your Supabase project to sync data across devices automatically.
+      </div>
+      <div class="form-group" style="margin:0 0 12px;">
+        <label class="form-label">Project URL</label>
+        <input class="form-input" id="sb-url" placeholder="https://xxxx.supabase.co" type="url">
+      </div>
+      <div class="form-group" style="margin:0 0 16px;">
+        <label class="form-label">Anon key</label>
+        <input class="form-input" id="sb-key" placeholder="eyJhbGci..." type="password">
+      </div>
+      <button class="btn btn-primary" onclick="connectSupabase()" style="margin:0 0 8px;">Connect</button>
+      <div style="font-size:11px;color:var(--text3);text-align:center;margin:8px 0 12px;">
+        Your key is stored only on this device.
+      </div>
+      <div id="supabase-sql-hint" style="display:none;background:#1e1e2e;border-radius:var(--radius-sm);padding:14px;margin-bottom:8px;">
+        <div style="font-size:12px;font-weight:700;color:#a6e3a1;margin-bottom:8px;">Run this in Supabase → SQL Editor:</div>
+        <pre style="font-size:11px;color:#cdd6f4;white-space:pre-wrap;margin:0;font-family:monospace;line-height:1.5;">create table if not exists pawpal_data (
+  id text primary key,
+  payload jsonb,
+  updated_at timestamptz default now()
+);
+alter table pawpal_data enable row level security;
+create policy "anon access" on pawpal_data
+  for all to anon using (true) with check (true);</pre>
+      </div>
+      <div id="supabase-cors-hint" style="display:none;background:var(--brown-light);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px;">
+        <div style="font-size:12px;font-weight:700;color:var(--brown);margin-bottom:6px;">Connection failed</div>
+        <div style="font-size:12px;color:var(--text);line-height:1.5;">Check your Project URL and anon key, then try again. Make sure the pawpal_data table exists.</div>
+      </div>
+    </div>
+
+    <div style="height:8px;"></div>
+    <button class="btn btn-secondary" style="color:var(--text3);" onclick="closeModal('modal-supabase')">Close</button>
     <div style="height:8px;"></div>
   </div>
 </div>
@@ -1262,6 +1372,42 @@ function load() {
 }
 function save() {
   try { localStorage.setItem('pawpal', JSON.stringify(db)); } catch(e){}
+  autoSyncToSupabase();
+}
+
+// Auto-sync: debounced, silent, non-blocking
+let _syncTimer = null;
+function autoSyncToSupabase() {
+  const cfg = getSBConfig();
+  if(!cfg) return; // not connected — skip silently
+  clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(async () => {
+    try {
+      const deviceId = getDeviceId();
+      const payload  = JSON.parse(JSON.stringify(db));
+      // Strip photos to avoid hitting row size limits
+      if(payload.bathroom) payload.bathroom = payload.bathroom.map(b => ({ ...b, photos: [] }));
+      const res = await fetch(`${cfg.url}/rest/v1/pawpal_data`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': cfg.key,
+          'Authorization': 'Bearer ' + cfg.key,
+          'Prefer': 'resolution=merge-duplicates,return=minimal',
+        },
+        body: JSON.stringify({ id: deviceId, payload, updated_at: new Date().toISOString() }),
+      });
+      if(res.ok) {
+        const t = new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+        localStorage.setItem('pawpal_last_sync', t);
+        // Update the label if the supabase modal is open
+        const el = document.getElementById('supabase-last-sync');
+        if(el) el.textContent = 'Last synced: ' + t;
+      }
+    } catch(e) {
+      // Silent fail — don't interrupt the user
+    }
+  }, 1500); // wait 1.5s after last save before syncing
 }
 load();
 
@@ -1297,7 +1443,7 @@ function openModal(id) {
   m.querySelectorAll('input[type=time]').forEach(i => i.value = timeStr);
   m.querySelectorAll('input[type=date]').forEach(i => { if(!i.value) i.value = dateStr; });
   // Vet type reset
-  if(id === 'modal-vet-add') { document.getElementById('vet-type').value = 'checkup'; updateVetForm(); }
+  if(id === 'modal-vet-add') { document.getElementById('vet-type').value = 'checkup'; updateVetForm(); resetMedForm(); }
 }
 function closeModal(id) {
   document.getElementById(id).classList.remove('open');
@@ -1743,14 +1889,25 @@ function saveVetRecord() {
   } else if(t === 'medication') {
     const name = document.getElementById('m-name').value;
     if(!name) { toast('Enter a medication name'); return; }
+    const startDate = document.getElementById('m-start').value || new Date().toISOString().split('T')[0];
+    const endDate   = getMedEndDate();
+    const totalDoses = calcTotalDoses();
     db.vetRecords.medications.push({
       name, dose: document.getElementById('m-dose').value,
-      freq: document.getElementById('m-freq').value,
-      start: document.getElementById('m-start').value,
-      end: document.getElementById('m-end').value,
-      notes: document.getElementById('m-notes').value,
+      freq: medFreq, days: medDays,
+      start: startDate, end: endDate,
+      totalDoses, notes: document.getElementById('m-notes').value,
       created: new Date().toISOString()
     });
+    // Auto-create reminder for end date
+    if(endDate) {
+      db.vetRecords.reminders.push({
+        title: name + ' course ends',
+        date: endDate, priority: 'Medium',
+        created: new Date().toISOString()
+      });
+    }
+    resetMedForm();
   }
   save();
   closeModal('modal-vet-add');
@@ -1782,16 +1939,30 @@ function renderVet() {
   if(!meds.length) {
     mEl.innerHTML = '<div class="empty" style="padding:24px;"><div class="empty-icon"><i class="ph ph-pill"></i></div><p>No medications logged.</p></div>';
   } else {
-    mEl.innerHTML = meds.map((m,i) => `
-      <div class="med-item">
-        <div class="med-icon"><i class="ph ph-pill" style="font-size:16px;"></i></div>
-        <div class="med-info">
-          <div class="med-name">${m.name}</div>
-          <div class="med-detail">${m.dose||''} ${m.freq?'· '+m.freq:''} ${m.notes?'· '+m.notes:''}</div>
-          ${m.end?`<div class="med-detail" style="color:var(--green);">Until ${fmtDate(m.end)}</div>`:''}
+    mEl.innerHTML = meds.map((m,i) => {
+      const daysLeft = m.end ? Math.ceil((new Date(m.end+'T12:00:00') - new Date()) / 86400000) : null;
+      const progress = (m.days && m.start) ? Math.min(100, Math.round(((new Date()-new Date(m.start+'T12:00:00'))/86400000) / m.days * 100)) : null;
+      return `<div class="med-item" style="flex-direction:column;align-items:stretch;gap:8px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div class="med-icon"><i class="ph ph-pill" style="font-size:16px;"></i></div>
+          <div class="med-info">
+            <div class="med-name">${m.name}</div>
+            <div class="med-detail">${m.dose||''} ${m.freq?'· '+m.freq:''}</div>
+            ${m.notes?`<div class="med-detail">${m.notes}</div>`:''}
+          </div>
+          <button onclick="deleteVetItem('medications',${i})" style="border:none;background:none;color:var(--text3);cursor:pointer;font-size:18px;flex-shrink:0;">×</button>
         </div>
-        <button onclick="deleteVetItem('medications',${i})" style="border:none;background:none;color:var(--text3);cursor:pointer;font-size:18px;">×</button>
-      </div>`).join('');
+        ${m.days > 0 ? `<div style="padding:0 0 4px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+            <span style="font-size:11px;font-weight:600;color:var(--text3);">${m.start?fmtDate(m.start):''} → ${m.end?fmtDate(m.end):''}</span>
+            <span style="font-size:11px;font-weight:700;color:${daysLeft!==null&&daysLeft<=2?'#FF3B30':'var(--text2)'};">${daysLeft!==null?(daysLeft<=0?'Completed':daysLeft+' day'+(daysLeft!==1?'s':'')+' left'):'Ongoing'}</span>
+          </div>
+          <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden;">
+            <div style="height:100%;width:${progress||0}%;background:${daysLeft!==null&&daysLeft<=2?'#FF3B30':'var(--amber)'};border-radius:3px;transition:width 0.3s;"></div>
+          </div>
+        </div>` : `<div style="font-size:12px;color:var(--text2);padding-bottom:4px;">Ongoing — no end date</div>`}
+      </div>`;
+    }).join('');
   }
 
   // Vaccines
@@ -1908,6 +2079,7 @@ function calcAge(birthday) {
 
 function renderProfile() {
   setTimeout(renderNotifSettings, 50);
+  setTimeout(updateSupabaseUI, 50);
   const p = db.profile;
   if(p.avatar) {
     document.getElementById('profile-avatar-container').style.display = 'block';
@@ -2952,6 +3124,235 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.lineTo(x, y + r);
   ctx.quadraticCurveTo(x, y, x + r, y);
   ctx.closePath();
+}
+
+
+// ── Medication scheduling ─────────────────────────────────────
+let medDays = 7;
+let medFreq = 'Once a day';
+
+function selectMedFreq(el) {
+  medFreq = el.dataset.freq;
+  document.querySelectorAll('.med-freq-opt').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+  updateMedScheduleSummary();
+}
+
+function stepMedDays(delta) {
+  medDays = Math.max(0, medDays + delta);
+  document.getElementById('m-days-num').textContent = medDays === 0 ? '∞' : medDays;
+  updateMedEndDate();
+  updateMedScheduleSummary();
+}
+
+function setMedDays(days) {
+  medDays = days;
+  document.getElementById('m-days-num').textContent = days === 0 ? '∞' : days;
+  updateMedEndDate();
+  updateMedScheduleSummary();
+}
+
+function updateMedEndDate() {
+  if(medDays === 0) return; // ongoing — no end date
+  const startEl = document.getElementById('m-start');
+  if(!startEl.value) return;
+  const start = new Date(startEl.value + 'T12:00:00');
+  start.setDate(start.getDate() + medDays - 1);
+  // store end date internally
+  updateMedScheduleSummary();
+}
+
+function getMedEndDate() {
+  if(medDays === 0) return null;
+  const startEl = document.getElementById('m-start');
+  if(!startEl || !startEl.value) return null;
+  const d = new Date(startEl.value + 'T12:00:00');
+  d.setDate(d.getDate() + medDays - 1);
+  return d.toISOString().split('T')[0];
+}
+
+function calcTotalDoses() {
+  if(medDays === 0) return null;
+  const dosesPerDay = { 'Once a day':1, 'Twice a day':2, '3× a day':3, 'Every 2 days':0.5, 'Weekly':1/7, 'Monthly':1/30 };
+  const dpd = dosesPerDay[medFreq] || 1;
+  return Math.ceil(medDays * dpd);
+}
+
+function updateMedScheduleSummary() {
+  const summary = document.getElementById('m-schedule-summary');
+  const text    = document.getElementById('m-schedule-text');
+  const doses   = document.getElementById('m-schedule-doses');
+  if(!summary) return;
+
+  const startEl = document.getElementById('m-start');
+  const startStr = startEl && startEl.value ? startEl.value : null;
+  const endStr   = getMedEndDate();
+  const totalDoses = calcTotalDoses();
+  const doseName = document.getElementById('m-dose').value || 'dose';
+  const medName  = document.getElementById('m-name').value || 'medication';
+
+  let scheduleText = medFreq;
+  if(medDays === 0) {
+    scheduleText += ' · Ongoing';
+  } else if(startStr && endStr) {
+    scheduleText += ' from ' + fmtDate(startStr) + ' to ' + fmtDate(endStr);
+  } else if(medDays > 0) {
+    scheduleText += ' for ' + medDays + ' days';
+  }
+
+  text.textContent = scheduleText;
+  doses.textContent = totalDoses
+    ? 'Total: ' + totalDoses + ' dose' + (totalDoses !== 1 ? 's' : '') + ' of ' + doseName
+    : 'Ongoing — no end date';
+
+  summary.style.display = 'block';
+
+  // Auto-create reminders in vetRecords
+  updateMedReminders(medName, doseName, startStr, endStr);
+}
+
+function updateMedReminders(medName, doseName, startStr, endStr) {
+  // Will be called on save — previewed here
+}
+
+function resetMedForm() {
+  medDays = 7;
+  medFreq = 'Once a day';
+  document.getElementById('m-days-num').textContent = '7';
+  document.querySelectorAll('.med-freq-opt').forEach((el,i) => el.classList.toggle('selected', i===0));
+  const summary = document.getElementById('m-schedule-summary');
+  if(summary) summary.style.display = 'none';
+  // Reset start date to today
+  const startEl = document.getElementById('m-start');
+  if(startEl) startEl.value = new Date().toISOString().split('T')[0];
+}
+
+
+// ============================================================
+// SUPABASE SYNC
+// ============================================================
+function getSBConfig() {
+  try { return JSON.parse(localStorage.getItem('pawpal_sb') || 'null'); } catch(e) { return null; }
+}
+function saveSBConfig(url, key) {
+  localStorage.setItem('pawpal_sb', JSON.stringify({ url, key }));
+}
+function getDeviceId() {
+  let id = localStorage.getItem('pawpal_device_id');
+  if(!id) { id = 'device_' + Math.random().toString(36).slice(2,10); localStorage.setItem('pawpal_device_id', id); }
+  return id;
+}
+
+async function connectSupabase() {
+  let url = document.getElementById('sb-url').value.trim().replace(/\/+$/, '').replace(/\/rest\/v1.*$/, '');
+  const key = document.getElementById('sb-key').value.trim();
+  if(!url || !key) { toast('Fill in both fields'); return; }
+  if(!url.startsWith('https://')) { toast('URL must start with https://'); return; }
+  document.getElementById('sb-url').value = url;
+  toast('Connecting...');
+  try {
+    const res = await fetch(url + '/rest/v1/pawpal_data?limit=1&select=id', {
+      headers: { 'apikey': key, 'Authorization': 'Bearer ' + key, 'Accept': 'application/json' }
+    });
+    if(res.status === 401) { toast('Invalid API key'); return; }
+    if(!res.ok) {
+      const txt = await res.text();
+      if(txt.includes('does not exist') || txt.includes('relation')) {
+        saveSBConfig(url, key);
+        updateSupabaseUI();
+        document.getElementById('supabase-sql-hint').style.display = 'block';
+        toast('Connected — create the table first!');
+        return;
+      }
+    }
+    saveSBConfig(url, key);
+    updateSupabaseUI();
+    toast('Connected! Auto-sync is on ☁️');
+    autoSyncToSupabase();
+  } catch(e) {
+    // Save anyway and try syncing — CORS can cause false fails on the test
+    saveSBConfig(url, key);
+    updateSupabaseUI();
+    toast('Saved — auto-sync will retry on next log');
+    document.getElementById('supabase-cors-hint').style.display = 'block';
+  }
+}
+
+async function syncFromSupabase() {
+  const cfg = getSBConfig();
+  if(!cfg) { toast('Not connected'); return; }
+  toast('Pulling from cloud...');
+  try {
+    const res = await fetch(cfg.url + '/rest/v1/pawpal_data?id=eq.' + getDeviceId() + '&limit=1', {
+      headers: { 'apikey': cfg.key, 'Authorization': 'Bearer ' + cfg.key }
+    });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const rows = await res.json();
+    if(!rows || rows.length === 0) { toast('No cloud data found for this device'); return; }
+    db = { ...db, ...rows[0].payload };
+    save();
+    renderHome(); renderProfile();
+    toast('Data pulled ✓');
+    closeModal('modal-supabase');
+  } catch(e) {
+    toast('Pull failed: ' + e.message.slice(0,40));
+  }
+}
+
+function disconnectSupabase() {
+  if(!confirm('Disconnect from Supabase? Your local data is kept.')) return;
+  localStorage.removeItem('pawpal_sb');
+  localStorage.removeItem('pawpal_last_sync');
+  updateSupabaseUI();
+  toast('Disconnected');
+}
+
+function updateSupabaseUI() {
+  const cfg  = getSBConfig();
+  const conn = document.getElementById('supabase-connected-view');
+  const setup = document.getElementById('supabase-setup-view');
+  const status = document.getElementById('supabase-status-label');
+  const lastSync = localStorage.getItem('pawpal_last_sync');
+  if(cfg) {
+    if(conn)  conn.style.display  = 'block';
+    if(setup) setup.style.display = 'none';
+    const proj = cfg.url.replace('https://','').split('.')[0];
+    const projEl = document.getElementById('supabase-project-label');
+    if(projEl) projEl.textContent = proj + '.supabase.co';
+    const syncEl = document.getElementById('supabase-last-sync');
+    if(syncEl) syncEl.textContent = lastSync ? 'Last synced: ' + lastSync : 'Not synced yet';
+    if(status) status.textContent = 'Connected · auto-sync on';
+  } else {
+    if(conn)  conn.style.display  = 'none';
+    if(setup) setup.style.display = 'block';
+    if(status) status.textContent = 'Not connected';
+  }
+}
+
+// ── Export functions ──────────────────────────────────────────
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (db.profile.name||'pawpal').toLowerCase().replace(/\s+/g,'_') + '_backup_' + new Date().toISOString().split('T')[0] + '.json';
+  a.click(); URL.revokeObjectURL(a.href);
+  toast('JSON exported!');
+}
+
+function exportCSV() {
+  const headers = ['Date','Time','Duration (min)','Steps','Distance (km)','Weather','Pipi','Popo','Friends','Notes'];
+  const rows = (db.walks||[]).map(w => [
+    w.date||'', w.time||'', w.duration||'', w.steps||'', w.distance||'',
+    w.weather||'', w.pipi?'Yes':'No', w.popo?'Yes':'No', w.friends?'Yes':'No',
+    (w.notes||'').replace(/,/g,';')
+  ]);
+  const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (db.profile.name||'pawpal').toLowerCase() + '_walks_' + new Date().toISOString().split('T')[0] + '.csv';
+  a.click(); URL.revokeObjectURL(a.href);
+  toast('CSV exported!');
 }
 
 // ============================================================
