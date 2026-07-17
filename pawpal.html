@@ -346,31 +346,25 @@ if('serviceWorker' in navigator) {
 
 <!-- ======= SCREEN: FOOD ======= -->
 <div class="screen" id="screen-food">
-  <div class="hdr">
-    <div>
-      <div class="hdr-title">Food tracker</div>
-      <div class="hdr-sub" id="food-hdr-sub">Daily portions</div>
-    </div>
-    <button class="hdr-btn" onclick="openModal('modal-food')">+</button>
+  <div style="padding:20px 22px 4px;">
+    <div style="font-size:30px;font-weight:900;letter-spacing:-1px;">Food</div>
+    <div style="font-size:14px;color:var(--text2);margin-top:2px;" id="food-hdr-sub">0 of 4 meals today</div>
   </div>
   <div class="scroll">
 
-    <!-- Quick-log meal buttons -->
-    <div style="margin:4px 18px 16px;">
-      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Quick log</div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;" id="quick-meal-grid">
-        <!-- populated by renderFood -->
-      </div>
+    <!-- Today checklist -->
+    <div style="margin:12px 18px 0;" id="meal-checklist">
+      <!-- populated by renderFood -->
     </div>
 
-    <div class="card">
-      <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px;">Today's portions</div>
-      <div style="display:flex;justify-content:space-between;align-items:baseline;">
-        <span style="font-size:32px;font-weight:700;" id="food-today-g">0g</span>
-        <span style="font-size:14px;color:var(--text2);">/ <span id="food-target-g">300g</span> daily goal</span>
+    <!-- Progress -->
+    <div style="margin:16px 18px 0;background:var(--surface);border-radius:20px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+        <span style="font-size:13px;font-weight:700;color:var(--text2);">Daily goal</span>
+        <span style="font-size:13px;font-weight:700;" id="food-today-g">0g <span style="color:var(--text3);font-weight:400;">/ <span id="food-target-g">300g</span></span></span>
       </div>
       <div class="food-meter"><div class="food-meter-fill" id="food-meter-fill" style="width:0%"></div></div>
-      <div style="font-size:12px;color:var(--text2);" id="food-remaining-label">300g remaining today</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:6px;" id="food-remaining-label">300g remaining today</div>
     </div>
 
     <div class="section-label">Meal history</div>
@@ -1338,7 +1332,7 @@ function renderDogFace(containerId, size) {
 // DATA
 // ============================================================
 let db = {
-  profile: { name: '', breed: '', age: '', weight: '', foodGoal: 300, vet: '', vetPhone: '', emoji: '🐕' },
+  profile: { name: '', breed: '', age: '', weight: '', foodGoal: 300, mealsPerDay: 4, vet: '', vetPhone: '', emoji: '🐕' },
   walks: [],
   meals: [],
   bathroom: [],
@@ -1697,65 +1691,116 @@ function deleteWalk(idx) {
 // FOOD
 // ============================================================
 function renderFood() {
-  // Build quick-log meal buttons
-  const goal    = db.profile.foodGoal || 300;
-  const portion = Math.round(goal / 4);
+  const p       = db.profile;
+  const n       = p.mealsPerDay || 4;
+  const portion = Math.round((p.foodGoal || 300) / n);
   const today   = new Date().toISOString().split('T')[0];
   const todayMeals = (db.meals || []).filter(m => m.date === today);
-  const mealsToday = todayMeals.length;
-  const grid    = document.getElementById('quick-meal-grid');
+  const doneSlots  = new Set(todayMeals.filter(m => m.mealSlot != null).map(m => m.mealSlot));
+  const doneMeals  = doneSlots.size;
 
-  const MEAL_NAMES = ['Morning', 'Midday', 'Afternoon', 'Evening'];
-  const MEAL_TIMES = ['08:00', '12:00', '16:00', '19:00'];
-  const MEAL_ICONS = ['ph-sun', 'ph-sun-horizon', 'ph-cloud-sun', 'ph-moon'];
+  // Header
+  const sub = document.getElementById('food-hdr-sub');
+  if(sub) sub.textContent = doneMeals + ' of ' + n + ' meals today';
 
-  if(grid) {
-    grid.innerHTML = MEAL_NAMES.map((name, i) => {
-      // Check if this slot already logged today
-      const slotLogged = todayMeals.some(m => m.mealSlot === i);
-      return `<div onclick="${slotLogged ? '' : `quickLogMeal(${i})`}"
-        style="background:${slotLogged ? 'var(--green-light)' : 'var(--surface)'};
-               border-radius:16px;padding:12px 8px;text-align:center;cursor:${slotLogged ? 'default' : 'pointer'};
-               border:1.5px solid ${slotLogged ? 'var(--green)' : 'var(--border-strong)'};
-               box-shadow:0 1px 3px rgba(0,0,0,0.05);transition:all 0.15s;display:flex;flex-direction:column;align-items:center;gap:6px;">
-        <i class="ph ${MEAL_ICONS[i]}" style="font-size:20px;color:${slotLogged ? 'var(--green)' : 'var(--amber)'}"></i>
-        <div style="font-size:10px;font-weight:700;color:${slotLogged ? 'var(--green)' : 'var(--text2)'};letter-spacing:0.3px;">${name}</div>
-        <div style="font-size:13px;font-weight:800;color:${slotLogged ? 'var(--green)' : 'var(--text)'};">${slotLogged ? '✓' : portion + 'g'}</div>
+  // Meal names based on count
+  const NAMES = {
+    1: ['Daily meal'],
+    2: ['Morning', 'Evening'],
+    3: ['Morning', 'Afternoon', 'Evening'],
+    4: ['Morning', 'Midday', 'Afternoon', 'Evening'],
+    5: ['Morning', 'Midday', 'Afternoon', 'Evening', 'Night'],
+  };
+  const TIMES = {
+    1: ['12:00'],
+    2: ['08:00','19:00'],
+    3: ['08:00','13:00','19:00'],
+    4: ['08:00','12:00','16:00','19:00'],
+    5: ['07:00','10:00','13:00','17:00','20:00'],
+  };
+  const names = NAMES[n] || NAMES[4];
+  const times = TIMES[n] || TIMES[4];
+
+  // Build checklist
+  const checklist = document.getElementById('meal-checklist');
+  if(checklist) {
+    checklist.innerHTML = names.map((name, i) => {
+      const done = doneSlots.has(i);
+      return `<div onclick="${done ? `undoMealSlot(${i})` : `quickLogMeal(${i})`}"
+        style="display:flex;align-items:center;gap:14px;
+               background:var(--surface);border-radius:18px;padding:14px 16px;
+               margin-bottom:10px;cursor:pointer;
+               box-shadow:0 1px 3px rgba(0,0,0,0.05);
+               border:1.5px solid ${done ? 'var(--green)' : 'var(--border)'};
+               transition:all 0.15s;">
+        <!-- Checkbox -->
+        <div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;
+                    border:2px solid ${done ? 'var(--green)' : 'var(--border-strong)'};
+                    background:${done ? 'var(--green)' : 'transparent'};
+                    display:flex;align-items:center;justify-content:center;transition:all 0.2s;">
+          ${done ? '<i class="ph ph-check" style="color:white;font-size:16px;font-weight:700;"></i>' : ''}
+        </div>
+        <!-- Info -->
+        <div style="flex:1;">
+          <div style="font-size:16px;font-weight:700;color:${done ? 'var(--text2)' : 'var(--text)'};
+                      text-decoration:${done ? 'line-through' : 'none'};">${name}</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:1px;">${times[i]} · ${portion}g</div>
+        </div>
+        <!-- Streak / status -->
+        <div style="font-size:12px;font-weight:600;color:${done ? 'var(--green)' : 'var(--text3)'};">
+          ${done ? 'Done' : portion + 'g'}
+        </div>
       </div>`;
     }).join('');
   }
 
-  // Update header sub
-  const sub = document.getElementById('food-hdr-sub');
-  if(sub) sub.textContent = mealsToday + ' of 4 meals logged today';
-
+  // Progress card
   const todayStr = new Date().toISOString().split('T')[0];
-  const meals = db.meals.filter(m => m.date === todayStr).sort((a,b) => b.created - a.created);
+  const meals = db.meals.filter(m => m.date === todayStr);
   const total = meals.reduce((a,m) => a + (parseInt(m.amount)||0), 0);
-  const pct = Math.min(100, Math.round((total/goal)*100));
+  const fGoal = p.foodGoal || 300;
+  const pct   = Math.min(100, Math.round((total/fGoal)*100));
 
-  document.getElementById('food-today-g').textContent = total + 'g';
-  document.getElementById('food-target-g').textContent = goal + 'g';
-  document.getElementById('food-meter-fill').style.width = pct + '%';
-  document.getElementById('food-meter-fill').style.background = pct >= 100 ? 'var(--brown)' : 'var(--amber)';
-  document.getElementById('food-remaining-label').textContent = total >= goal ? '✓ Daily goal reached!' : (goal-total) + 'g remaining today';
+  const todayEl = document.getElementById('food-today-g');
+  const targetEl = document.getElementById('food-target-g');
+  const fillEl  = document.getElementById('food-meter-fill');
+  const remEl   = document.getElementById('food-remaining-label');
+  if(todayEl)  todayEl.innerHTML = total + 'g <span style="color:var(--text3);font-weight:400;">/ <span id="food-target-g">' + fGoal + 'g</span></span>';
+  if(fillEl)   { fillEl.style.width = pct + '%'; fillEl.style.background = pct >= 100 ? 'var(--green)' : 'var(--amber)'; }
+  if(remEl)    remEl.textContent = total >= fGoal ? '✓ Daily goal reached!' : (fGoal-total) + 'g remaining today';
 
+  // Meal history
   const allMeals = [...db.meals].sort((a,b) => new Date(b.created||b.date) - new Date(a.created||a.date));
   const el = document.getElementById('food-log-list');
   if(!allMeals.length) {
-    el.innerHTML = '<div class="empty"><div class="empty-icon"><i class="ph ph-fork-knife"></i></div><p>No meals logged yet.<br>Tap + to log a meal!</p></div>';
+    el.innerHTML = '<div class="empty"><div class="empty-icon"><i class="ph ph-fork-knife"></i></div><p>No meals logged yet</p></div>';
     return;
   }
   el.innerHTML = allMeals.map((m,i) => `
     <div class="food-log-item">
       <div class="food-log-icon"><i class="ph ph-fork-knife" style="font-size:15px;"></i></div>
       <div style="flex:1;">
-        <div style="font-size:14px;font-weight:600;">${m.type} — ${m.amount}g</div>
-        <div style="font-size:12px;color:var(--text2);">${fmtDate(m.date)}${m.time?' at '+m.time:''} ${m.notes?'· '+m.notes:''}</div>
+        <div style="font-size:14px;font-weight:600;">${m.type||'Meal'} ${m.notes?'· '+m.notes:''}</div>
+        <div style="font-size:12px;color:var(--text2);">${fmtDate(m.date)} ${m.time||''}</div>
       </div>
-      <button onclick="deleteMeal(${i})" style="border:none;background:none;color:var(--text3);cursor:pointer;font-size:18px;padding:4px;">×</button>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:14px;font-weight:700;">${m.amount}g</span>
+        <button onclick="deleteMeal(${i})" style="border:none;background:none;color:var(--text3);cursor:pointer;font-size:18px;padding:0;">×</button>
+      </div>
     </div>`).join('');
 }
+
+function undoMealSlot(slotIndex) {
+  const today = new Date().toISOString().split('T')[0];
+  const idx = db.meals.findIndex(m => m.date === today && m.mealSlot === slotIndex);
+  if(idx > -1) {
+    db.meals.splice(idx, 1);
+    save();
+    renderFood();
+    if(currentScreen === 'home') renderHome();
+  }
+}
+
 function saveMeal() {
   const amount = document.getElementById('f-amount').value;
   if(!amount) { toast('Enter an amount'); return; }
@@ -2034,6 +2079,10 @@ function showProfileEdit() {
   document.getElementById('p-edit-birthday').value = p.birthday || '';
   document.getElementById('p-edit-weight').value = p.weight || '';
   document.getElementById('p-edit-food-goal').value = p.foodGoal || 300;
+  const mpd = p.mealsPerDay || 4;
+  document.querySelectorAll('#edit-meals-per-day .ob-part-pill').forEach(b => {
+    b.classList.toggle('selected', parseInt(b.textContent) === mpd);
+  });
   document.getElementById('p-edit-vet').value = p.vet || '';
   document.getElementById('p-edit-vet-phone').value = p.vetPhone || '';
   editAvatar = p.avatar ? { ...p.avatar } : { head:'Normal', body:'Normal', colour:'orange', eyes:'Normal', nose:'Normal' };
@@ -2055,6 +2104,7 @@ function saveProfile() {
     birthday: document.getElementById('p-edit-birthday').value,
     weight: document.getElementById('p-edit-weight').value,
     foodGoal: parseInt(document.getElementById('p-edit-food-goal').value) || 300,
+    mealsPerDay: parseInt(document.querySelector('#edit-meals-per-day .ob-part-pill.selected')?.textContent) || 4,
     vet: document.getElementById('p-edit-vet').value,
     vetPhone: document.getElementById('p-edit-vet-phone').value,
     avatar: { ...editAvatar },
@@ -2804,6 +2854,7 @@ function obFinish() {
     birthday: document.getElementById('ob-birthday').value,
     weight: document.getElementById('ob-weight').value,
     foodGoal: parseInt(document.getElementById('ob-food-goal').value) || 300,
+    mealsPerDay: obMealsPerDay || 4,
     vet: document.getElementById('ob-vet').value,
     vetPhone: document.getElementById('ob-vet-phone').value,
     avatar: { ...obAvatar },
@@ -3360,6 +3411,18 @@ function exportCSV() {
   toast('CSV exported!');
 }
 
+
+let obMealsPerDay = 4;
+function editSelectMeals(n, el) {
+  document.querySelectorAll('#edit-meals-per-day .ob-part-pill').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function obSelectMeals(n, el) {
+  obMealsPerDay = n;
+  document.querySelectorAll('#ob-meals-per-day .ob-part-pill').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+}
 
 function quickLogMeal(slotIndex) {
   const goal    = db.profile.foodGoal || 300;
