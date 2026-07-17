@@ -349,11 +349,20 @@ if('serviceWorker' in navigator) {
   <div class="hdr">
     <div>
       <div class="hdr-title">Food tracker</div>
-      <div class="hdr-sub">Daily portions</div>
+      <div class="hdr-sub" id="food-hdr-sub">Daily portions</div>
     </div>
     <button class="hdr-btn" onclick="openModal('modal-food')">+</button>
   </div>
   <div class="scroll">
+
+    <!-- Quick-log meal buttons -->
+    <div style="margin:4px 18px 16px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Quick log</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;" id="quick-meal-grid">
+        <!-- populated by renderFood -->
+      </div>
+    </div>
+
     <div class="card">
       <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px;">Today's portions</div>
       <div style="display:flex;justify-content:space-between;align-items:baseline;">
@@ -898,7 +907,7 @@ if('serviceWorker' in navigator) {
 <div class="modal-overlay" id="modal-food">
   <div class="modal">
     <div class="modal-handle"></div>
-    <div class="modal-title">Log a meal 🍖</div>
+    <div class="modal-title">Log a meal</div>
     <div class="form-group">
       <label class="form-label">Food type</label>
       <select class="form-input" id="f-type">
@@ -1688,10 +1697,41 @@ function deleteWalk(idx) {
 // FOOD
 // ============================================================
 function renderFood() {
+  // Build quick-log meal buttons
+  const goal    = db.profile.foodGoal || 300;
+  const portion = Math.round(goal / 4);
+  const today   = new Date().toISOString().split('T')[0];
+  const todayMeals = (db.meals || []).filter(m => m.date === today);
+  const mealsToday = todayMeals.length;
+  const grid    = document.getElementById('quick-meal-grid');
+
+  const MEAL_NAMES = ['Morning', 'Midday', 'Afternoon', 'Evening'];
+  const MEAL_TIMES = ['08:00', '12:00', '16:00', '19:00'];
+  const MEAL_ICONS = ['ph-sun', 'ph-sun-horizon', 'ph-cloud-sun', 'ph-moon'];
+
+  if(grid) {
+    grid.innerHTML = MEAL_NAMES.map((name, i) => {
+      // Check if this slot already logged today
+      const slotLogged = todayMeals.some(m => m.mealSlot === i);
+      return `<div onclick="${slotLogged ? '' : `quickLogMeal(${i})`}"
+        style="background:${slotLogged ? 'var(--green-light)' : 'var(--surface)'};
+               border-radius:16px;padding:12px 8px;text-align:center;cursor:${slotLogged ? 'default' : 'pointer'};
+               border:1.5px solid ${slotLogged ? 'var(--green)' : 'var(--border-strong)'};
+               box-shadow:0 1px 3px rgba(0,0,0,0.05);transition:all 0.15s;display:flex;flex-direction:column;align-items:center;gap:6px;">
+        <i class="ph ${MEAL_ICONS[i]}" style="font-size:20px;color:${slotLogged ? 'var(--green)' : 'var(--amber)'}"></i>
+        <div style="font-size:10px;font-weight:700;color:${slotLogged ? 'var(--green)' : 'var(--text2)'};letter-spacing:0.3px;">${name}</div>
+        <div style="font-size:13px;font-weight:800;color:${slotLogged ? 'var(--green)' : 'var(--text)'};">${slotLogged ? '✓' : portion + 'g'}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Update header sub
+  const sub = document.getElementById('food-hdr-sub');
+  if(sub) sub.textContent = mealsToday + ' of 4 meals logged today';
+
   const todayStr = new Date().toISOString().split('T')[0];
   const meals = db.meals.filter(m => m.date === todayStr).sort((a,b) => b.created - a.created);
   const total = meals.reduce((a,m) => a + (parseInt(m.amount)||0), 0);
-  const goal = db.profile.foodGoal || 300;
   const pct = Math.min(100, Math.round((total/goal)*100));
 
   document.getElementById('food-today-g').textContent = total + 'g';
@@ -3318,6 +3358,34 @@ function exportCSV() {
   a.download = (db.profile.name||'pawpal').toLowerCase() + '_walks_' + new Date().toISOString().split('T')[0] + '.csv';
   a.click(); URL.revokeObjectURL(a.href);
   toast('CSV exported!');
+}
+
+
+function quickLogMeal(slotIndex) {
+  const goal    = db.profile.foodGoal || 300;
+  const portion = Math.round(goal / 4);
+  const MEAL_NAMES  = ['Morning', 'Midday', 'Afternoon', 'Evening'];
+  const MEAL_TIMES  = ['08:00', '12:00', '16:00', '19:00'];
+  const now   = new Date();
+  const today = now.toISOString().split('T')[0];
+  const time  = MEAL_TIMES[slotIndex];
+
+  const meal = {
+    date: today,
+    time,
+    type: 'Dry kibble',
+    amount: portion,
+    notes: MEAL_NAMES[slotIndex] + ' meal',
+    mealSlot: slotIndex,
+    created: now.toISOString()
+  };
+
+  if(!db.meals) db.meals = [];
+  db.meals.push(meal);
+  save();
+  renderFood();
+  if(currentScreen === 'home') renderHome();
+  toast(MEAL_NAMES[slotIndex] + ' — ' + portion + 'g logged ✓');
 }
 
 // ============================================================
