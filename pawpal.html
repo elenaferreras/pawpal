@@ -1139,41 +1139,10 @@ if('serviceWorker' in navigator) {
       <button class="btn btn-secondary" onclick="syncFromSupabase()" style="margin:0 0 10px;">
         <i class="ph ph-cloud-arrow-down"></i> Pull data from cloud
       </button>
-      <button class="btn btn-secondary" onclick="disconnectSupabase()" style="margin:0;color:#FF3B30;">Disconnect</button>
+
     </div>
 
-    <div id="supabase-setup-view" style="padding:0 16px 8px;">
-      <div style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.5;">
-        Connect to your Supabase project to sync data across devices automatically.
-      </div>
-      <div class="form-group" style="margin:0 0 12px;">
-        <label class="form-label">Project URL</label>
-        <input class="form-input" id="sb-url" placeholder="https://xxxx.supabase.co" type="url">
-      </div>
-      <div class="form-group" style="margin:0 0 16px;">
-        <label class="form-label">Anon key</label>
-        <input class="form-input" id="sb-key" placeholder="eyJhbGci..." type="password">
-      </div>
-      <button class="btn btn-primary" onclick="connectSupabase()" style="margin:0 0 8px;">Connect</button>
-      <div style="font-size:11px;color:var(--text3);text-align:center;margin:8px 0 12px;">
-        Your key is stored only on this device.
-      </div>
-      <div id="supabase-sql-hint" style="display:none;background:#1e1e2e;border-radius:var(--radius-sm);padding:14px;margin-bottom:8px;">
-        <div style="font-size:12px;font-weight:700;color:#a6e3a1;margin-bottom:8px;">Run this in Supabase → SQL Editor:</div>
-        <pre style="font-size:11px;color:#cdd6f4;white-space:pre-wrap;margin:0;font-family:monospace;line-height:1.5;">create table if not exists pawpal_data (
-  id text primary key,
-  payload jsonb,
-  updated_at timestamptz default now()
-);
-alter table pawpal_data enable row level security;
-create policy "anon access" on pawpal_data
-  for all to anon using (true) with check (true);</pre>
-      </div>
-      <div id="supabase-cors-hint" style="display:none;background:var(--brown-light);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px;">
-        <div style="font-size:12px;font-weight:700;color:var(--brown);margin-bottom:6px;">Connection failed</div>
-        <div style="font-size:12px;color:var(--text);line-height:1.5;">Check your Project URL and anon key, then try again. Make sure the pawpal_data table exists.</div>
-      </div>
-    </div>
+    <div id="supabase-setup-view" style="display:none;"></div>
 
     <div style="height:8px;"></div>
     <button class="btn btn-secondary" style="color:var(--text3);" onclick="closeModal('modal-supabase')">Close</button>
@@ -3231,8 +3200,12 @@ function resetMedForm() {
 // ============================================================
 // SUPABASE SYNC
 // ============================================================
+// Supabase config — anon key is safe to expose (RLS protects data per device)
+const SB_URL = 'https://fsmzrbysyeggcezxsura.supabase.co';
+const SB_KEY = 'sb_publishable_l2TVcGUHf5UiqQDJaGZHeQ_AV9n9zFp';
+
 function getSBConfig() {
-  try { return JSON.parse(localStorage.getItem('pawpal_sb') || 'null'); } catch(e) { return null; }
+  return { url: SB_URL, key: SB_KEY };
 }
 function saveSBConfig(url, key) {
   localStorage.setItem('pawpal_sb', JSON.stringify({ url, key }));
@@ -3308,25 +3281,17 @@ function disconnectSupabase() {
 }
 
 function updateSupabaseUI() {
-  const cfg  = getSBConfig();
-  const conn = document.getElementById('supabase-connected-view');
-  const setup = document.getElementById('supabase-setup-view');
+  const conn   = document.getElementById('supabase-connected-view');
+  const setup  = document.getElementById('supabase-setup-view');
   const status = document.getElementById('supabase-status-label');
   const lastSync = localStorage.getItem('pawpal_last_sync');
-  if(cfg) {
-    if(conn)  conn.style.display  = 'block';
-    if(setup) setup.style.display = 'none';
-    const proj = cfg.url.replace('https://','').split('.')[0];
-    const projEl = document.getElementById('supabase-project-label');
-    if(projEl) projEl.textContent = proj + '.supabase.co';
-    const syncEl = document.getElementById('supabase-last-sync');
-    if(syncEl) syncEl.textContent = lastSync ? 'Last synced: ' + lastSync : 'Not synced yet';
-    if(status) status.textContent = 'Connected · auto-sync on';
-  } else {
-    if(conn)  conn.style.display  = 'none';
-    if(setup) setup.style.display = 'block';
-    if(status) status.textContent = 'Not connected';
-  }
+  if(conn)  conn.style.display  = 'block';
+  if(setup) setup.style.display = 'none';
+  const projEl = document.getElementById('supabase-project-label');
+  if(projEl) projEl.textContent = 'fsmzrbysyeggcezxsura.supabase.co';
+  const syncEl = document.getElementById('supabase-last-sync');
+  if(syncEl) syncEl.textContent = lastSync ? 'Last synced: ' + lastSync : 'Not synced yet';
+  if(status) status.textContent = 'Auto-sync on';
 }
 
 // ── Export functions ──────────────────────────────────────────
