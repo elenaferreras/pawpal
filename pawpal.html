@@ -111,7 +111,7 @@ if('serviceWorker' in navigator) {
   .empty p { font-size:14px; line-height:1.6; }
   .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.3); z-index:200; align-items:flex-end; justify-content:center; overflow:hidden; }
   .modal-overlay.open { display:flex; }
-  body.modal-open { overflow:hidden; position:fixed; width:100%; }
+  body.modal-open { overflow:hidden; height:100%; }
   .modal { background:var(--bg); border-radius:28px 28px 0 0; width:100%; max-width:430px; max-height:90vh; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding-bottom:calc(24px + var(--safe-bottom)); }
   .modal-handle { width:40px; height:4px; background:var(--border-strong); border-radius:2px; margin:14px auto 6px; }
   .modal-title { font-size:22px; font-weight:800; letter-spacing:-0.5px; padding:6px 22px 18px; }
@@ -801,7 +801,9 @@ if('serviceWorker' in navigator) {
         <!-- Mini route canvas -->
         <canvas id="route-canvas" width="358" height="140" style="width:100%;height:140px;border-radius:var(--radius-sm);background:#E8F4F0;display:block;margin-bottom:12px;"></canvas>
       </div>
-      <button class="btn btn-danger" onclick="finishLiveWalk()" style="margin-bottom:8px;">🏁 Finish walk</button>
+      <button class="btn btn-danger" onclick="finishLiveWalk()" style="margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px;background:#FF3B30;">
+        <i class="ph ph-flag-checkered" style="font-size:20px;"></i> Finish walk
+      </button>
       <button class="btn btn-secondary" onclick="cancelLiveWalk()" style="color:var(--text3);">Cancel walk</button>
       <div style="height:8px;"></div>
     </div>
@@ -2247,7 +2249,7 @@ function startLiveWalk() {
   document.getElementById('live-steps').textContent = '0';
   document.getElementById('live-distance').textContent = '0.00';
   document.getElementById('live-pace').textContent = '—';
-  document.getElementById('live-gps-status').textContent = '📍 Acquiring GPS...';
+  const gpsEl = document.getElementById('live-gps-status'); if(gpsEl) gpsEl.textContent = '📍 Acquiring GPS...';
   clearCanvas();
 
   document.getElementById('modal-walk-live').classList.add('open');
@@ -2304,16 +2306,16 @@ function startLiveWalk() {
     liveWalk.lastAccel = mag;
   };
 
-  // iOS requires permission for DeviceMotion
-  if(typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-    DeviceMotionEvent.requestPermission().then(state => {
-      if(state === 'granted') {
-        liveWalk.accelListener = handleMotion;
-        window.addEventListener('devicemotion', liveWalk.accelListener);
-      }
-    }).catch(() => {});
-  } else {
-    liveWalk.accelListener = handleMotion;
+  // Add motion listener (permission already requested in startLiveWalk)
+  if(typeof DeviceMotionEvent !== 'undefined') {
+    if(typeof DeviceMotionEvent.requestPermission !== 'function') {
+      // Non-iOS: add listener directly
+      liveWalk.accelListener = handleMotion;
+      window.addEventListener('devicemotion', liveWalk.accelListener);
+    }
+  }
+  // iOS: listener added after permission granted in startLiveWalk
+  if(liveWalk.accelListener) {
     window.addEventListener('devicemotion', liveWalk.accelListener);
   }
 }
