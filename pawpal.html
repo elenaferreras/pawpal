@@ -83,9 +83,11 @@ if('serviceWorker' in navigator) {
   .pill.active { background:var(--text); color:white; border-color:var(--text); }
   .form-group { margin:0 18px 16px; }
   .form-label { font-size:11px; font-weight:700; color:var(--text3); margin-bottom:7px; display:block; text-transform:uppercase; letter-spacing:0.5px; }
-  .form-input { width:100%; padding:14px 16px; border:1.5px solid var(--border-strong); border-radius:var(--radius-sm); font-size:15px; font-family:inherit; background:var(--surface); color:var(--text); outline:none; transition:border-color 0.15s; }
+  .form-input { width:100%; padding:14px 16px; border:1.5px solid var(--border-strong); border-radius:var(--radius-sm); font-size:15px; font-family:inherit; background:var(--surface); color:var(--text); outline:none; transition:border-color 0.15s; min-width:0; box-sizing:border-box; }
+  input[type="date"].form-input, input[type="time"].form-input { max-width:100%; overflow:hidden; font-size:14px; padding:14px 10px; }
   .form-input:focus { border-color:var(--amber); }
-  .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:0 18px 16px; }
+  .form-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:0 18px 16px; }
+  .form-row > div { min-width: 0; }
   textarea.form-input { resize:vertical; min-height:80px; }
   select.form-input { appearance:none; cursor:pointer; }
   .toggle-row { display:flex; justify-content:space-between; align-items:center; padding:14px 18px; border-bottom:0.5px solid var(--border); }
@@ -109,6 +111,7 @@ if('serviceWorker' in navigator) {
   .empty p { font-size:14px; line-height:1.6; }
   .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.3); z-index:200; align-items:flex-end; justify-content:center; overflow:hidden; }
   .modal-overlay.open { display:flex; }
+  body.modal-open { overflow:hidden; position:fixed; width:100%; }
   .modal { background:var(--bg); border-radius:28px 28px 0 0; width:100%; max-width:430px; max-height:90vh; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding-bottom:calc(24px + var(--safe-bottom)); }
   .modal-handle { width:40px; height:4px; background:var(--border-strong); border-radius:2px; margin:14px auto 6px; }
   .modal-title { font-size:22px; font-weight:800; letter-spacing:-0.5px; padding:6px 22px 18px; }
@@ -248,7 +251,7 @@ if('serviceWorker' in navigator) {
       </div>
 
       <!-- Steps chart — full width -->
-      <div style="background:var(--surface);border-radius:20px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,0.05);grid-column:1/-1;">
+      <div onclick="goScreen('walks')" style="background:var(--surface);border-radius:20px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,0.05);grid-column:1/-1;cursor:pointer;">
         <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px;">
           <div>
             <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Steps today</div>
@@ -600,10 +603,33 @@ if('serviceWorker' in navigator) {
         <label class="form-label">Weight (kg)</label>
         <input class="form-input" type="number" id="p-edit-weight" placeholder="e.g. 12">
       </div>
-      <div>
-        <label class="form-label">Daily food (g)</label>
-        <input class="form-input" type="number" id="p-edit-food-goal" placeholder="300">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Daily food goal</label>
+      <div style="background:var(--surface);border:1.5px solid var(--border-strong);border-radius:var(--radius-sm);padding:14px 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
+          <span style="font-size:13px;color:var(--text2);">Amount per day</span>
+          <span style="font-size:22px;font-weight:900;letter-spacing:-0.5px;color:var(--amber);" id="food-goal-display">300g</span>
+        </div>
+        <input type="range" min="50" max="800" step="25" id="p-edit-food-goal"
+          oninput="updateFoodGoalDisplay(this.value)"
+          style="width:100%;accent-color:var(--amber);">
+        <div style="display:flex;justify-content:space-between;margin-top:4px;">
+          <span style="font-size:11px;color:var(--text3);">50g</span>
+          <span style="font-size:11px;color:var(--text3);">800g</span>
+        </div>
       </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Meals per day</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;" id="edit-meals-per-day">
+        <div class="ob-part-pill" onclick="editSelectMeals(1,this)">1×</div>
+        <div class="ob-part-pill" onclick="editSelectMeals(2,this)">2×</div>
+        <div class="ob-part-pill" onclick="editSelectMeals(3,this)">3×</div>
+        <div class="ob-part-pill selected" onclick="editSelectMeals(4,this)">4×</div>
+        <div class="ob-part-pill" onclick="editSelectMeals(5,this)">5×</div>
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-top:8px;" id="edit-portion-preview">75g per meal</div>
     </div>
     <div class="form-group">
       <label class="form-label">Vet clinic name</label>
@@ -731,16 +757,15 @@ if('serviceWorker' in navigator) {
   <div class="modal">
     <div class="modal-handle"></div>
     <div class="modal-title">Log a walk 🦮</div>
-    <div style="padding:0 16px 8px;display:flex;flex-direction:column;gap:10px;">
-      <button class="btn btn-primary" style="margin:0;display:flex;align-items:center;justify-content:center;gap:10px;" onclick="startLiveWalk()">
+    <div style="display:flex;flex-direction:column;gap:10px;padding-bottom:8px;">
+      <button class="btn btn-primary" style="display:flex;align-items:center;justify-content:center;gap:10px;" onclick="startLiveWalk()">
         <i class="ph ph-play-circle" style="font-size:22px;"></i> Start walk now
       </button>
-      <button class="btn btn-secondary" style="margin:0;display:flex;align-items:center;justify-content:center;gap:10px;" onclick="openManualWalk()">
+      <button class="btn btn-secondary" style="display:flex;align-items:center;justify-content:center;gap:10px;" onclick="openManualWalk()">
         <i class="ph ph-note-pencil" style="font-size:20px;"></i> Log previous walk
       </button>
-      <button class="btn btn-secondary" style="margin:0;color:var(--text3);" onclick="closeModal('modal-walk-choose')">Cancel</button>
+      <button class="btn btn-secondary" style="color:var(--text3);" onclick="closeModal('modal-walk-choose')">Cancel</button>
     </div>
-    <div style="height:8px;"></div>
   </div>
 </div>
 
@@ -1419,6 +1444,10 @@ function openModal(id) {
 }
 function closeModal(id) {
   document.getElementById(id).classList.remove('open');
+  // Only remove scroll lock if no other modals are open
+  if(!document.querySelector('.modal-overlay.open')) {
+    document.body.classList.remove('modal-open');
+  }
 }
 document.querySelectorAll('.modal-overlay').forEach(o => {
   o.addEventListener('click', e => { if(e.target === o) o.classList.remove('open'); });
@@ -2078,7 +2107,16 @@ function showProfileEdit() {
   document.getElementById('p-edit-breed').value = p.breed || '';
   document.getElementById('p-edit-birthday').value = p.birthday || '';
   document.getElementById('p-edit-weight').value = p.weight || '';
-  document.getElementById('p-edit-food-goal').value = p.foodGoal || 300;
+  const fg = p.foodGoal || 300;
+  const slider = document.getElementById('p-edit-food-goal');
+  if(slider) { slider.value = fg; }
+  const display = document.getElementById('food-goal-display');
+  if(display) display.textContent = fg + 'g';
+  const mpdVal = p.mealsPerDay || 4;
+  document.querySelectorAll('#edit-meals-per-day .ob-part-pill').forEach(b => {
+    b.classList.toggle('selected', parseInt(b.textContent) === mpdVal);
+  });
+  setTimeout(updatePortionPreview, 30);
   const mpd = p.mealsPerDay || 4;
   document.querySelectorAll('#edit-meals-per-day .ob-part-pill').forEach(b => {
     b.classList.toggle('selected', parseInt(b.textContent) === mpd);
@@ -3451,6 +3489,29 @@ function quickLogMeal(slotIndex) {
   toast(MEAL_NAMES[slotIndex] + ' — ' + portion + 'g logged ✓');
 }
 
+
+function updateFoodGoalDisplay(val) {
+  const display = document.getElementById('food-goal-display');
+  if(display) display.textContent = val + 'g';
+  updatePortionPreview();
+}
+
+function updatePortionPreview() {
+  const slider = document.getElementById('p-edit-food-goal');
+  const preview = document.getElementById('edit-portion-preview');
+  const selected = document.querySelector('#edit-meals-per-day .ob-part-pill.selected');
+  if(!slider || !preview || !selected) return;
+  const meals = parseInt(selected.textContent) || 4;
+  const portion = Math.round(parseInt(slider.value) / meals);
+  preview.textContent = portion + 'g per meal';
+}
+
+function editSelectMeals(n, el) {
+  document.querySelectorAll('#edit-meals-per-day .ob-part-pill').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  updatePortionPreview();
+}
+
 // ============================================================
 // UTILS
 // ============================================================
@@ -3638,6 +3699,9 @@ setupReminderChecks();
         overlay.classList.remove('open');
         modal.style.transform  = '';
         modal.style.transition = '';
+        if(!document.querySelector('.modal-overlay.open')) {
+          document.body.classList.remove('modal-open');
+        }
       }, 240);
     } else {
       // Snap back
