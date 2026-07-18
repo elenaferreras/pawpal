@@ -174,6 +174,8 @@ if('serviceWorker' in navigator) {
   .med-freq-opt.selected { background:var(--text); color:white; border-color:var(--text); }
   .med-days-preset { padding:6px 14px; border-radius:var(--radius-pill); border:1.5px solid var(--border-strong); background:var(--surface); font-size:12px; font-weight:600; cursor:pointer; color:var(--text2); transition:all 0.15s; }
   .med-days-preset:active { background:var(--amber-light); border-color:var(--amber); color:var(--amber); }
+  @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
+  .has-live-bar { padding-top:44px !important; }
   .notif { position:fixed; top:24px; left:50%; transform:translateX(-50%); background:var(--text); color:white; padding:11px 22px; border-radius:var(--radius-pill); font-size:14px; font-weight:600; z-index:999; opacity:0; transition:opacity 0.2s; pointer-events:none; max-width:300px; text-align:center; }
   .notif.show { opacity:1; }
 </style>
@@ -225,54 +227,48 @@ if('serviceWorker' in navigator) {
     </div>
 
     <!-- ── TODAY'S STATS ── -->
-    <div style="margin:4px 18px 20px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+
+    <!-- Steps widget — amber, wide, original style -->
+    <div onclick="goScreen('walks')" style="margin:4px 18px 12px;background:var(--amber);border-radius:24px;padding:20px 18px 16px;cursor:pointer;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:rgba(0,0,0,0.4);margin-bottom:2px;">Steps today</div>
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;">
+        <div style="flex-shrink:0;">
+          <div style="font-size:48px;font-weight:900;letter-spacing:-2px;line-height:1;color:#111;" id="stat-steps-num">0</div>
+          <div style="display:flex;gap:10px;margin-top:5px;">
+            <span style="font-size:11px;color:rgba(0,0,0,0.5);" id="stat-steps-km">0.0 km</span>
+            <span style="font-size:11px;color:rgba(0,0,0,0.5);" id="stat-steps-pace"></span>
+          </div>
+        </div>
+        <div style="flex:1;display:flex;align-items:flex-end;gap:3px;height:52px;" id="steps-chart-bars">
+          <!-- populated by renderHomeStats -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Food ring + walks row -->
+    <div style="margin:0 18px 16px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
 
       <!-- Walks today -->
-      <div onclick="goScreen('walks')" style="background:var(--surface);border-radius:20px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,0.05);grid-column:1;cursor:pointer;active:transform:scale(0.97)">
-        <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Walks today</div>
-        <div style="display:flex;align-items:baseline;gap:3px;">
-          <span id="stat-walks-num" style="font-size:48px;font-weight:900;letter-spacing:-2px;color:var(--green);line-height:1;">0</span>
-          <span style="font-size:14px;font-weight:600;color:var(--green);margin-bottom:4px;">walks</span>
-        </div>
-        <div style="font-size:12px;color:var(--text2);margin-top:4px;" id="stat-walks-sub">No walks logged yet</div>
+      <div onclick="goScreen('walks')" style="background:#111;border-radius:20px;padding:16px;cursor:pointer;">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:6px;">Walks</div>
+        <div style="font-size:48px;font-weight:900;letter-spacing:-2px;line-height:1;color:white;" id="stat-walks-num">0</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:4px;" id="stat-walks-sub">today</div>
       </div>
 
-      <!-- Food goal -->
-      <div onclick="goScreen('food')" style="background:var(--surface);border-radius:20px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,0.05);grid-column:2;cursor:pointer;">
-        <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Food goal</div>
-        <div style="display:flex;align-items:baseline;gap:2px;">
-          <span id="stat-food-num" style="font-size:48px;font-weight:900;letter-spacing:-2px;color:var(--amber);line-height:1;">0</span>
-          <span style="font-size:14px;font-weight:600;color:var(--amber);margin-bottom:4px;">%</span>
-        </div>
-        <div style="margin-top:8px;height:5px;background:var(--border);border-radius:3px;overflow:hidden;">
-          <div id="stat-food-bar" style="height:100%;background:var(--amber);border-radius:3px;width:0%;transition:width 0.5s;"></div>
-        </div>
-        <div style="font-size:12px;color:var(--text2);margin-top:4px;" id="stat-food-sub">of daily goal</div>
-      </div>
-
-      <!-- Steps chart — full width -->
-      <div onclick="goScreen('walks')" style="background:var(--surface);border-radius:20px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,0.05);grid-column:1/-1;cursor:pointer;">
-        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px;">
-          <div>
-            <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Steps today</div>
-            <div style="display:flex;align-items:baseline;gap:3px;margin-top:4px;">
-              <span id="stat-steps-num" style="font-size:36px;font-weight:900;letter-spacing:-1.5px;color:var(--text);line-height:1;">0</span>
-              <span style="font-size:13px;font-weight:600;color:var(--text2);">steps</span>
+      <!-- Food ring -->
+      <div onclick="goScreen('food')" style="background:var(--surface);border-radius:20px;padding:16px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:8px;">Food</div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="position:relative;width:56px;height:56px;flex-shrink:0;">
+            <canvas id="food-ring-canvas" width="56" height="56" style="display:block;"></canvas>
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+              <span style="font-size:16px;font-weight:900;letter-spacing:-0.5px;color:var(--text);line-height:1;" id="stat-food-done">0</span>
+              <span style="font-size:8px;color:var(--text3);line-height:1;" id="stat-food-total">/4</span>
             </div>
           </div>
-          <div style="text-align:right;">
-            <div style="font-size:12px;color:var(--text2);" id="stat-steps-km">0.0 km</div>
-            <div style="font-size:12px;color:var(--text3);" id="stat-steps-pace"></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:4px;" id="stat-food-dots">
+            <!-- populated by renderHomeStats -->
           </div>
-        </div>
-        <!-- Bar chart by hour -->
-        <canvas id="steps-chart" style="width:100%;height:80px;display:block;"></canvas>
-        <div style="display:flex;justify-content:space-between;margin-top:6px;padding:0 2px;">
-          <span style="font-size:10px;color:var(--text3);">12am</span>
-          <span style="font-size:10px;color:var(--text3);">6am</span>
-          <span style="font-size:10px;color:var(--text3);">12pm</span>
-          <span style="font-size:10px;color:var(--text3);">6pm</span>
-          <span style="font-size:10px;color:var(--text3);">Now</span>
         </div>
       </div>
 
@@ -804,7 +800,8 @@ if('serviceWorker' in navigator) {
       <button class="btn btn-danger" onclick="finishLiveWalk()" style="margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px;background:#FF3B30;">
         <i class="ph ph-flag-checkered" style="font-size:20px;"></i> Finish walk
       </button>
-      <button class="btn btn-secondary" onclick="cancelLiveWalk()" style="color:var(--text3);">Cancel walk</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-walk-live')" style="color:var(--text2);">Minimise</button>
+      <button class="btn btn-secondary" onclick="cancelLiveWalk()" style="color:#FF3B30;margin-top:0;">Cancel walk</button>
       <div style="height:8px;"></div>
     </div>
 
@@ -2325,7 +2322,16 @@ function updateLiveTimer() {
   const elapsed = Math.floor((Date.now() - liveWalk.startTime) / 1000);
   const m = Math.floor(elapsed / 60).toString().padStart(2, '0');
   const s = (elapsed % 60).toString().padStart(2, '0');
-  document.getElementById('live-timer').textContent = m + ':' + s;
+  const timerEl = document.getElementById('live-timer');
+  if(timerEl) timerEl.textContent = m + ':' + s;
+  // Update live bar
+  const bar   = document.getElementById('live-walk-bar');
+  const label = document.getElementById('live-bar-label');
+  const dogName = db.profile.name || 'Zipi';
+  if(bar)   bar.style.display = 'block';
+  if(label) label.textContent = dogName + ' walking — ' + m + ':' + s;
+  // Push screen content down
+  document.querySelectorAll('.screen.active').forEach(s => s.classList.add('has-live-bar'));
 }
 
 function updatePace() {
@@ -2338,9 +2344,19 @@ function updatePace() {
   }
 }
 
+function finishLiveWalkFromBar() {
+  // Open the live walk modal if not open, then finish
+  openModal('modal-walk-live');
+  setTimeout(finishLiveWalk, 50);
+}
+
 function finishLiveWalk() {
   liveWalk.active = false;
   clearInterval(liveWalk.timerInterval);
+  // Hide live bar
+  const bar = document.getElementById('live-walk-bar');
+  if(bar) bar.style.display = 'none';
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('has-live-bar'));
   if(liveWalk.watchId !== null) navigator.geolocation.clearWatch(liveWalk.watchId);
   if(liveWalk.accelListener) window.removeEventListener('devicemotion', liveWalk.accelListener);
 
@@ -2369,8 +2385,12 @@ function finishLiveWalk() {
 }
 
 function cancelLiveWalk() {
+  if(!confirm('Cancel this walk? All progress will be lost.')) return;
   liveWalk.active = false;
   clearInterval(liveWalk.timerInterval);
+  const bar = document.getElementById('live-walk-bar');
+  if(bar) bar.style.display = 'none';
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('has-live-bar'));
   if(liveWalk.watchId !== null) navigator.geolocation.clearWatch(liveWalk.watchId);
   if(liveWalk.accelListener) window.removeEventListener('devicemotion', liveWalk.accelListener);
   closeModal('modal-walk-live');
@@ -2396,7 +2416,10 @@ function saveLiveWalk() {
   db.walks.push(d);
   save();
   closeModal('modal-walk-live');
-  toast('Walk saved! 🦮');
+  const bar2 = document.getElementById('live-walk-bar');
+  if(bar2) bar2.style.display = 'none';
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('has-live-bar'));
+  toast('Walk saved!');
   selectedWeather = '';
   if(currentScreen === 'home') renderHome();
   if(currentScreen === 'walks') renderWalks(walksFilter);
@@ -3114,117 +3137,127 @@ function openNotifPanel() {
 
 // ── Home stats ────────────────────────────────────────────────
 function renderHomeStats() {
+  if(!document.getElementById('stat-steps-num')) return;
   const today = new Date().toISOString().split('T')[0];
   const walks = (db.walks || []).filter(w => w.date === today);
   const meals = (db.meals || []).filter(m => m.date === today);
+  const mealsPerDay = db.profile.mealsPerDay || 4;
 
-  // Walks
-  const walkCount = walks.length;
+  // Steps
   const totalSteps = walks.reduce((a,w) => a+(parseInt(w.steps)||0), 0);
   const totalKm    = walks.reduce((a,w) => a+(parseFloat(w.distance)||0), 0);
   const totalMins  = walks.reduce((a,w) => a+(parseInt(w.duration)||0), 0);
-
-  const walksEl  = document.getElementById('stat-walks-num');
-  const walksSub = document.getElementById('stat-walks-sub');
-  if(walksEl)  walksEl.textContent  = walkCount;
-  if(walksSub) walksSub.textContent = walkCount === 0 ? 'No walks logged yet' : totalMins + ' min total';
-
   const stepsEl = document.getElementById('stat-steps-num');
   const kmEl    = document.getElementById('stat-steps-km');
   const paceEl  = document.getElementById('stat-steps-pace');
   if(stepsEl) stepsEl.textContent = totalSteps.toLocaleString();
   if(kmEl)    kmEl.textContent    = totalKm.toFixed(1) + ' km';
-  if(paceEl) {
-    if(totalKm > 0.05 && totalMins > 0) {
-      const pace = totalMins / totalKm;
-      paceEl.textContent = Math.floor(pace) + ':' + String(Math.round((pace%1)*60)).padStart(2,'0') + ' /km';
-    } else {
-      paceEl.textContent = '';
-    }
+  if(paceEl && totalKm > 0.05 && totalMins > 0) {
+    const p = totalMins / totalKm;
+    paceEl.textContent = Math.floor(p) + ':' + String(Math.round((p%1)*60)).padStart(2,'0') + ' /km';
   }
 
-  const fed     = meals.reduce((a,m) => a+(parseInt(m.amount)||0), 0);
-  const goal    = db.profile.foodGoal || 300;
-  const pct     = Math.min(100, Math.round((fed/goal)*100));
-  const foodEl  = document.getElementById('stat-food-num');
-  const foodBar = document.getElementById('stat-food-bar');
-  const foodSub = document.getElementById('stat-food-sub');
-  if(foodEl)  { foodEl.textContent = pct; foodEl.style.color = pct >= 100 ? 'var(--green)' : 'var(--amber)'; }
-  if(foodBar) { foodBar.style.width = pct + '%'; foodBar.style.background = pct >= 100 ? 'var(--green)' : 'var(--amber)'; }
-  if(foodSub) foodSub.textContent = pct >= 100 ? 'Daily goal reached!' : (goal-fed) + 'g remaining';
+  // Walks
+  const walksEl  = document.getElementById('stat-walks-num');
+  const walksSub = document.getElementById('stat-walks-sub');
+  if(walksEl)  walksEl.textContent  = walks.length;
+  if(walksSub) walksSub.textContent = totalMins > 0 ? totalMins + ' min total' : 'today';
 
-  drawStepsChart(walks);
+  // Food ring
+  const doneMeals = new Set(meals.filter(m=>m.mealSlot!=null).map(m=>m.mealSlot)).size;
+  const doneEl  = document.getElementById('stat-food-done');
+  const totalEl = document.getElementById('stat-food-total');
+  if(doneEl)  doneEl.textContent  = doneMeals;
+  if(totalEl) totalEl.textContent = '/' + mealsPerDay;
+  drawFoodRing(doneMeals, mealsPerDay);
+  drawFoodDots(meals, mealsPerDay);
+
+  // Bell badge
+  const hasItems = walks.length === 0 || doneMeals < mealsPerDay ||
+    (db.vetRecords?.reminders||[]).some(r => {
+      const d = (new Date(r.date+'T12:00:00')-new Date())/86400000;
+      return d >= 0 && d <= 7;
+    });
+  const badge = document.getElementById('notif-badge');
+  if(badge) badge.style.display = hasItems ? 'block' : 'none';
+
+  // Steps bar chart
+  drawStepsBars(walks);
 }
 
-function drawStepsChart(walks) {
-  const canvas = document.getElementById('steps-chart');
+function drawFoodRing(done, total) {
+  const canvas = document.getElementById('food-ring-canvas');
   if(!canvas) return;
-  const ctx   = canvas.getContext('2d');
-  const dpr   = window.devicePixelRatio || 1;
-  const W     = canvas.offsetWidth;
-  const H     = 80;
-  canvas.width  = W * dpr;
-  canvas.height = H * dpr;
-  canvas.style.width  = W + 'px';
-  canvas.style.height = H + 'px';
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = 56 * dpr; canvas.height = 56 * dpr;
+  canvas.style.width = '56px'; canvas.style.height = '56px';
+  const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
+  const cx = 28, cy = 28, r = 22, sw = 6;
+  const segAngle = (Math.PI * 2) / total;
+  const gap = 0.08;
+  for(let i = 0; i < total; i++) {
+    const startA = -Math.PI/2 + i * segAngle + gap/2;
+    const endA   = startA + segAngle - gap;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, startA, endA);
+    ctx.strokeStyle = i < done ? '#3D8B6E' : 'rgba(0,0,0,0.1)';
+    ctx.lineWidth = sw;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  }
+}
 
-  const now    = new Date();
+function drawFoodDots(meals, total) {
+  const el = document.getElementById('stat-food-dots');
+  if(!el) return;
+  const NAMES = {1:['Daily'],2:['Morning','Evening'],3:['Morning','Afternoon','Evening'],4:['Morning','Midday','Afternoon','Evening'],5:['Morning','Midday','Afternoon','Evening','Night']};
+  const names = NAMES[total] || NAMES[4];
+  const today = new Date().toISOString().split('T')[0];
+  const doneSlots = new Set(meals.filter(m=>m.mealSlot!=null&&m.date===today).map(m=>m.mealSlot));
+  el.innerHTML = names.slice(0,4).map((name,i) => {
+    const done = doneSlots.has(i);
+    return `<div style="display:flex;align-items:center;gap:5px;">
+      <div style="width:6px;height:6px;border-radius:50%;background:${done?'#3D8B6E':'rgba(0,0,0,0.12)'};flex-shrink:0;"></div>
+      <span style="font-size:10px;color:${done?'var(--text2)':'var(--text)'};font-weight:${done?'400':'600'};text-decoration:${done?'line-through':'none'};text-decoration-color:rgba(0,0,0,0.2);">${name}</span>
+    </div>`;
+  }).join('');
+}
+
+function drawStepsBars(walks) {
+  const barsEl = document.getElementById('steps-chart-bars');
+  if(!barsEl) return;
+  const now = new Date();
   const curHour = now.getHours() + now.getMinutes()/60;
-  const totalBars = Math.ceil(curHour) || 1;
-
-  // Bucket steps by hour
+  const totalBars = Math.max(Math.ceil(curHour), 1);
   const buckets = new Array(24).fill(0);
   walks.forEach(w => {
     if(!w.time || !w.steps) return;
     const h = parseInt(w.time.split(':')[0]);
-    buckets[h] += parseInt(w.steps) || 0;
+    buckets[h] += parseInt(w.steps)||0;
   });
-
   const maxSteps = Math.max(...buckets.slice(0, totalBars), 1);
-  const barW  = (W - 4) / totalBars;
-  const gap   = Math.max(1, barW * 0.15);
-  const bw    = barW - gap;
-  const barH  = H - 4;
-  const radius = Math.min(4, bw/2);
-
-  ctx.clearRect(0, 0, W, H);
-
-  for(let h = 0; h < totalBars; h++) {
-    const steps = buckets[h];
-    const x     = h * barW + gap/2;
-    const frac  = steps / maxSteps;
-    const bh    = Math.max(frac > 0 ? radius*2 : 0, frac * barH);
-    const y     = H - 2 - bh;
-
-    // Background bar
-    ctx.fillStyle = 'rgba(0,0,0,0.05)';
-    roundRect(ctx, x, 2, bw, barH, radius);
-    ctx.fill();
-
-    // Value bar
-    if(bh > 0) {
-      const isNow = h === Math.floor(curHour);
-      ctx.fillStyle = isNow ? '#3D8B6E' : 'rgba(61,139,110,0.4)';
-      roundRect(ctx, x, y, bw, bh, radius);
-      ctx.fill();
-    }
+  const LABELS = ['12a','2a','4a','6a','8a','10a','12p','2p','4p','6p','8p','10p'];
+  const barsToShow = Math.min(totalBars, 10);
+  const step = Math.max(1, Math.floor(24 / barsToShow));
+  let html = '';
+  for(let i = 0; i < barsToShow; i++) {
+    const h = Math.round(i * (curHour / barsToShow));
+    const frac = buckets[h] / maxSteps;
+    const isNow = i === barsToShow - 1;
+    const isTall = frac > 0.3;
+    const bg = isNow ? 'rgba(0,0,0,0.2)' : isTall ? '#111' : 'rgba(0,0,0,0.18)';
+    const minH = 3;
+    const barH = Math.max(minH, Math.round(frac * 52));
+    html += `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px;height:52px;">
+      <div style="width:100%;background:${bg};border-radius:3px 3px 0 0;height:${barH}px;"></div>
+    </div>`;
   }
+  barsEl.innerHTML = html;
 }
 
-function roundRect(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
-}
+
+
 
 
 // ── Medication scheduling ─────────────────────────────────────
