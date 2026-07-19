@@ -480,7 +480,7 @@ if('serviceWorker' in navigator) {
   <div class="scroll" id="profile-view">
     <div id="profile-avatar-container" style="width:120px;height:120px;margin:20px auto 12px;"></div>
     <div class="profile-avatar" id="profile-emoji-display" style="display:none;">🐕</div>
-    <div class="profile-name" id="profile-name-display">My Dog</div>
+    <div class="profile-name" id="profile-name-display" onclick="showProfileEdit()" style="cursor:pointer;">My Dog</div>
     <div class="profile-sub" id="profile-sub-display">Tap Edit to set up your profile</div>
 
     <div class="section-label">About</div>
@@ -1205,7 +1205,7 @@ if('serviceWorker' in navigator) {
         Every time you log data it syncs to Supabase in the background. No manual push needed.
       </div>
       <div style="font-size:12px;color:var(--text3);text-align:center;margin-bottom:16px;" id="supabase-last-sync">Never synced</div>
-      <button class="btn btn-secondary" onclick="syncFromSupabase()" style="margin:0 0 10px;">
+      <button class="btn btn-secondary" onclick="syncFromSupabase()" style="margin:0 0 10px;display:flex;align-items:center;justify-content:center;gap:8px;">
         <i class="ph ph-cloud-arrow-down"></i> Pull data from cloud
       </button>
 
@@ -2172,7 +2172,10 @@ function selectEmoji(e) {
 }
 function showProfileEdit() {
   document.getElementById('profile-view').style.display = 'none';
-  document.getElementById('profile-edit').style.display = 'block';
+  const editEl = document.getElementById('profile-edit');
+  editEl.style.display = 'block';
+  editEl.scrollTop = 0;
+  document.getElementById('screen-profile').scrollTop = 0;
   const p = db.profile;
   document.getElementById('p-edit-name').value = p.name || '';
   document.getElementById('p-edit-breed').value = p.breed || '';
