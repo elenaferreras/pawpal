@@ -192,12 +192,12 @@ if('serviceWorker' in navigator) {
     color:#111;letter-spacing:-0.05em;
     line-height:0.9;text-align:center;
     margin-top:15vh;
-    animation:splash-pop 0.7s cubic-bezier(0.34,1.56,0.64,1) both;
+    opacity:0;
   }
   #splash-dog {
     position:absolute;bottom:0;left:50%;
     transform:translateX(-50%);
-    animation:splash-rise 0.6s 0.35s ease-out both;
+    opacity:0;
   }
   @keyframes splash-pop {
     0%   { transform:scale(0.4);opacity:0; }
@@ -1461,11 +1461,22 @@ function showSplash() {
   const av = db.profile?.avatar || { head:'Normal', body:'Normal', colour:'lightbrown2', eyes:'Normal', nose:'Normal' };
   dogEl.innerHTML = buildDogSVG(av, 220);
 
-  // Auto-dismiss after 2s
-  setTimeout(() => {
-    splash.style.animation = 'splash-out 0.4s ease-out forwards';
-    setTimeout(() => splash.style.display = 'none', 380);
-  }, 2000);
+  // Reset animations so they play fresh after content is ready
+  const word = document.getElementById('splash-word');
+  word.style.animation = 'none';
+  dogEl.style.animation = 'none';
+
+  // Small delay to ensure paint happens, then trigger animations
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    word.style.animation = 'splash-pop 0.7s cubic-bezier(0.34,1.56,0.64,1) both';
+    dogEl.style.animation = 'splash-rise 0.6s 0.35s ease-out both';
+
+    // Dismiss after animations + hold time
+    setTimeout(() => {
+      splash.style.animation = 'splash-out 0.4s ease-out forwards';
+      setTimeout(() => { splash.style.display = 'none'; }, 380);
+    }, 2200);
+  }));
 }
 
 // ============================================================
