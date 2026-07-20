@@ -11,6 +11,7 @@
     "build:manifest": "node -e \"require('fs').mkdirSync('dist',{recursive:true});require('fs').copyFileSync('public/manifest.json','dist/manifest.json')\"",
     "build": "npm run build:ui && npm run build:sw && npm run build:manifest",
     "preview": "vite preview",
+    "deploy": "npm run build && cp dist/ui.html ../index.html && cp dist/code.js ../code.js && cp dist/manifest.json ../manifest.json && cp dist/*.png ../ && git -C .. add -A && git -C .. commit -m \"chore: deploy build\" && git -C .. push origin main",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.worker.json --noEmit"
   },
   "dependencies": {
