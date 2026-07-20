@@ -122,32 +122,43 @@ export function buildDogFace(av: Avatar | undefined, size: number): string {
     return `<i class="ph ph-paw-print" style="font-size:${Math.round(size * 0.5)}px;"></i>`;
   }
   const head = headData(av.head, av.colour);
-  const eye = eyeData("Normal");
+  const eye = eyeData(av.eyes);
   const nose = noseData(av.nose);
   const c = head.coords;
-  const scaledHeadH = Math.round(size * 1.5);
-  const scaledHeadW = Math.round(scaledHeadH * (c.W / c.H));
-  const hScaleX = scaledHeadW / c.W;
-  const hScaleY = scaledHeadH / c.H;
-  const eyeLx = Math.round(c.eyeXL * c.W * hScaleX);
-  const eyeRx = Math.round(c.eyeXR * c.W * hScaleX);
+
+  // Fit the whole head inside the circular frame (with a little padding),
+  // centred both horizontally and vertically, so ears aren't clipped and the
+  // eyes/nose sit naturally instead of being pushed up by an over-zoomed crop.
+  const pad = size * 0.06;
+  const avail = size - pad * 2;
+  let scaledHeadH = avail;
+  let scaledHeadW = scaledHeadH * (c.W / c.H);
+  if (scaledHeadW > avail) {
+    scaledHeadW = avail;
+    scaledHeadH = scaledHeadW * (c.H / c.W);
+  }
+  scaledHeadW = Math.round(scaledHeadW);
+  scaledHeadH = Math.round(scaledHeadH);
+  const headLeft = Math.round((size - scaledHeadW) / 2);
+  const headTop = Math.round((size - scaledHeadH) / 2);
+
+  const eyeLx = headLeft + c.eyeXL * scaledHeadW;
+  const eyeRx = headLeft + c.eyeXR * scaledHeadW;
   const eyeSpan = eyeRx - eyeLx;
-  const eyeCx = Math.round((eyeLx + eyeRx) / 2);
-  const eyeCy = Math.round(c.eyeY * c.H * hScaleY);
-  const eyeW = Math.round(eyeSpan * eye.spanRatio * 0.85);
+  const eyeCx = (eyeLx + eyeRx) / 2;
+  const eyeCy = headTop + c.eyeY * scaledHeadH;
+  const eyeW = Math.round(eyeSpan * eye.spanRatio * 1.2);
   const eyeH = Math.round(eyeW * eye.hRatio);
-  const eyeTop = eyeCy - Math.round(eyeH / 2);
-  const noseCx = Math.round(c.noseX * c.W * hScaleX);
-  const noseCy = Math.round(c.noseY * c.H * hScaleY);
+
+  const noseCx = headLeft + c.noseX * scaledHeadW;
+  const noseCy = headTop + c.noseY * scaledHeadH;
   const noseW = Math.round(eyeSpan * 0.9);
   const noseH = Math.round(noseW / nose.aspect);
-  const noseTop = noseCy - Math.round(noseH / 2);
-  const offsetLeft = Math.round(scaledHeadW / 2 - size / 2);
-  const offsetTop = Math.round(eyeCy - size * 0.38);
+
   return `<div style="width:${size}px;height:${size}px;overflow:hidden;position:relative;border-radius:50%;">
-    <img src="${head.uri}" style="position:absolute;top:${-offsetTop}px;left:${-offsetLeft}px;width:${scaledHeadW}px;height:${scaledHeadH}px;">
-    <img src="${eye.uri}" style="position:absolute;top:${eyeTop - offsetTop}px;left:${eyeCx - Math.round(eyeW / 2) - offsetLeft}px;width:${eyeW}px;height:${eyeH}px;">
-    <img src="${nose.uri}" style="position:absolute;top:${noseTop - offsetTop}px;left:${noseCx - Math.round(noseW / 2) - offsetLeft}px;width:${noseW}px;height:${noseH}px;">
+    <img src="${head.uri}" style="position:absolute;top:${headTop}px;left:${headLeft}px;width:${scaledHeadW}px;height:${scaledHeadH}px;">
+    <img src="${eye.uri}" style="position:absolute;top:${Math.round(eyeCy - eyeH / 2)}px;left:${Math.round(eyeCx - eyeW / 2)}px;width:${eyeW}px;height:${eyeH}px;">
+    <img src="${nose.uri}" style="position:absolute;top:${Math.round(noseCy - noseH / 2)}px;left:${Math.round(noseCx - noseW / 2)}px;width:${noseW}px;height:${noseH}px;">
   </div>`;
 }
 

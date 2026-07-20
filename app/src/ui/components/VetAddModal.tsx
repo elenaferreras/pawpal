@@ -1,5 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
+import { VStack, HStack } from "@astryxdesign/core/Stack";
+import { Grid } from "@astryxdesign/core/Grid";
+import { Text } from "@astryxdesign/core/Text";
+import { Card } from "@astryxdesign/core/Card";
+import { Button } from "@astryxdesign/core/Button";
+import { IconButton } from "@astryxdesign/core/IconButton";
+import { Icon } from "@astryxdesign/core/Icon";
+import { TextInput } from "@astryxdesign/core/TextInput";
+import { TextArea } from "@astryxdesign/core/TextArea";
+import { Selector } from "@astryxdesign/core/Selector";
+import { SegmentedControl, SegmentedControlItem } from "@astryxdesign/core/SegmentedControl";
+import { ToggleButton } from "@astryxdesign/core/ToggleButton";
+import { FileInput } from "@astryxdesign/core/FileInput";
 import { Modal } from "./Modal";
+import { DateField } from "./fields";
+import { Icons } from "../lib/icons";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { fmtDate } from "../lib/date";
@@ -161,164 +176,130 @@ export function VetAddModal({ open, onClose }: VetAddModalProps): React.ReactEle
 
   return (
     <Modal open={open} title="Add health record" onClose={onClose}>
-      <div className="form-group">
-        <span className="form-label">Type</span>
-        <div className="pills" style={{ padding: 0 }}>
-          {(["checkup", "vaccine", "reminder", "medication"] as RecordType[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              className={"pill" + (type === t ? " active" : "")}
-              onClick={() => setType(t)}
-            >
-              {t[0].toUpperCase() + t.slice(1)}
-            </button>
-          ))}
-        </div>
-      </div>
+      <VStack gap={3}>
+        <SegmentedControl value={type} onChange={(v) => setType(v as RecordType)} label="Record type" layout="fill" size="sm">
+          <SegmentedControlItem value="checkup" label="Checkup" />
+          <SegmentedControlItem value="vaccine" label="Vaccine" />
+          <SegmentedControlItem value="reminder" label="Reminder" />
+          <SegmentedControlItem value="medication" label="Medication" />
+        </SegmentedControl>
 
-      {type === "checkup" && (
-        <>
-          <Field label="Reason" value={reason} onChange={setReason} placeholder="Annual checkup" />
-          <div className="form-row">
-            <div>
-              <span className="form-label">Date</span>
-              <input type="date" className="form-input" value={cDate} onChange={(e) => setCDate(e.target.value)} />
-            </div>
-            <div>
-              <span className="form-label">Clinic</span>
-              <input className="form-input" value={clinic} onChange={(e) => setClinic(e.target.value)} />
-            </div>
-          </div>
-          <div className="form-group">
-            <span className="form-label">Notes</span>
-            <textarea className="form-input" value={cNotes} onChange={(e) => setCNotes(e.target.value)} />
-          </div>
-          <div className="form-group">
-            <span className="form-label">Attach file (PDF)</span>
-            <input type="file" onChange={(e) => setFileName(e.target.files?.[0]?.name || "")} />
-          </div>
-        </>
-      )}
+        {type === "checkup" && (
+          <>
+            <TextInput label="Reason" value={reason} onChange={setReason} placeholder="Annual checkup" />
+            <HStack gap={3}>
+              <DateField label="Date" value={cDate} onChange={setCDate} />
+              <TextInput label="Clinic" value={clinic} onChange={setClinic} />
+            </HStack>
+            <TextArea label="Notes" value={cNotes} onChange={setCNotes} />
+            <FileInput
+              label="Attach file (PDF)"
+              value={null}
+              onChange={(f) => setFileName((Array.isArray(f) ? f[0] : f)?.name || "")}
+              accept=".pdf"
+            />
+          </>
+        )}
 
-      {type === "vaccine" && (
-        <>
-          <Field label="Vaccine name" value={vName} onChange={setVName} placeholder="Rabies" />
-          <div className="form-row">
-            <div>
-              <span className="form-label">Given</span>
-              <input type="date" className="form-input" value={vDate} onChange={(e) => setVDate(e.target.value)} />
-            </div>
-            <div>
-              <span className="form-label">Next due</span>
-              <input type="date" className="form-input" value={vNext} onChange={(e) => setVNext(e.target.value)} />
-            </div>
-          </div>
-        </>
-      )}
+        {type === "vaccine" && (
+          <>
+            <TextInput label="Vaccine name" value={vName} onChange={setVName} placeholder="Rabies" />
+            <HStack gap={3}>
+              <DateField label="Given" value={vDate} onChange={setVDate} />
+              <DateField label="Next due" value={vNext} onChange={setVNext} />
+            </HStack>
+          </>
+        )}
 
-      {type === "reminder" && (
-        <>
-          <Field label="Reminder" value={rTitle} onChange={setRTitle} placeholder="Flea treatment" />
-          <div className="form-row">
-            <div>
-              <span className="form-label">Date</span>
-              <input type="date" className="form-input" value={rDate} onChange={(e) => setRDate(e.target.value)} />
-            </div>
-            <div>
-              <span className="form-label">Priority</span>
-              <select className="form-input" value={rPriority} onChange={(e) => setRPriority(e.target.value as Priority)}>
-                <option>High</option>
-                <option>Medium</option>
-                <option>Low</option>
-              </select>
-            </div>
-          </div>
-        </>
-      )}
+        {type === "reminder" && (
+          <>
+            <TextInput label="Reminder" value={rTitle} onChange={setRTitle} placeholder="Flea treatment" />
+            <HStack gap={3}>
+              <DateField label="Date" value={rDate} onChange={setRDate} />
+              <Selector
+                label="Priority"
+                options={["High", "Medium", "Low"]}
+                value={rPriority}
+                onChange={(v) => setRPriority(v as Priority)}
+              />
+            </HStack>
+          </>
+        )}
 
-      {type === "medication" && (
-        <>
-          <Field label="Medication name" value={mName} onChange={setMName} placeholder="Antibiotic" />
-          <Field label="Dose" value={mDose} onChange={setMDose} placeholder="1 tablet" />
-          <div className="form-group">
-            <span className="form-label">Frequency</span>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-              {FREQS.map((f) => (
-                <button
-                  key={f}
-                  type="button"
-                  className={"med-freq-opt" + (mFreq === f ? " selected" : "")}
-                  onClick={() => setMFreq(f)}
-                >
-                  {f}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="form-group">
-            <span className="form-label">Duration (days)</span>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <button type="button" className="med-days-preset" onClick={() => setMDays(Math.max(0, mDays - 1))}>−</button>
-              <span style={{ fontSize: 20, fontWeight: 800, minWidth: 40, textAlign: "center" }}>
-                {mDays === 0 ? "∞" : mDays}
-              </span>
-              <button type="button" className="med-days-preset" onClick={() => setMDays(mDays + 1)}>+</button>
-              <div style={{ display: "flex", gap: 6, marginLeft: "auto" }}>
-                {[7, 14, 30, 0].map((d) => (
-                  <button key={d} type="button" className="med-days-preset" onClick={() => setMDays(d)}>
-                    {d === 0 ? "∞" : d}
-                  </button>
+        {type === "medication" && (
+          <>
+            <TextInput label="Medication name" value={mName} onChange={setMName} placeholder="Antibiotic" />
+            <TextInput label="Dose" value={mDose} onChange={setMDose} placeholder="1 tablet" />
+            <VStack gap={1}>
+              <Text type="label">Frequency</Text>
+              <Grid columns={3} gap={2}>
+                {FREQS.map((f) => (
+                  <ToggleButton
+                    key={f}
+                    label={f}
+                    isPressed={mFreq === f}
+                    onPressedChange={() => setMFreq(f)}
+                  >
+                    {f}
+                  </ToggleButton>
                 ))}
-              </div>
-            </div>
-          </div>
-          <div className="form-group">
-            <span className="form-label">Start date</span>
-            <input type="date" className="form-input" value={mStart} onChange={(e) => setMStart(e.target.value)} />
-          </div>
-          <div className="card-sm card" style={{ margin: "0 18px 16px" }}>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>
-              {mFreq}
-              {mDays === 0
-                ? " · Ongoing"
-                : medEnd
-                  ? ` from ${fmtDate(mStart)} to ${fmtDate(medEnd)}`
-                  : ` for ${mDays} days`}
-            </div>
-            <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 2 }}>
-              {totalDoses ? `Total: ${totalDoses} dose${totalDoses !== 1 ? "s" : ""} of ${mDose || "dose"}` : "Ongoing — no end date"}
-            </div>
-          </div>
-          <div className="form-group">
-            <span className="form-label">Notes</span>
-            <textarea className="form-input" value={mNotes} onChange={(e) => setMNotes(e.target.value)} />
-          </div>
-        </>
-      )}
+              </Grid>
+            </VStack>
+            <VStack gap={1}>
+              <Text type="label">Duration (days)</Text>
+              <HStack gap={2} vAlign="center">
+                <IconButton
+                  label="Decrease days"
+                  variant="secondary"
+                  icon={<Icon icon={Icons.minus} />}
+                  onClick={() => setMDays(Math.max(0, mDays - 1))}
+                />
+                <Text weight="bold" style={{ minWidth: 40, textAlign: "center" }}>
+                  {mDays === 0 ? "∞" : mDays}
+                </Text>
+                <IconButton
+                  label="Increase days"
+                  variant="secondary"
+                  icon={<Icon icon={Icons.plus} />}
+                  onClick={() => setMDays(mDays + 1)}
+                />
+                <HStack gap={1} style={{ marginLeft: "auto" }}>
+                  {[7, 14, 30, 0].map((d) => (
+                    <Button
+                      key={d}
+                      label={d === 0 ? "∞" : String(d)}
+                      size="sm"
+                      variant={mDays === d ? "primary" : "secondary"}
+                      onClick={() => setMDays(d)}
+                    />
+                  ))}
+                </HStack>
+              </HStack>
+            </VStack>
+            <DateField label="Start date" value={mStart} onChange={setMStart} />
+            <Card padding={3} variant="muted">
+              <VStack gap={0.5}>
+                <Text weight="semibold">
+                  {mFreq}
+                  {mDays === 0
+                    ? " · Ongoing"
+                    : medEnd
+                      ? ` from ${fmtDate(mStart)} to ${fmtDate(medEnd)}`
+                      : ` for ${mDays} days`}
+                </Text>
+                <Text type="supporting">
+                  {totalDoses
+                    ? `Total: ${totalDoses} dose${totalDoses !== 1 ? "s" : ""} of ${mDose || "dose"}`
+                    : "Ongoing — no end date"}
+                </Text>
+              </VStack>
+            </Card>
+            <TextArea label="Notes" value={mNotes} onChange={setMNotes} />
+          </>
+        )}
 
-      <button className="btn btn-primary btn-full" onClick={save}>
-        Save record
-      </button>
+        <Button label="Save record" variant="primary" onClick={save} style={{ width: "100%" }} />
+      </VStack>
     </Modal>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  placeholder,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-}): React.ReactElement {
-  return (
-    <div className="form-group">
-      <span className="form-label">{label}</span>
-      <input className="form-input" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
-    </div>
   );
 }

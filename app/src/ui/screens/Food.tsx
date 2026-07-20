@@ -1,6 +1,14 @@
+import { HStack, VStack } from "@astryxdesign/core/Stack";
+import { Text, Heading } from "@astryxdesign/core/Text";
+import { Card } from "@astryxdesign/core/Card";
+import { ClickableCard } from "@astryxdesign/core/ClickableCard";
+import { IconButton } from "@astryxdesign/core/IconButton";
+import { Icon } from "@astryxdesign/core/Icon";
+import { ProgressBar } from "@astryxdesign/core/ProgressBar";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { Header } from "../components/Header";
+import { Icons } from "../lib/icons";
 import { fmtDate } from "../lib/date";
 import type { Meal } from "../types";
 
@@ -80,119 +88,124 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
         title="Food"
         subtitle={`${doneSlots.size} of ${n} meals today`}
         action={
-          <button className="hdr-btn" onClick={onAdd} aria-label="Log meal">
-            <i className="ph ph-plus" />
-          </button>
+          <IconButton label="Log meal" variant="primary" icon={<Icon icon={Icons.plus} />} onClick={onAdd} />
         }
       />
 
-      <div className="section-label">Today’s meals</div>
-      <div style={{ padding: "0 18px" }}>
+      <Text type="label" color="secondary" as="div" style={{ margin: "4px 0 8px" }}>
+        Today’s meals
+      </Text>
+      <VStack gap={2}>
         {names.map((name, i) => {
           const done = doneSlots.has(i);
           return (
-            <div
-              key={i}
-              onClick={() => (done ? undo(i) : quickLog(i))}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 14,
-                background: "var(--surface)",
-                borderRadius: 18,
-                padding: "14px 16px",
-                marginBottom: 10,
-                cursor: "pointer",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-                border: `1.5px solid ${done ? "var(--green)" : "var(--border)"}`,
-              }}
-            >
-              <div
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: "50%",
-                  flexShrink: 0,
-                  border: `2px solid ${done ? "var(--green)" : "var(--border-strong)"}`,
-                  background: done ? "var(--green)" : "transparent",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                {done && <i className="ph ph-check" style={{ color: "white", fontSize: 16, fontWeight: 700 }} />}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div
+            <ClickableCard key={i} label={done ? `Undo ${name}` : `Log ${name}`} onClick={() => (done ? undo(i) : quickLog(i))}>
+              <HStack gap={3} vAlign="center">
+                <span
                   style={{
-                    fontSize: 16,
-                    fontWeight: 700,
-                    color: done ? "var(--text2)" : "var(--text)",
-                    textDecoration: done ? "line-through" : "none",
+                    width: 32,
+                    height: 32,
+                    borderRadius: "50%",
+                    flexShrink: 0,
+                    border: `2px solid ${done ? "var(--color-status-success, #2e7d32)" : "var(--color-border, #ccc)"}`,
+                    background: done ? "var(--color-status-success, #2e7d32)" : "transparent",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                   }}
                 >
-                  {name}
-                </div>
-                <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 1 }}>
-                  {times[i]} · {portion}g
-                </div>
-              </div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: done ? "var(--green)" : "var(--text3)" }}>
-                {done ? "Done" : `${portion}g`}
-              </div>
-            </div>
+                  {done && <Icon icon={Icons.check} size="sm" color="inherit" />}
+                </span>
+                <VStack gap={0.5} style={{ flex: 1 }}>
+                  <Text weight="semibold" style={{ textDecoration: done ? "line-through" : "none" }}>
+                    {name}
+                  </Text>
+                  <Text type="supporting">
+                    {times[i]} · {portion}g
+                  </Text>
+                </VStack>
+                <Text type="supporting" color={done ? "accent" : "secondary"}>
+                  {done ? "Done" : `${portion}g`}
+                </Text>
+              </HStack>
+            </ClickableCard>
           );
         })}
-      </div>
+      </VStack>
 
-      <div className="card">
-        <div className="row-between">
-          <div style={{ fontSize: 20, fontWeight: 800 }}>
-            {total}g <span style={{ color: "var(--text3)", fontWeight: 400 }}>/ {fGoal}g</span>
-          </div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: pct >= 100 ? "var(--green)" : "var(--text2)" }}>
-            {pct}%
-          </div>
-        </div>
-        <div className="food-meter">
-          <div className="food-meter-fill" style={{ width: `${pct}%`, background: pct >= 100 ? "var(--green)" : "var(--amber)" }} />
-        </div>
-        <div style={{ fontSize: 12, color: "var(--text2)" }}>
-          {total >= fGoal ? "✓ Daily goal reached!" : `${fGoal - total}g remaining today`}
-        </div>
-      </div>
+      <Card padding={4} style={{ marginTop: 16 }}>
+        <VStack gap={2}>
+          <HStack justify="between" vAlign="center">
+            <Heading level={3}>
+              {total}g <Text type="supporting">/ {fGoal}g</Text>
+            </Heading>
+            <Text weight="semibold" color={pct >= 100 ? "accent" : "secondary"}>
+              {pct}%
+            </Text>
+          </HStack>
+          <ProgressBar
+            label="Daily food"
+            isLabelHidden
+            value={total}
+            max={fGoal}
+            variant={pct >= 100 ? "success" : "warning"}
+          />
+          <Text type="supporting">
+            {total >= fGoal ? "✓ Daily goal reached!" : `${fGoal - total}g remaining today`}
+          </Text>
+        </VStack>
+      </Card>
 
-      <div className="section-label">Meal history</div>
-      <div className="card card-flush">
+      <Text type="label" color="secondary" as="div" style={{ margin: "20px 0 8px" }}>
+        Meal history
+      </Text>
+      <Card padding={0}>
         {history.length === 0 ? (
-          <div className="empty">
-            <div className="empty-icon">
-              <i className="ph ph-fork-knife" />
-            </div>
-            <p>No meals logged yet</p>
-          </div>
+          <VStack gap={2} hAlign="center" padding={6}>
+            <Icon icon={Icons.forkKnife} size="lg" color="disabled" />
+            <Text type="supporting">No meals logged yet</Text>
+          </VStack>
         ) : (
-          history.map(({ m, index }) => (
-            <div className="food-log-item" key={index}>
-              <div className="food-log-icon">
-                <i className="ph ph-fork-knife" style={{ fontSize: 15 }} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>
-                  {m.type || "Meal"} {m.notes ? `· ${m.notes}` : ""}
-                </div>
-                <div style={{ fontSize: 12, color: "var(--text2)" }}>
-                  {fmtDate(m.date)} {m.time}
-                </div>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 14, fontWeight: 700 }}>{m.amount}g</span>
-                <button className="icon-btn" onClick={() => delMeal(index)}>×</button>
-              </div>
-            </div>
-          ))
+          <VStack gap={0}>
+            {history.map(({ m, index }, i) => (
+              <HStack
+                key={index}
+                gap={3}
+                vAlign="center"
+                padding={3}
+                style={{ borderTop: i === 0 ? undefined : "1px solid var(--color-border, #eee)" }}
+              >
+                <span
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    background: "var(--color-background-section, #f4f4f4)",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Icon icon={Icons.forkKnife} color="warning" />
+                </span>
+                <VStack gap={0.5} style={{ flex: 1 }}>
+                  <Text weight="medium">
+                    {m.type || "Meal"} {m.notes ? `· ${m.notes}` : ""}
+                  </Text>
+                  <Text type="supporting">
+                    {fmtDate(m.date)} {m.time}
+                  </Text>
+                </VStack>
+                <HStack gap={2} vAlign="center" style={{ flexShrink: 0 }}>
+                  <Text weight="semibold">{m.amount}g</Text>
+                  <IconButton label="Delete meal" size="sm" variant="ghost" icon={<Icon icon={Icons.x} />} onClick={() => delMeal(index)} />
+                </HStack>
+              </HStack>
+            ))}
+          </VStack>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

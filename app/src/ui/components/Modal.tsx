@@ -1,4 +1,6 @@
-import { useEffect, type ReactNode } from "react";
+import { type ReactNode } from "react";
+import { Dialog, DialogHeader } from "@astryxdesign/core/Dialog";
+import { Layout, LayoutContent } from "@astryxdesign/core/Layout";
 
 interface ModalProps {
   open: boolean;
@@ -7,30 +9,20 @@ interface ModalProps {
   children: ReactNode;
 }
 
-// Bottom-sheet modal matching the original overlay behaviour.
+// Astryx Dialog wrapper preserving the previous { open, title, onClose } API.
 export function Modal({ open, title, onClose, children }: ModalProps): ReactNode {
-  useEffect(() => {
-    if (open) {
-      document.body.classList.add("modal-open");
-      return () => document.body.classList.remove("modal-open");
-    }
-    return undefined;
-  }, [open]);
-
   if (!open) return null;
 
+  const handleOpenChange = (isOpen: boolean): void => {
+    if (!isOpen) onClose();
+  };
+
   return (
-    <div
-      className="modal-overlay"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="modal">
-        <div className="modal-handle" onClick={onClose} />
-        {title && <div className="modal-title">{title}</div>}
-        {children}
-      </div>
-    </div>
+    <Dialog isOpen={open} onOpenChange={handleOpenChange} purpose="form" width="min(560px, 94vw)">
+      <Layout
+        header={title ? <DialogHeader title={title} onOpenChange={handleOpenChange} /> : undefined}
+        content={<LayoutContent>{children}</LayoutContent>}
+      />
+    </Dialog>
   );
 }

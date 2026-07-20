@@ -1,6 +1,14 @@
 import { useState } from "react";
+import { HStack, VStack } from "@astryxdesign/core/Stack";
+import { Grid } from "@astryxdesign/core/Grid";
+import { Text, Heading } from "@astryxdesign/core/Text";
+import { Card } from "@astryxdesign/core/Card";
+import { ClickableCard } from "@astryxdesign/core/ClickableCard";
+import { IconButton } from "@astryxdesign/core/IconButton";
+import { Icon } from "@astryxdesign/core/Icon";
 import { useDb } from "../lib/store";
 import { fmtDate, WEATHER_MAP } from "../lib/date";
+import { Icons } from "../lib/icons";
 import { DogAvatar, DogFace } from "../avatar/DogAvatar";
 import { FoodRing } from "../components/FoodRing";
 import { NotifPanel } from "../components/NotifPanel";
@@ -14,10 +22,17 @@ interface HomeProps {
   onLogBathroom: () => void;
 }
 
+type ActivityAccent = "success" | "warning" | "secondary";
+
 interface ActivityItem {
   kind: "walk" | "meal" | "bath";
   sortKey: string;
-  node: React.ReactNode;
+  icon: (typeof Icons)[keyof typeof Icons] | null;
+  emoji?: string;
+  accent: ActivityAccent;
+  title: string;
+  meta: string;
+  photos?: readonly string[];
 }
 
 export function Home({ onNavigate, onLogWalk, onLogFood, onLogBathroom }: HomeProps): React.ReactElement {
@@ -62,72 +77,32 @@ export function Home({ onNavigate, onLogWalk, onLogFood, onLogBathroom }: HomePr
     activity.push({
       kind: "walk",
       sortKey: w.created || w.date,
-      node: (
-        <div className="log-item">
-          <div className="log-dot" style={{ background: "var(--green-light)", color: "var(--green)" }}>
-            <i className="ph ph-paw-print" style={{ fontSize: 16 }} />
-          </div>
-          <div className="log-info">
-            <div className="log-title">
-              Walk — {w.duration || "?"} min
-              {w.steps ? ` · ${w.steps} steps` : ""}
-              {wIcon ? ` · ${wIcon}` : ""}
-            </div>
-            <div className="log-meta">
-              {fmtDate(w.date)} {w.time} {w.friends ? "· friends" : ""}
-            </div>
-          </div>
-        </div>
-      ),
+      icon: Icons.pawPrint,
+      accent: "success",
+      title: `Walk — ${w.duration || "?"} min${w.steps ? ` · ${w.steps} steps` : ""}${wIcon ? ` · ${wIcon}` : ""}`,
+      meta: `${fmtDate(w.date)} ${w.time} ${w.friends ? "· friends" : ""}`,
     });
   });
   db.meals.forEach((m) => {
     activity.push({
       kind: "meal",
       sortKey: m.created || m.date,
-      node: (
-        <div className="log-item">
-          <div className="log-dot" style={{ background: "var(--amber-light)", color: "var(--amber)" }}>
-            <i className="ph ph-fork-knife" style={{ fontSize: 16 }} />
-          </div>
-          <div className="log-info">
-            <div className="log-title">{m.type} — {m.amount}g</div>
-            <div className="log-meta">{fmtDate(m.date)} {m.time}</div>
-          </div>
-        </div>
-      ),
+      icon: Icons.forkKnife,
+      accent: "warning",
+      title: `${m.type} — ${m.amount}g`,
+      meta: `${fmtDate(m.date)} ${m.time}`,
     });
   });
   db.bathroom.forEach((b) => {
     activity.push({
       kind: "bath",
       sortKey: b.created || b.date,
-      node: (
-        <div className="log-item">
-          <div className="log-dot" style={{ background: "#F0F0F0" }}>
-            {b.type === "pipi" ? "💧" : "💩"}
-          </div>
-          <div className="log-info">
-            <div className="log-title">
-              {b.type === "pipi" ? "Pipi" : b.type === "popo" ? "Popo" : "Pipi & Popo"}
-              {b.consistency ? ` · ${b.consistency}` : ""}
-            </div>
-            <div className="log-meta">{fmtDate(b.date)} {b.time}</div>
-            {b.photos.length > 0 && (
-              <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
-                {b.photos.map((src, i) => (
-                  <img
-                    key={i}
-                    src={src}
-                    style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 8, border: "0.5px solid var(--border)" }}
-                    alt=""
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      ),
+      icon: null,
+      emoji: b.type === "pipi" ? "💧" : "💩",
+      accent: "secondary",
+      title: `${b.type === "pipi" ? "Pipi" : b.type === "popo" ? "Popo" : "Pipi & Popo"}${b.consistency ? ` · ${b.consistency}` : ""}`,
+      meta: `${fmtDate(b.date)} ${b.time}`,
+      photos: b.photos,
     });
   });
   activity.sort((a, b) => new Date(b.sortKey).getTime() - new Date(a.sortKey).getTime());
@@ -135,131 +110,196 @@ export function Home({ onNavigate, onLogWalk, onLogFood, onLogBathroom }: HomePr
 
   return (
     <div className="screen">
-      <div className="hdr">
-        <div>
-          <div className="hdr-title">{greeting}</div>
-          <div className="hdr-sub">
+      <HStack justify="between" vAlign="start" style={{ marginBottom: 16 }}>
+        <VStack gap={0.5}>
+          <Heading level={2}>{greeting}</Heading>
+          <Text type="supporting">
             {p.name ? `How’s ${p.name} doing today?` : "How’s your pup doing today?"}
             <br />
             {dateLabel}
-          </div>
-        </div>
-        <button className="hdr-btn" onClick={() => setPanelOpen(true)} aria-label="Notifications">
-          <i className="ph ph-bell" />
+          </Text>
+        </VStack>
+        <div style={{ position: "relative" }}>
+          <IconButton
+            label="Notifications"
+            variant="ghost"
+            icon={<Icon icon={Icons.bell} />}
+            onClick={() => setPanelOpen(true)}
+          />
           {hasUrgent && (
             <span
               style={{
                 position: "absolute",
-                top: 8,
-                right: 8,
+                top: 6,
+                right: 6,
                 width: 8,
                 height: 8,
                 borderRadius: "50%",
-                background: "#FF3B30",
+                background: "var(--color-status-error, #FF3B30)",
+                pointerEvents: "none",
               }}
             />
           )}
-        </button>
-      </div>
+        </div>
+      </HStack>
 
-      <div className="dog-hero">
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          {p.avatar ? (
-            <DogFace avatar={p.avatar} size={48} />
-          ) : (
-            <span className="dog-hero-emoji" style={{ position: "static", transform: "none", fontSize: 40 }}>
-              {p.emoji || "🐕"}
-            </span>
-          )}
-          <div>
-            <h2>{p.name || "Set up profile"}</h2>
-            <p>{p.breed ? p.breed + (p.age ? `, ${p.age}` : "") : "Tap Profile to add your dog’s info"}</p>
-          </div>
-        </div>
-        <div className="dog-hero-stats">
-          <div className="dog-hero-stat">
-            <div className="val">{todayWalks.length}</div>
-            <div className="lbl">Walks today</div>
-          </div>
-          <div className="dog-hero-stat">
-            <div className="val">{foodPct}%</div>
-            <div className="lbl">Food</div>
-          </div>
-          <div className="dog-hero-stat">
-            <div className="val">{todaySteps > 999 ? (todaySteps / 1000).toFixed(1) + "k" : todaySteps}</div>
-            <div className="lbl">Steps</div>
-          </div>
-        </div>
-      </div>
+      <Card padding={4} variant="yellow">
+        <VStack gap={4}>
+          <HStack gap={3} vAlign="center">
+            {p.avatar ? (
+              <DogFace avatar={p.avatar} size={48} />
+            ) : (
+              <span style={{ fontSize: 40 }}>{p.emoji || "🐕"}</span>
+            )}
+            <VStack gap={0.5}>
+              <Heading level={3}>{p.name || "Set up profile"}</Heading>
+              <Text type="supporting">
+                {p.breed ? p.breed + (p.age ? `, ${p.age}` : "") : "Tap Profile to add your dog’s info"}
+              </Text>
+            </VStack>
+          </HStack>
+          <HStack justify="between">
+            <VStack gap={0.5} hAlign="center">
+              <Heading level={3}>{todayWalks.length}</Heading>
+              <Text type="supporting">Walks today</Text>
+            </VStack>
+            <VStack gap={0.5} hAlign="center">
+              <Heading level={3}>{foodPct}%</Heading>
+              <Text type="supporting">Food</Text>
+            </VStack>
+            <VStack gap={0.5} hAlign="center">
+              <Heading level={3}>{todaySteps > 999 ? (todaySteps / 1000).toFixed(1) + "k" : todaySteps}</Heading>
+              <Text type="supporting">Steps</Text>
+            </VStack>
+          </HStack>
+        </VStack>
+      </Card>
 
-      <div className="section-label">Today</div>
-      <div className="stat-row">
-        <div className="stat-chip">
-          <div className="sv">{todaySteps.toLocaleString()}</div>
-          <div className="sl">steps</div>
-        </div>
-        <div className="stat-chip">
-          <div className="sv">{todayWalks.length}</div>
-          <div className="sl">{totalMins > 0 ? `${totalMins} min` : "walks"}</div>
-        </div>
-        <div className="stat-chip" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-          <FoodRing done={doneMeals} total={mealsPerDay} />
-          <div className="sl">{doneMeals}/{mealsPerDay} meals</div>
-        </div>
-      </div>
+      <Text type="label" color="secondary" as="div" style={{ margin: "20px 0 8px" }}>
+        Today
+      </Text>
+      <Grid columns={3} gap={2}>
+        <ClickableCard label="View steps" onClick={() => onNavigate("walks")}>
+          <VStack gap={0.5} hAlign="center">
+            <Heading level={4}>{todaySteps.toLocaleString()}</Heading>
+            <Text type="supporting">steps</Text>
+          </VStack>
+        </ClickableCard>
+        <ClickableCard label="View walks" onClick={() => onNavigate("walks")}>
+          <VStack gap={0.5} hAlign="center">
+            <Heading level={4}>{todayWalks.length}</Heading>
+            <Text type="supporting">{totalMins > 0 ? `${totalMins} min` : "walks"}</Text>
+          </VStack>
+        </ClickableCard>
+        <ClickableCard label="View meals" onClick={() => onNavigate("food")}>
+          <VStack gap={1} hAlign="center">
+            <FoodRing done={doneMeals} total={mealsPerDay} />
+            <Text type="supporting">
+              {doneMeals}/{mealsPerDay} meals
+            </Text>
+          </VStack>
+        </ClickableCard>
+      </Grid>
 
-      <div className="section-label">Quick actions</div>
-      <div className="quick-row">
-        <button className="quick-card" onClick={onLogWalk}>
-          <div className="qc-icon" style={{ background: "var(--green-light)", color: "var(--green)" }}>
-            <i className="ph ph-paw-print" />
-          </div>
-          <div className="qc-label">Log walk</div>
-          <div className="qc-sub">
-            {todayWalks.length ? `${todayWalks.length} walk${todayWalks.length > 1 ? "s" : ""} today` : "No walks today"}
-          </div>
-        </button>
-        <button className="quick-card" onClick={onLogFood}>
-          <div className="qc-icon" style={{ background: "var(--amber-light)", color: "var(--amber)" }}>
-            <i className="ph ph-fork-knife" />
-          </div>
-          <div className="qc-label">Log meal</div>
-          <div className="qc-sub">
-            {todayMeals.length ? `${todayMeals.length} meal${todayMeals.length > 1 ? "s" : ""} today` : "No meals today"}
-          </div>
-        </button>
-        <button className="quick-card" onClick={startLiveWalk}>
-          <div className="qc-icon" style={{ background: "var(--green-light)", color: "var(--green)" }}>
-            <i className="ph ph-map-pin" />
-          </div>
-          <div className="qc-label">Live walk</div>
-          <div className="qc-sub">GPS + steps</div>
-        </button>
-        <button className="quick-card" onClick={onLogBathroom}>
-          <div className="qc-icon" style={{ background: "#F0F0F0", color: "var(--text2)" }}>
-            <i className="ph ph-toilet" />
-          </div>
-          <div className="qc-label">Bathroom</div>
-          <div className="qc-sub">Pipi / popo</div>
-        </button>
-      </div>
+      <Text type="label" color="secondary" as="div" style={{ margin: "20px 0 8px" }}>
+        Quick actions
+      </Text>
+      <Grid columns={2} gap={2}>
+        <ClickableCard label="Log walk" variant="green" onClick={onLogWalk}>
+          <VStack gap={1}>
+            <Icon icon={Icons.pawPrint} color="success" />
+            <Text weight="semibold">Log walk</Text>
+            <Text type="supporting">
+              {todayWalks.length ? `${todayWalks.length} walk${todayWalks.length > 1 ? "s" : ""} today` : "No walks today"}
+            </Text>
+          </VStack>
+        </ClickableCard>
+        <ClickableCard label="Log meal" variant="orange" onClick={onLogFood}>
+          <VStack gap={1}>
+            <Icon icon={Icons.forkKnife} color="warning" />
+            <Text weight="semibold">Log meal</Text>
+            <Text type="supporting">
+              {todayMeals.length ? `${todayMeals.length} meal${todayMeals.length > 1 ? "s" : ""} today` : "No meals today"}
+            </Text>
+          </VStack>
+        </ClickableCard>
+        <ClickableCard label="Live walk" variant="blue" onClick={startLiveWalk}>
+          <VStack gap={1}>
+            <Icon icon={Icons.mapPin} color="accent" />
+            <Text weight="semibold">Live walk</Text>
+            <Text type="supporting">GPS + steps</Text>
+          </VStack>
+        </ClickableCard>
+        <ClickableCard label="Bathroom" variant="purple" onClick={onLogBathroom}>
+          <VStack gap={1}>
+            <Icon icon={Icons.toilet} color="secondary" />
+            <Text weight="semibold">Bathroom</Text>
+            <Text type="supporting">Pipi / popo</Text>
+          </VStack>
+        </ClickableCard>
+      </Grid>
 
-      <div className="section-label">Recent activity</div>
-      <div className="card card-flush">
+      <Text type="label" color="secondary" as="div" style={{ margin: "20px 0 8px" }}>
+        Recent activity
+      </Text>
+      <Card padding={0}>
         {recent.length === 0 ? (
-          <div className="empty" style={{ padding: "28px 24px" }}>
-            <div className="empty-icon">
-              <i className="ph ph-paw-print" />
-            </div>
-            <p>No activity yet today.<br />Log a walk or meal to get started!</p>
-          </div>
+          <VStack gap={2} hAlign="center" padding={6}>
+            <Icon icon={Icons.pawPrint} size="lg" color="disabled" />
+            <Text type="supporting" style={{ textAlign: "center" }}>
+              No activity yet today.
+              <br />
+              Log a walk or meal to get started!
+            </Text>
+          </VStack>
         ) : (
-          recent.map((item, i) => <div key={i}>{item.node}</div>)
+          <VStack gap={0}>
+            {recent.map((item, i) => (
+              <HStack
+                key={i}
+                gap={3}
+                vAlign="center"
+                padding={3}
+                style={{ borderTop: i === 0 ? undefined : "1px solid var(--color-border, #eee)" }}
+              >
+                <span
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    background: "var(--color-background-section, #f4f4f4)",
+                    flexShrink: 0,
+                  }}
+                >
+                  {item.icon ? <Icon icon={item.icon} color={item.accent} /> : <span>{item.emoji}</span>}
+                </span>
+                <VStack gap={0.5}>
+                  <Text weight="medium">{item.title}</Text>
+                  <Text type="supporting">{item.meta}</Text>
+                  {item.photos && item.photos.length > 0 && (
+                    <HStack gap={1} wrap="wrap" style={{ marginTop: 4 }}>
+                      {item.photos.map((src, pi) => (
+                        <img
+                          key={pi}
+                          src={src}
+                          style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 8 }}
+                          alt=""
+                        />
+                      ))}
+                    </HStack>
+                  )}
+                </VStack>
+              </HStack>
+            ))}
+          </VStack>
         )}
-      </div>
+      </Card>
 
       {p.avatar && (
-        <div style={{ display: "flex", justifyContent: "center", padding: "8px 0 4px" }}>
+        <div style={{ display: "flex", justifyContent: "center", padding: "16px 0 4px" }}>
           <DogAvatar avatar={p.avatar} size={120} />
         </div>
       )}

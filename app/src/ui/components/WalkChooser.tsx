@@ -1,5 +1,9 @@
+import { Button } from "@astryxdesign/core/Button";
+import { VStack } from "@astryxdesign/core/Stack";
+import { Icon } from "@astryxdesign/core/Icon";
 import { Modal } from "./Modal";
 import { useLiveWalk } from "./LiveWalk";
+import { Icons } from "../lib/icons";
 
 interface WalkChooserProps {
   open: boolean;
@@ -11,28 +15,28 @@ export function WalkChooser({ open, onClose, onManual }: WalkChooserProps): Reac
   const { start } = useLiveWalk();
   return (
     <Modal open={open} title="Log a walk" onClose={onClose}>
-      <div style={{ padding: "0 18px" }}>
-        <button
-          className="btn btn-primary btn-full"
-          style={{ marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+      <VStack gap={2}>
+        <Button
+          label="Start live walk"
+          variant="primary"
+          icon={<Icon icon={Icons.mapPin} />}
           onClick={() => {
             onClose();
             start();
           }}
-        >
-          <i className="ph ph-map-pin" /> Start live walk
-        </button>
-        <button
-          className="btn btn-secondary btn-full"
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+          style={{ width: "100%" }}
+        />
+        <Button
+          label="Log manually"
+          variant="secondary"
+          icon={<Icon icon={Icons.pencilSimple} />}
           onClick={() => {
             onClose();
             onManual();
           }}
-        >
-          <i className="ph ph-pencil-simple" /> Log manually
-        </button>
-      </div>
+          style={{ width: "100%" }}
+        />
+      </VStack>
     </Modal>
   );
 }

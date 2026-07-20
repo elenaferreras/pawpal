@@ -16,19 +16,32 @@ export function RouteCanvas({ coords }: RouteCanvasProps): React.ReactElement {
     if (!ctx) return;
 
     const paint = (): void => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Render at the display size × devicePixelRatio so text/lines stay crisp.
+      const dpr = window.devicePixelRatio || 1;
+      const cssW = canvas.clientWidth || 380;
+      const cssH = canvas.clientHeight || 180;
+      const bw = Math.round(cssW * dpr);
+      const bh = Math.round(cssH * dpr);
+      if (canvas.width !== bw || canvas.height !== bh) {
+        canvas.width = bw;
+        canvas.height = bh;
+      }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      ctx.clearRect(0, 0, cssW, cssH);
       ctx.fillStyle = "#E8F4F0";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, cssW, cssH);
       if (coords.length < 2) {
         ctx.fillStyle = "#2AA98B";
         ctx.font = "13px -apple-system, sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("Route will appear here as you walk", canvas.width / 2, canvas.height / 2);
+        ctx.textBaseline = "middle";
+        ctx.fillText("Route will appear here as you walk", cssW / 2, cssH / 2);
         return;
       }
       const pad = 16;
-      const W = canvas.width - pad * 2;
-      const H = canvas.height - pad * 2;
+      const W = cssW - pad * 2;
+      const H = cssH - pad * 2;
       const lats = coords.map((c) => c.lat);
       const lngs = coords.map((c) => c.lng);
       const minLat = Math.min(...lats);
@@ -68,15 +81,22 @@ export function RouteCanvas({ coords }: RouteCanvasProps): React.ReactElement {
     };
 
     paint();
+    const observer = new ResizeObserver(() => paint());
+    observer.observe(canvas);
+    return () => observer.disconnect();
   }, [coords]);
 
   return (
     <canvas
       ref={ref}
-      width={380}
-      height={180}
-      className="map-ph"
-      style={{ padding: 0, width: "100%", height: 180 }}
+      style={{
+        margin: 0,
+        padding: 0,
+        width: "100%",
+        height: 180,
+        display: "block",
+        borderRadius: "var(--radius-sm)",
+      }}
     />
   );
 }

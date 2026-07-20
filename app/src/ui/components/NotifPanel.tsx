@@ -1,10 +1,16 @@
 import type { Database, ScreenId } from "../types";
+import { HStack, VStack } from "@astryxdesign/core/Stack";
+import { Text } from "@astryxdesign/core/Text";
+import { Icon } from "@astryxdesign/core/Icon";
 import { Modal } from "./Modal";
+import { Icons } from "../lib/icons";
+
+type IconComponent = (typeof Icons)[keyof typeof Icons];
+type Accent = "success" | "warning" | "secondary";
 
 interface NotifItem {
-  icon: string;
-  colour: string;
-  bg: string;
+  icon: IconComponent;
+  accent: Accent;
   title: string;
   sub: string;
   onClick?: () => void;
@@ -34,9 +40,8 @@ export function NotifPanel({
   const walksToday = db.walks.filter((w) => w.date === todayStr);
   if (walksToday.length === 0) {
     items.push({
-      icon: "ph-paw-print",
-      colour: "var(--green)",
-      bg: "var(--green-light)",
+      icon: Icons.pawPrint,
+      accent: "success",
       title: "No walks yet today",
       sub: "Tap to log a walk",
       onClick: () => {
@@ -46,9 +51,8 @@ export function NotifPanel({
     });
   } else {
     items.push({
-      icon: "ph-paw-print",
-      colour: "var(--green)",
-      bg: "var(--green-light)",
+      icon: Icons.pawPrint,
+      accent: "success",
       title: `${walksToday.length} walk${walksToday.length > 1 ? "s" : ""} today`,
       sub: "Great job!",
     });
@@ -60,9 +64,8 @@ export function NotifPanel({
   const pct = Math.min(100, Math.round((fed / goal) * 100));
   if (pct < 100) {
     items.push({
-      icon: "ph-fork-knife",
-      colour: "var(--amber)",
-      bg: "var(--amber-light)",
+      icon: Icons.forkKnife,
+      accent: "warning",
       title: `${pct}% of daily food given`,
       sub: `${goal - fed}g remaining today`,
       onClick: () => {
@@ -72,9 +75,8 @@ export function NotifPanel({
     });
   } else {
     items.push({
-      icon: "ph-fork-knife",
-      colour: "var(--amber)",
-      bg: "var(--amber-light)",
+      icon: Icons.forkKnife,
+      accent: "warning",
       title: "Daily food goal reached!",
       sub: `${fed}g given today`,
     });
@@ -94,9 +96,8 @@ export function NotifPanel({
     );
     const when = diff === 0 ? "Today" : diff === 1 ? "Tomorrow" : `In ${diff} days`;
     items.push({
-      icon: "ph-first-aid",
-      colour: "var(--brown)",
-      bg: "var(--brown-light)",
+      icon: Icons.stethoscope,
+      accent: "secondary",
       title: r.title,
       sub: `${when} · ${r.priority} priority`,
       onClick: () => {
@@ -112,9 +113,8 @@ export function NotifPanel({
   });
   if (meds.length > 0) {
     items.push({
-      icon: "ph-pill",
-      colour: "var(--brown)",
-      bg: "var(--brown-light)",
+      icon: Icons.pill,
+      accent: "secondary",
       title: `${meds.length} active medication${meds.length > 1 ? "s" : ""}`,
       sub: meds.map((m) => m.name).join(", "),
       onClick: () => {
@@ -126,58 +126,52 @@ export function NotifPanel({
 
   return (
     <Modal open={open} title="Today’s status" onClose={onClose}>
-      <div style={{ padding: "0 22px 8px" }}>
-        {items.length === 0 ? (
-          <div className="empty" style={{ padding: "32px 0" }}>
-            <div className="empty-icon">
-              <i className="ph ph-check-circle" />
-            </div>
-            <p>All good! Nothing to catch up on.</p>
-          </div>
-        ) : (
-          items.map((item, i) => (
-            <div
+      {items.length === 0 ? (
+        <VStack gap={2} hAlign="center" padding={6}>
+          <Icon icon={Icons.checkCircle} size="lg" color="success" />
+          <Text type="supporting">All good! Nothing to catch up on.</Text>
+        </VStack>
+      ) : (
+        <VStack gap={0}>
+          {items.map((item, i) => (
+            <HStack
               key={i}
+              gap={3}
+              vAlign="center"
+              padding={3}
               onClick={item.onClick}
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: "12px 0",
-                borderBottom: "0.5px solid var(--border)",
                 cursor: item.onClick ? "pointer" : "default",
+                borderTop: i === 0 ? undefined : "1px solid var(--color-border, #eee)",
               }}
             >
-              <div
+              <span
                 style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: 12,
-                  background: item.bg,
-                  color: item.colour,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  width: 38,
+                  height: 38,
+                  borderRadius: 12,
+                  background: "var(--color-background-section, #f4f4f4)",
                   flexShrink: 0,
                 }}
               >
-                <i className={"ph " + item.icon} style={{ fontSize: 18 }} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 700 }}>{item.title}</div>
-                <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 1 }}>
-                  {item.sub}
-                </div>
-              </div>
+                <Icon icon={item.icon} color={item.accent} />
+              </span>
+              <VStack gap={0.5} style={{ flex: 1 }}>
+                <Text weight="semibold">{item.title}</Text>
+                <Text type="supporting">{item.sub}</Text>
+              </VStack>
               {item.onClick ? (
-                <i className="ph ph-caret-right" style={{ color: "var(--text3)", fontSize: 16 }} />
+                <Icon icon={Icons.caretRight} color="disabled" />
               ) : (
-                <i className="ph ph-check" style={{ color: "var(--green)", fontSize: 18 }} />
+                <Icon icon={Icons.check} color="success" />
               )}
-            </div>
-          ))
-        )}
-      </div>
+            </HStack>
+          ))}
+        </VStack>
+      )}
     </Modal>
   );
 }

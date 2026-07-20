@@ -15,10 +15,15 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.worker.json --noEmit"
   },
   "dependencies": {
+    "@astryxdesign/core": "^0.1.6",
+    "@astryxdesign/theme-butter": "^0.1.6",
+    "@astryxdesign/theme-neutral": "^0.1.6",
+    "@stylexjs/stylex": "^0.19.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@astryxdesign/cli": "^0.1.6",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^4.3.4",

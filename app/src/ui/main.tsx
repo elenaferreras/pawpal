@@ -1,6 +1,9 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
+import "@astryxdesign/core/reset.css";
+import "@astryxdesign/core/astryx.css";
+import "@astryxdesign/theme-butter/theme.css";
 import "./styles/global.css";
 
 // Register the service-worker sandbox (built separately → dist/code.js).

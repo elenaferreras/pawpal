@@ -1,7 +1,14 @@
 import { useState } from "react";
+import { HStack, VStack } from "@astryxdesign/core/Stack";
+import { Text, Heading } from "@astryxdesign/core/Text";
+import { Button } from "@astryxdesign/core/Button";
+import { TextInput } from "@astryxdesign/core/TextInput";
+import { Slider } from "@astryxdesign/core/Slider";
+import { SegmentedControl, SegmentedControlItem } from "@astryxdesign/core/SegmentedControl";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { AvatarEditor } from "../avatar/AvatarEditor";
+import { DateField } from "../components/fields";
 import type { Avatar, Profile } from "../types";
 
 const DEFAULT_AVATAR: Avatar = {
@@ -78,127 +85,86 @@ export function Onboarding({ onDone }: OnboardingProps): React.ReactElement {
 
       <div className="ob-slide">
         {step === 0 && (
-          <>
-            <div className="ob-emoji-big">🐾</div>
-            <div className="ob-title">Welcome to PawPal</div>
-            <div className="ob-sub">
+          <VStack gap={3} hAlign="center">
+            <div style={{ fontSize: 64 }}>🐾</div>
+            <Heading level={1}>Welcome to PawPal</Heading>
+            <Text type="supporting" style={{ textAlign: "center" }}>
               Track walks, meals, vet visits and more — everything your dog needs, in one place.
-            </div>
-            <div className="ob-spacer" />
-            <button className="btn btn-primary btn-full" onClick={next}>
-              Get started
-            </button>
-          </>
+            </Text>
+            <Button label="Get started" variant="primary" onClick={next} style={{ width: "100%", marginTop: 16 }} />
+          </VStack>
         )}
 
         {step === 1 && (
-          <>
-            <div className="ob-title" style={{ marginTop: 12 }}>
-              {name ? `Meet ${name}` : "Create your dog"}
-            </div>
-            <div className="ob-sub">Pick a look and give your pup a name.</div>
+          <VStack gap={3}>
+            <Heading level={2}>{name ? `Meet ${name}` : "Create your dog"}</Heading>
+            <Text type="supporting">Pick a look and give your pup a name.</Text>
             <AvatarEditor value={avatar} onChange={setAvatar} previewSize={150} />
-            <div className="form-group" style={{ margin: "8px 0 0" }}>
-              <span className="form-label">Name</span>
-              <input
-                className="form-input"
-                value={name}
-                placeholder="e.g. Zipi"
-                style={{ borderColor: nameError ? "#FF3B30" : undefined }}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-            <div className="ob-btn-row">
-              <button className="btn btn-secondary" style={{ flex: 1, margin: 0, width: "auto" }} onClick={back}>
-                Back
-              </button>
-              <button className="btn btn-primary" style={{ flex: 1, margin: 0, width: "auto" }} onClick={nextFromName}>
-                Next
-              </button>
-            </div>
-          </>
+            <TextInput
+              label="Name"
+              value={name}
+              placeholder="e.g. Zipi"
+              onChange={setName}
+              status={nameError ? { type: "error", message: "Please enter a name" } : undefined}
+            />
+            <HStack gap={2}>
+              <Button label="Back" variant="secondary" onClick={back} style={{ flex: 1 }} />
+              <Button label="Next" variant="primary" onClick={nextFromName} style={{ flex: 1 }} />
+            </HStack>
+          </VStack>
         )}
 
         {step === 2 && (
-          <>
-            <div className="ob-title" style={{ marginTop: 20 }}>About {name || "your dog"}</div>
-            <div className="ob-sub">A few details help personalise things.</div>
-            <div className="form-group">
-              <span className="form-label">Breed</span>
-              <input className="form-input" value={breed} onChange={(e) => setBreed(e.target.value)} />
-            </div>
-            <div className="form-row">
-              <div>
-                <span className="form-label">Birthday</span>
-                <input type="date" className="form-input" value={birthday} onChange={(e) => setBirthday(e.target.value)} />
-              </div>
-              <div>
-                <span className="form-label">Weight (kg)</span>
-                <input type="number" className="form-input" value={weight} onChange={(e) => setWeight(e.target.value)} />
-              </div>
-            </div>
-            <div className="ob-spacer" />
-            <div className="ob-btn-row">
-              <button className="btn btn-secondary" style={{ flex: 1, margin: 0, width: "auto" }} onClick={back}>
-                Back
-              </button>
-              <button className="btn btn-primary" style={{ flex: 1, margin: 0, width: "auto" }} onClick={next}>
-                Next
-              </button>
-            </div>
-          </>
+          <VStack gap={3}>
+            <Heading level={2}>About {name || "your dog"}</Heading>
+            <Text type="supporting">A few details help personalise things.</Text>
+            <TextInput label="Breed" value={breed} onChange={setBreed} />
+            <HStack gap={3}>
+              <DateField label="Birthday" value={birthday} onChange={setBirthday} />
+              <TextInput label="Weight (kg)" value={weight} onChange={setWeight} />
+            </HStack>
+            <HStack gap={2}>
+              <Button label="Back" variant="secondary" onClick={back} style={{ flex: 1 }} />
+              <Button label="Next" variant="primary" onClick={next} style={{ flex: 1 }} />
+            </HStack>
+          </VStack>
         )}
 
         {step === 3 && (
-          <>
-            <div className="ob-title" style={{ marginTop: 20 }}>Food & vet</div>
-            <div className="ob-sub">Set a daily food goal and vet contact.</div>
-            <div className="form-group">
-              <span className="form-label">Daily food goal: {foodGoal}g</span>
-              <input
-                type="range"
+          <VStack gap={3}>
+            <Heading level={2}>Food & vet</Heading>
+            <Text type="supporting">Set a daily food goal and vet contact.</Text>
+            <VStack gap={1}>
+              <Text type="label">Daily food goal: {foodGoal}g</Text>
+              <Slider
+                label="Daily food goal"
+                value={foodGoal}
                 min={50}
                 max={1000}
                 step={10}
-                value={foodGoal}
-                style={{ width: "100%" }}
-                onChange={(e) => setFoodGoal(parseInt(e.target.value))}
+                onChange={(v: number) => setFoodGoal(v)}
               />
-            </div>
-            <div className="form-group">
-              <span className="form-label">Meals per day</span>
-              <div style={{ display: "flex", gap: 8 }}>
-                {MEAL_OPTIONS.map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    className={"ob-part-pill" + (mealsPerDay === n ? " selected" : "")}
-                    style={{ flex: 1 }}
-                    onClick={() => setMealsPerDay(n)}
-                  >
-                    {n}
-                  </button>
+            </VStack>
+            <VStack gap={1}>
+              <Text type="label">Meals per day</Text>
+              <SegmentedControl
+                value={String(mealsPerDay)}
+                onChange={(v) => setMealsPerDay(Number(v))}
+                label="Meals per day"
+                layout="fill"
+              >
+                {MEAL_OPTIONS.map((mealCount) => (
+                  <SegmentedControlItem key={mealCount} value={String(mealCount)} label={String(mealCount)} />
                 ))}
-              </div>
-            </div>
-            <div className="form-group">
-              <span className="form-label">Vet name</span>
-              <input className="form-input" value={vet} onChange={(e) => setVet(e.target.value)} />
-            </div>
-            <div className="form-group">
-              <span className="form-label">Vet phone</span>
-              <input className="form-input" value={vetPhone} onChange={(e) => setVetPhone(e.target.value)} />
-            </div>
-            <div className="ob-spacer" />
-            <div className="ob-btn-row">
-              <button className="btn btn-secondary" style={{ flex: 1, margin: 0, width: "auto" }} onClick={back}>
-                Back
-              </button>
-              <button className="btn btn-primary" style={{ flex: 1, margin: 0, width: "auto" }} onClick={finish}>
-                Finish
-              </button>
-            </div>
-          </>
+              </SegmentedControl>
+            </VStack>
+            <TextInput label="Vet name" value={vet} onChange={setVet} />
+            <TextInput label="Vet phone" value={vetPhone} onChange={setVetPhone} />
+            <HStack gap={2}>
+              <Button label="Back" variant="secondary" onClick={back} style={{ flex: 1 }} />
+              <Button label="Finish" variant="primary" onClick={finish} style={{ flex: 1 }} />
+            </HStack>
+          </VStack>
         )}
       </div>
     </div>

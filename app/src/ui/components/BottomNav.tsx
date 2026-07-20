@@ -1,11 +1,14 @@
+import { Icon } from "@astryxdesign/core/Icon";
+import { Text } from "@astryxdesign/core/Text";
+import { Icons } from "../lib/icons";
 import type { ScreenId } from "../types";
 
-const ITEMS: { id: ScreenId; label: string; icon: string }[] = [
-  { id: "home", label: "Home", icon: "ph-house" },
-  { id: "walks", label: "Walks", icon: "ph-paw-print" },
-  { id: "food", label: "Food", icon: "ph-fork-knife" },
-  { id: "vet", label: "Health", icon: "ph-first-aid" },
-  { id: "profile", label: "Profile", icon: "ph-user" },
+const ITEMS: { id: ScreenId; label: string; icon: (typeof Icons)[keyof typeof Icons] }[] = [
+  { id: "home", label: "Home", icon: Icons.house },
+  { id: "walks", label: "Walks", icon: Icons.pawPrint },
+  { id: "food", label: "Food", icon: Icons.forkKnife },
+  { id: "vet", label: "Health", icon: Icons.stethoscope },
+  { id: "profile", label: "Profile", icon: Icons.user },
 ];
 
 interface BottomNavProps {
@@ -16,19 +19,24 @@ interface BottomNavProps {
 export function BottomNav({ current, onNavigate }: BottomNavProps): React.ReactElement {
   return (
     <nav className="nav">
-      {ITEMS.map((item) => (
-        <button
-          key={item.id}
-          type="button"
-          className={"nav-item" + (current === item.id ? " active" : "")}
-          onClick={() => onNavigate(item.id)}
-        >
-          <span className="nav-icon">
-            <i className={"ph " + item.icon} />
-          </span>
-          {item.label}
-        </button>
-      ))}
+      {ITEMS.map((item) => {
+        const active = current === item.id;
+        return (
+          <button
+            key={item.id}
+            type="button"
+            className={"nav-item" + (active ? " active" : "")}
+            onClick={() => onNavigate(item.id)}
+          >
+            <span className="nav-icon">
+              <Icon icon={item.icon} color={active ? "accent" : "secondary"} />
+            </span>
+            <Text type="supporting" color={active ? "accent" : "secondary"}>
+              {item.label}
+            </Text>
+          </button>
+        );
+      })}
     </nav>
   );
 }

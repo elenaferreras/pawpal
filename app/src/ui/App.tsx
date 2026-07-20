@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react";
+import { Theme } from "@astryxdesign/core/theme";
+import { LayerProvider } from "@astryxdesign/core/Layer";
+import { butterTheme } from "@astryxdesign/theme-butter/built";
 import type { ScreenId } from "./types";
 import { DbProvider, useDb } from "./lib/store";
 import { ToastProvider } from "./lib/toast";
@@ -20,13 +23,17 @@ import { Onboarding } from "./screens/Onboarding";
 
 export function App(): React.ReactElement {
   return (
-    <DbProvider>
-      <ToastProvider>
-        <LiveWalkProvider>
-          <Shell />
-        </LiveWalkProvider>
-      </ToastProvider>
-    </DbProvider>
+    <Theme theme={butterTheme}>
+      <LayerProvider>
+        <DbProvider>
+          <ToastProvider>
+            <LiveWalkProvider>
+              <Shell />
+            </LiveWalkProvider>
+          </ToastProvider>
+        </DbProvider>
+      </LayerProvider>
+    </Theme>
   );
 }
 

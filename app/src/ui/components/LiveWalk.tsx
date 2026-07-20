@@ -8,10 +8,19 @@ import {
   type ReactNode,
 } from "react";
 import { haversine } from "../lib/geo";
+import { VStack } from "@astryxdesign/core/Stack";
+import { Grid } from "@astryxdesign/core/Grid";
+import { Text } from "@astryxdesign/core/Text";
+import { Card } from "@astryxdesign/core/Card";
+import { Button } from "@astryxdesign/core/Button";
+import { TextArea } from "@astryxdesign/core/TextArea";
+import { ToggleButton } from "@astryxdesign/core/ToggleButton";
+import { Icon } from "@astryxdesign/core/Icon";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { Modal } from "./Modal";
 import { RouteCanvas } from "./RouteCanvas";
+import { Icons } from "../lib/icons";
 import type { GpsCoord } from "../types";
 
 type Phase = "idle" | "active" | "summary";
@@ -216,129 +225,84 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
         onClose={() => setOpen(false)}
       >
         {phase === "active" && (
-          <div style={{ padding: "0 18px" }}>
-            <div className="stat-row">
-              <div className="stat-chip">
-                <div className="sv">{mm}:{ss}</div>
-                <div className="sl">Time</div>
-              </div>
-              <div className="stat-chip">
-                <div className="sv">{steps}</div>
-                <div className="sl">Steps</div>
-              </div>
-              <div className="stat-chip">
-                <div className="sv">{distanceKm.toFixed(2)}</div>
-                <div className="sl">km</div>
-              </div>
-              <div className="stat-chip">
-                <div className="sv">{paceStr}</div>
-                <div className="sl">min/km</div>
-              </div>
-            </div>
+          <VStack gap={3}>
+            <Grid columns={4} gap={2}>
+              <StatChip value={`${mm}:${ss}`} label="Time" />
+              <StatChip value={String(steps)} label="Steps" />
+              <StatChip value={distanceKm.toFixed(2)} label="km" />
+              <StatChip value={paceStr} label="min/km" />
+            </Grid>
             <RouteCanvas coords={coords} />
-            <div
-              style={{
-                margin: "0 0 16px",
-                padding: "8px 12px",
-                borderRadius: 12,
-                background: "var(--green-light)",
-                color: "var(--green)",
-                fontSize: 12,
-                fontWeight: 600,
-              }}
-            >
-              {gpsStatus}
-            </div>
-            <button className="btn btn-secondary btn-full" style={{ marginBottom: 10 }} onClick={finish}>
-              Finish walk
-            </button>
-            <button className="btn btn-danger btn-full" onClick={cancel}>
-              Cancel
-            </button>
-          </div>
+            <Card variant="muted" padding={2}>
+              <Text type="supporting">{gpsStatus}</Text>
+            </Card>
+            <Button
+              label="Minimise"
+              variant="ghost"
+              icon={<Icon icon={Icons.chevronDown} />}
+              onClick={() => setOpen(false)}
+              style={{ width: "100%" }}
+            />
+            <Button label="Finish walk" variant="secondary" onClick={finish} style={{ width: "100%" }} />
+            <Button label="Cancel" variant="destructive" onClick={cancel} style={{ width: "100%" }} />
+          </VStack>
         )}
 
         {phase === "summary" && (
-          <div style={{ padding: "0 18px" }}>
-            <div className="stat-row">
-              <div className="stat-chip">
-                <div className="sv">{Math.round(elapsed / 60)}</div>
-                <div className="sl">min</div>
-              </div>
-              <div className="stat-chip">
-                <div className="sv">{steps}</div>
-                <div className="sl">steps</div>
-              </div>
-              <div className="stat-chip">
-                <div className="sv">{distanceKm.toFixed(2)}</div>
-                <div className="sl">km</div>
-              </div>
-              <div className="stat-chip">
-                <div className="sv">{paceStr}</div>
-                <div className="sl">pace</div>
-              </div>
-            </div>
+          <VStack gap={3}>
+            <Grid columns={4} gap={2}>
+              <StatChip value={String(Math.round(elapsed / 60))} label="min" />
+              <StatChip value={String(steps)} label="steps" />
+              <StatChip value={distanceKm.toFixed(2)} label="km" />
+              <StatChip value={paceStr} label="pace" />
+            </Grid>
 
-            <div className="form-group">
-              <span className="form-label">Weather</span>
-              <div className="pills" style={{ padding: 0 }}>
+            <VStack gap={1}>
+              <Text type="label">Weather</Text>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {WEATHERS.map((w) => (
-                  <button
+                  <ToggleButton
                     key={w.value}
-                    type="button"
-                    className={"weather-btn" + (weather === w.value ? " selected" : "")}
-                    onClick={() => setWeather(weather === w.value ? "" : w.value)}
-                  >
-                    {w.icon}
-                  </button>
+                    label={w.value}
+                    isIconOnly
+                    icon={<span>{w.icon}</span>}
+                    isPressed={weather === w.value}
+                    onPressedChange={() => setWeather(weather === w.value ? "" : w.value)}
+                  />
                 ))}
               </div>
+            </VStack>
+
+            <div style={{ display: "flex", gap: 8 }}>
+              <ToggleButton label="💧 Pipi" isPressed={pipi} onPressedChange={() => setPipi(!pipi)}>
+                💧 Pipi
+              </ToggleButton>
+              <ToggleButton label="💩 Popo" isPressed={popo} onPressedChange={() => setPopo(!popo)}>
+                💩 Popo
+              </ToggleButton>
+              <ToggleButton label="🐶 Friends" isPressed={friends} onPressedChange={() => setFriends(!friends)}>
+                🐶 Friends
+              </ToggleButton>
             </div>
 
-            <div style={{ display: "flex", gap: 8, margin: "0 18px 16px" }}>
-              <ToggleChip label="💧 Pipi" active={pipi} onClick={() => setPipi(!pipi)} />
-              <ToggleChip label="💩 Popo" active={popo} onClick={() => setPopo(!popo)} />
-              <ToggleChip label="🐶 Friends" active={friends} onClick={() => setFriends(!friends)} />
-            </div>
+            <TextArea label="Notes" value={notes} onChange={setNotes} placeholder="How was the walk?" />
 
-            <div className="form-group">
-              <span className="form-label">Notes</span>
-              <textarea
-                className="form-input"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="How was the walk?"
-              />
-            </div>
-
-            <button className="btn btn-primary btn-full" onClick={saveWalk}>
-              Save walk
-            </button>
-          </div>
+            <Button label="Save walk" variant="primary" onClick={saveWalk} style={{ width: "100%" }} />
+          </VStack>
         )}
       </Modal>
     </LiveWalkContext.Provider>
   );
 }
 
-function ToggleChip({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}): React.ReactElement {
+function StatChip({ value, label }: { value: string; label: string }): React.ReactElement {
   return (
-    <button
-      type="button"
-      className={"ob-part-pill" + (active ? " selected" : "")}
-      style={{ flex: 1 }}
-      onClick={onClick}
-    >
-      {label}
-    </button>
+    <Card padding={2}>
+      <VStack gap={0.5} hAlign="center">
+        <Text weight="bold">{value}</Text>
+        <Text type="supporting">{label}</Text>
+      </VStack>
+    </Card>
   );
 }
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SegmentedControl, SegmentedControlItem } from "@astryxdesign/core/SegmentedControl";
 import type { Avatar } from "../types";
 import {
   PALETTE_LIST,
@@ -58,17 +59,12 @@ export function AvatarEditor({
         <DogAvatar avatar={value} size={previewSize} />
       </div>
 
-      <div className="av-tabs">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            type="button"
-            className={"av-tab" + (tab === t ? " active" : "")}
-            onClick={() => setTab(t)}
-          >
-            {TAB_LABELS[t]}
-          </button>
-        ))}
+      <div style={{ margin: "12px 0" }}>
+        <SegmentedControl value={tab} onChange={(v) => setTab(v as Tab)} label="Avatar part" layout="fill" size="sm">
+          {TABS.map((t) => (
+            <SegmentedControlItem key={t} value={t} label={TAB_LABELS[t]} />
+          ))}
+        </SegmentedControl>
       </div>
 
       {tab === "colour" && (

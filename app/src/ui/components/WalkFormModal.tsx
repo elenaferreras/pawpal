@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
+import { HStack, VStack } from "@astryxdesign/core/Stack";
+import { Text } from "@astryxdesign/core/Text";
+import { Button } from "@astryxdesign/core/Button";
+import { ToggleButton } from "@astryxdesign/core/ToggleButton";
+import { TextInput } from "@astryxdesign/core/TextInput";
+import { TextArea } from "@astryxdesign/core/TextArea";
 import { Modal } from "./Modal";
+import { DateField, TimeField } from "./fields";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { nowTime } from "../lib/date";
@@ -79,69 +86,54 @@ export function WalkFormModal({ open, onClose, editIndex }: WalkFormModalProps):
 
   return (
     <Modal open={open} title={editIndex != null ? "Edit walk 🦮" : "Log a walk"} onClose={onClose}>
-      <div className="form-row">
-        <div>
-          <span className="form-label">Date</span>
-          <input type="date" className="form-input" value={date} onChange={(e) => setDate(e.target.value)} />
-        </div>
-        <div>
-          <span className="form-label">Time</span>
-          <input type="time" className="form-input" value={time} onChange={(e) => setTime(e.target.value)} />
-        </div>
-      </div>
-      <div className="form-row">
-        <div>
-          <span className="form-label">Duration (min)</span>
-          <input type="number" className="form-input" value={duration} onChange={(e) => setDuration(e.target.value)} />
-        </div>
-        <div>
-          <span className="form-label">Steps</span>
-          <input type="number" className="form-input" value={steps} onChange={(e) => setSteps(e.target.value)} />
-        </div>
-      </div>
-      <div className="form-group">
-        <span className="form-label">Distance (km)</span>
-        <input type="number" className="form-input" value={distance} onChange={(e) => setDistance(e.target.value)} />
-      </div>
+      <VStack gap={3}>
+        <HStack gap={3}>
+          <DateField label="Date" value={date} onChange={setDate} />
+          <TimeField label="Time" value={time} onChange={setTime} />
+        </HStack>
+        <HStack gap={3}>
+          <TextInput label="Duration (min)" value={duration} onChange={setDuration} />
+          <TextInput label="Steps" value={steps} onChange={setSteps} />
+        </HStack>
+        <TextInput label="Distance (km)" value={distance} onChange={setDistance} />
 
-      <div className="form-group">
-        <span className="form-label">Weather</span>
-        <div className="pills" style={{ padding: 0 }}>
-          {WEATHERS.map((w) => (
-            <button
-              key={w.value}
-              type="button"
-              className={"weather-btn" + (weather === w.value ? " selected" : "")}
-              onClick={() => setWeather(weather === w.value ? "" : w.value)}
-            >
-              {w.icon}
-            </button>
-          ))}
-        </div>
-      </div>
+        <VStack gap={1}>
+          <Text type="label">Weather</Text>
+          <HStack gap={1} wrap="wrap">
+            {WEATHERS.map((w) => (
+              <ToggleButton
+                key={w.value}
+                label={w.value}
+                isIconOnly
+                icon={<span>{w.icon}</span>}
+                isPressed={weather === w.value}
+                onPressedChange={() => setWeather(weather === w.value ? "" : w.value)}
+              />
+            ))}
+          </HStack>
+        </VStack>
 
-      <div style={{ display: "flex", gap: 8, margin: "0 18px 16px" }}>
-        <Chip label="💧 Pipi" active={pipi} onClick={() => setPipi(!pipi)} />
-        <Chip label="💩 Popo" active={popo} onClick={() => setPopo(!popo)} />
-        <Chip label="🐶 Friends" active={friends} onClick={() => setFriends(!friends)} />
-      </div>
+        <HStack gap={2}>
+          <ToggleButton label="💧 Pipi" isPressed={pipi} onPressedChange={() => setPipi(!pipi)}>
+            💧 Pipi
+          </ToggleButton>
+          <ToggleButton label="💩 Popo" isPressed={popo} onPressedChange={() => setPopo(!popo)}>
+            💩 Popo
+          </ToggleButton>
+          <ToggleButton label="🐶 Friends" isPressed={friends} onPressedChange={() => setFriends(!friends)}>
+            🐶 Friends
+          </ToggleButton>
+        </HStack>
 
-      <div className="form-group">
-        <span className="form-label">Notes</span>
-        <textarea className="form-input" value={notes} onChange={(e) => setNotes(e.target.value)} />
-      </div>
+        <TextArea label="Notes" value={notes} onChange={setNotes} />
 
-      <button className="btn btn-primary btn-full" onClick={save}>
-        {editIndex != null ? "Save changes" : "Save walk"}
-      </button>
+        <Button
+          label={editIndex != null ? "Save changes" : "Save walk"}
+          variant="primary"
+          onClick={save}
+          style={{ width: "100%" }}
+        />
+      </VStack>
     </Modal>
-  );
-}
-
-function Chip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }): React.ReactElement {
-  return (
-    <button type="button" className={"ob-part-pill" + (active ? " selected" : "")} style={{ flex: 1 }} onClick={onClick}>
-      {label}
-    </button>
   );
 }

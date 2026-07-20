@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
+import { VStack, HStack } from "@astryxdesign/core/Stack";
+import { Button } from "@astryxdesign/core/Button";
+import { TextInput } from "@astryxdesign/core/TextInput";
+import { TextArea } from "@astryxdesign/core/TextArea";
+import { Selector } from "@astryxdesign/core/Selector";
 import { Modal } from "./Modal";
+import { TimeField } from "./fields";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { nowTime } from "../lib/date";
@@ -51,31 +57,15 @@ export function FoodFormModal({ open, onClose }: FoodFormModalProps): React.Reac
 
   return (
     <Modal open={open} title="Log a meal" onClose={onClose}>
-      <div className="form-row">
-        <div>
-          <span className="form-label">Time</span>
-          <input type="time" className="form-input" value={time} onChange={(e) => setTime(e.target.value)} />
-        </div>
-        <div>
-          <span className="form-label">Amount (g)</span>
-          <input type="number" className="form-input" value={amount} onChange={(e) => setAmount(e.target.value)} />
-        </div>
-      </div>
-      <div className="form-group">
-        <span className="form-label">Type</span>
-        <select className="form-input" value={type} onChange={(e) => setType(e.target.value)}>
-          {TYPES.map((t) => (
-            <option key={t} value={t}>{t}</option>
-          ))}
-        </select>
-      </div>
-      <div className="form-group">
-        <span className="form-label">Notes</span>
-        <textarea className="form-input" value={notes} onChange={(e) => setNotes(e.target.value)} />
-      </div>
-      <button className="btn btn-primary btn-full" onClick={save}>
-        Save meal
-      </button>
+      <VStack gap={3}>
+        <HStack gap={3}>
+          <TimeField label="Time" value={time} onChange={setTime} />
+          <TextInput label="Amount (g)" value={amount} onChange={setAmount} />
+        </HStack>
+        <Selector label="Type" options={TYPES} value={type} onChange={setType} />
+        <TextArea label="Notes" value={notes} onChange={setNotes} />
+        <Button label="Save meal" variant="primary" onClick={save} style={{ width: "100%" }} />
+      </VStack>
     </Modal>
   );
 }
