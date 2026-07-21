@@ -129,7 +129,7 @@ export interface Database {
   vetRecords: VetRecords;
 }
 
-export type ScreenId = "home" | "walks" | "food" | "vet" | "profile";
+export type ScreenId = "home" | "dashboard" | "walks" | "food" | "vet" | "profile";
 
 export interface ReminderConfigEntry {
   enabled: boolean;

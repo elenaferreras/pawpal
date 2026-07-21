@@ -5,6 +5,8 @@ import type { ScreenId } from "../types";
 
 const ITEMS: { id: ScreenId; label: string; icon: (typeof Icons)[keyof typeof Icons] }[] = [
   { id: "home", label: "Home", icon: Icons.house },
+  // TEMP: dev-only preview of the new dashboard. Remove once it replaces Home.
+  { id: "dashboard", label: "Dash", icon: Icons.plus },
   { id: "walks", label: "Walks", icon: Icons.pawPrint },
   { id: "food", label: "Food", icon: Icons.forkKnife },
   { id: "vet", label: "Health", icon: Icons.stethoscope },

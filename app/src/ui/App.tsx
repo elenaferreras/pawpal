@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Theme } from "@astryxdesign/core/theme";
 import { LayerProvider } from "@astryxdesign/core/Layer";
-import { butterTheme } from "@astryxdesign/theme-butter/built";
+import { pawpalTheme } from "./lib/theme";
 import type { ScreenId } from "./types";
 import { DbProvider, useDb } from "./lib/store";
 import { ToastProvider } from "./lib/toast";
@@ -15,6 +15,7 @@ import { FoodFormModal } from "./components/FoodFormModal";
 import { PoopFormModal } from "./components/PoopFormModal";
 import { VetAddModal } from "./components/VetAddModal";
 import { Home } from "./screens/Home";
+import { Dashboard } from "./screens/Dashboard";
 import { Walks } from "./screens/Walks";
 import { Food } from "./screens/Food";
 import { Vet } from "./screens/Vet";
@@ -23,7 +24,7 @@ import { Onboarding } from "./screens/Onboarding";
 
 export function App(): React.ReactElement {
   return (
-    <Theme theme={butterTheme}>
+    <Theme theme={pawpalTheme}>
       <LayerProvider>
         <DbProvider>
           <ToastProvider>
@@ -81,6 +82,14 @@ function Shell(): React.ReactElement {
               onLogWalk={() => setModal("walk-choose")}
               onLogFood={() => setModal("food")}
               onLogBathroom={() => setModal("poop")}
+            />
+          )}
+          {screen === "dashboard" && (
+            <Dashboard
+              onLogWalk={() => setModal("walk-choose")}
+              onLogFood={() => setModal("food")}
+              onLogBathroom={() => setModal("poop")}
+              onLogVet={() => setModal("vet")}
             />
           )}
           {screen === "walks" && (
