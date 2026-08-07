@@ -1,6 +1,30 @@
 /* PawPal design system — ported from the original single-file app. */
 
+/* Splash / display wordmark font (FatFrank Heavy). Bundled OTF in
+   app/public/fonts/. Weight range 100–900 so any requested weight uses it. */
+@font-face {
+  font-family: "FatFrank";
+  src: url("/fonts/FatFrank.otf") format("opentype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Abordage (Degheest Types) — the design's primary display/UI font.
+   Single weight; the 100–900 range makes every requested weight use this
+   file instead of synthesising a faux-bold. */
+@font-face {
+  font-family: "Abordage";
+  src: url("/fonts/Abordage-Regular.woff2") format("woff2"),
+    url("/fonts/Abordage-Regular.woff") format("woff");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
+  /* App UI/display font — the Abordage design font, with system-sans fallback. */
+  --font-ui: "Abordage", -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
   --amber: #e8920a;
   --amber-light: #fff4df;
   --amber-mid: #f5c96a;
@@ -31,7 +55,7 @@ html {
   touch-action: pan-x pan-y;
 }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+  font-family: var(--font-ui);
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
@@ -85,43 +109,130 @@ button {
 }
 .nav {
   position: fixed;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100%;
-  max-width: 430px;
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(16px);
-  border-top: 0.5px solid var(--border);
+  bottom: calc(14px + var(--safe-bottom));
+  left: 12px;
+  right: 12px;
   display: flex;
-  padding-bottom: var(--safe-bottom);
+  align-items: center;
+  gap: 10px;
   z-index: 100;
 }
-.nav-item {
+/* When the track menu is open, sit above its overlay (z 300). */
+.nav.nav-open {
+  z-index: 400;
+}
+.nav-pill {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px;
+  padding: 6px 10px;
+  background: rgba(28, 28, 30, 0.72);
+  backdrop-filter: blur(22px) saturate(180%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-pill);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.32), 0 2px 8px rgba(0, 0, 0, 0.18);
+  transition: transform 0.36s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.28s ease;
+}
+/* Tab items slide out the bottom when the menu opens. */
+.nav-open .nav-pill {
+  transform: translateY(140px);
+  opacity: 0;
+  pointer-events: none;
+}
+.nav-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: 12px 4px;
+  justify-content: center;
+  gap: 1px;
+  padding: 5px 7px;
   cursor: pointer;
   border: none;
   background: none;
-  color: var(--text3);
-  font-size: 10px;
-  font-weight: 500;
   font-family: inherit;
-  transition: color 0.15s;
+  border-radius: 16px;
+  transition: background 0.2s;
 }
 .nav-item .nav-icon {
-  font-size: 22px;
-  line-height: 1;
+  width: 26px;
+  height: 26px;
+  font-size: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: rgba(245, 245, 245, 0.92);
+  transition: color 0.2s, transform 0.15s;
+}
+.nav-item .nav-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+  line-height: 12px;
+  color: rgba(245, 245, 245, 0.92);
+  transition: color 0.2s;
+}
+.nav-item:active .nav-icon {
+  transform: scale(0.88);
 }
 .nav-item.active {
-  color: var(--amber);
+  background: rgba(255, 255, 255, 0.1);
+}
+.nav-item.active .nav-icon,
+.nav-item.active .nav-label {
+  color: var(--nav-active, #fbef79);
+}
+.nav-fab {
+  width: 54px;
+  height: 54px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+  background: rgba(28, 28, 30, 0.72);
+  backdrop-filter: blur(22px) saturate(180%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.32), 0 2px 8px rgba(0, 0, 0, 0.18);
+  color: rgba(245, 245, 245, 0.92);
+  font-size: 22px;
+  transition: transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.3s ease,
+    color 0.3s ease, border-color 0.3s ease;
+}
+/* Fab morphs into the track-menu close: yellow circle, black ✕. */
+.nav-fab.nav-fab-open {
+  background: var(--color-pawpal-fab);
+  border-color: transparent;
+  color: #000;
+  transform: rotate(45deg);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.32);
+}
+.nav-fab:active {
+  transform: scale(0.92);
+}
+.nav-fab.nav-fab-open:active {
+  transform: rotate(45deg) scale(0.92);
+}
+/* New-design launcher: right-aligned yellow "apps" button with a soft glow. */
+.nav--trigger {
+  justify-content: flex-end;
+}
+.nav-fab-grid {
+  width: 60px;
+  height: 60px;
+  background: var(--color-pawpal-fab);
+  border-color: transparent;
+  color: var(--color-pawpal-page);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.32),
+    0 0 30px 6px color-mix(in srgb, var(--color-pawpal-fab) 55%, transparent);
+}
+.nav-fab-grid:active {
+  transform: scale(0.92);
 }
 .scroll {
   padding: 4px 0 8px;
@@ -719,6 +830,675 @@ body.modal-open {
   gap: 10px;
   margin-top: 16px;
 }
+
+/* Onboarding proposal (How We Feel style) */
+.ob-variant-toggle {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 600;
+  padding: 7px 14px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--border-strong);
+  background: var(--text);
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  opacity: 0.9;
+}
+.ob-variant-toggle:hover {
+  opacity: 1;
+}
+.design-toggle {
+  position: fixed;
+  top: calc(8px + env(safe-area-inset-top, 0px));
+  right: 10px;
+  z-index: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  background: rgba(28, 28, 30, 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+  opacity: 0.85;
+}
+.design-toggle:hover {
+  opacity: 1;
+}
+/* "Track walk" bottom sheet (Figma node 31:925). */
+.walk-sheet-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+  animation: pawpal-overlay-fade 200ms ease both;
+}
+.walk-sheet {
+  width: min(560px, 100%);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-track-poop);
+  border-radius: 40px 40px 0 0;
+  overflow: hidden;
+  animation: pawpal-sheet-up 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.walk-sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 28px 28px 12px;
+}
+.walk-sheet-footer {
+  flex-shrink: 0;
+  padding: 12px 28px calc(20px + env(safe-area-inset-bottom, 12px));
+  background: var(--color-track-poop);
+  box-shadow: 0 -10px 20px -4px var(--color-track-poop);
+}
+@keyframes pawpal-sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.wts-field::placeholder {
+  color: rgba(53, 43, 37, 0.55);
+}
+.obp-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px 4px;
+  min-height: 44px;
+}
+.obp-progress-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 100px;
+  background: var(--border-strong);
+  overflow: hidden;
+}
+.obp-progress-fill {
+  height: 100%;
+  border-radius: 100px;
+  background: var(--amber);
+  transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.obp-progress-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text3);
+  white-space: nowrap;
+}
+.obp-slide {
+  animation: obp-in-fwd 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.obp-slide.obp-back {
+  animation-name: obp-in-back;
+}
+@keyframes obp-in-fwd {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes obp-in-back {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.obp-fill {
+  flex: 1;
+  padding-top: 12px;
+}
+.obp-auth {
+  padding-top: 32px;
+}
+.obp-auth .obp-hero-emoji--sm {
+  align-self: flex-start;
+}
+.obp-center {
+  flex: 1;
+  padding-top: 40px;
+  text-align: center;
+}
+.obp-hero-emoji {
+  font-size: 76px;
+  line-height: 1;
+  margin: 12px 0 4px;
+  animation: obp-bob 3s ease-in-out infinite;
+}
+.obp-hero-emoji--sm {
+  font-size: 54px;
+  margin-bottom: 0;
+}
+@keyframes obp-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+.obp-display {
+  font-size: 32px;
+  line-height: 1.12;
+  font-weight: 900;
+  letter-spacing: -1px;
+  margin: 8px 0 4px;
+}
+.obp-lede {
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--text2);
+}
+.obp-fineprint {
+  font-size: 12px;
+  color: var(--text3);
+  margin-top: 12px;
+}
+.obp-cta {
+  width: 100%;
+}
+
+/* Step 0 — playful hero */
+.obp-hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding-top: 20px;
+}
+.obp-hero-title {
+  font-size: 52px;
+  line-height: 0.98;
+  font-weight: 900;
+  letter-spacing: -2px;
+  margin: 0;
+}
+.obp-hero-title-accent {
+  color: var(--amber);
+}
+.obp-hero-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  margin: 20px 0 24px;
+  display: flex;
+  align-items: flex-end;
+}
+.obp-hero-pane {
+  width: 100%;
+  height: 100%;
+  min-height: 220px;
+  background: var(--green);
+  border-radius: 28px;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.obp-hero-dog {
+  transform: translateY(14%);
+  align-self: flex-end;
+}
+.obp-bubble {
+  position: absolute;
+  z-index: 2;
+  padding: 10px 22px;
+  border-radius: 100px;
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  transform: rotate(var(--rot));
+  animation: obp-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.obp-bubble--walk {
+  --rot: -6deg;
+  top: -14px;
+  left: -4px;
+  background: #f7a8c4;
+  color: #7a2246;
+  animation-delay: 0.05s;
+}
+.obp-bubble--treat {
+  --rot: 4deg;
+  top: 64px;
+  right: 2px;
+  background: var(--amber-light);
+  color: var(--amber);
+  animation-delay: 0.15s;
+}
+.obp-bubble--woof {
+  --rot: -3deg;
+  top: 150px;
+  left: 8px;
+  background: var(--green-light);
+  color: var(--green);
+  animation-delay: 0.25s;
+}
+@keyframes obp-pop {
+  from {
+    opacity: 0;
+    transform: rotate(var(--rot)) scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(var(--rot)) scale(1);
+  }
+}
+
+/* Gooey glass nav (step 1) — two pills that melt into one another */
+.obp-goonav {
+  position: relative;
+  display: flex;
+  gap: 10px;
+  height: 58px;
+  margin-top: 4px;
+  isolation: isolate;
+}
+.obp-goonav-goo {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  gap: 10px;
+  filter: url(#obp-goo);
+  pointer-events: none;
+  z-index: 0;
+}
+.obp-goonav-blob {
+  height: 100%;
+  border-radius: 100px;
+}
+.obp-goonav-blob--back {
+  flex: 1;
+  background: var(--amber);
+}
+.obp-goonav-blob--next {
+  flex: 2;
+  background: var(--amber);
+}
+.obp-goonav-btn {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  border: none;
+  background: transparent;
+  border-radius: 100px;
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: transform 0.18s ease;
+}
+.obp-goonav-btn--back {
+  flex: 1;
+}
+.obp-goonav-btn--next {
+  flex: 2;
+}
+.obp-goonav-btn:active {
+  transform: scale(0.96);
+}
+.obp-goo-svg {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+.obp-eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+.obp-title {
+  font-size: 27px;
+  font-weight: 900;
+  letter-spacing: -0.6px;
+  line-height: 1.15;
+  margin: 2px 0;
+}
+.obp-sub-left {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text2);
+}
+.obp-benefits {
+  margin-top: 8px;
+}
+.obp-benefit {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.obp-benefit-icon {
+  font-size: 26px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.obp-benefit-title {
+  font-weight: 800;
+}
+.obp-benefit-body {
+  font-size: 13px;
+  color: var(--text2);
+}
+.obp-avatar-stage {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+}
+
+/* ---- Onboarding sticker sheet + peel effect (Figma 22:5439) ---- */
+.sticker-sheet {
+  position: relative;
+  width: 100%;
+  padding: 40px 22px 132px;
+}
+/* Green die-cut sheet with the slanted top edge from Figma. */
+.sticker-sheet::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #04954a;
+  clip-path: polygon(92.33% 0, 8.11% 5.31%, 0 100%, 100% 98.08%);
+  z-index: 0;
+}
+.sticker-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px 10px;
+}
+.sticker {
+  position: relative;
+  aspect-ratio: 1 / 0.92;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+/* Faint mark the sticker leaves behind once peeled off the sheet. */
+.sticker-ghost {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0;
+  filter: grayscale(0.5) brightness(0.9);
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+.sticker.peeled .sticker-ghost {
+  opacity: 0.18;
+}
+/* The sticker illustration — die-cut halo + soft drop shadow. */
+.sticker-face {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform-origin: 62% 82%;
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.18));
+  transition: transform 0.42s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.42s ease;
+}
+/* Peeled: lift, tilt and cast a deep shadow. */
+.sticker.peeled .sticker-face {
+  transform: translateY(-14px) rotate(-6deg) scale(1.08);
+  filter: drop-shadow(0 16px 13px rgba(0, 0, 0, 0.4));
+  z-index: 2;
+}
+.sticker:active .sticker-face {
+  transform: scale(0.95);
+}
+.sticker.peeled:active .sticker-face {
+  transform: translateY(-14px) rotate(-6deg) scale(1.04);
+}
+.obp-goal-readout {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  justify-content: center;
+  padding: 8px 0 4px;
+}
+.obp-goal-value {
+  font-size: 44px;
+  font-weight: 900;
+  letter-spacing: -1.5px;
+  color: var(--amber);
+}
+.obp-goal-unit {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text2);
+}
+.obp-circle-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 4px;
+}
+.obp-circle {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  border: 2px solid var(--border-strong);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--text2);
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), background 0.18s,
+    border-color 0.18s, color 0.18s;
+}
+.obp-circle:active {
+  transform: scale(0.96);
+}
+.obp-circle.selected {
+  background: var(--text);
+  border-color: var(--text);
+  color: white;
+}
+.obp-circle-count {
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: -1px;
+  line-height: 1;
+}
+.obp-circle-unit {
+  font-size: 13px;
+  font-weight: 600;
+}
+.obp-circle-tag {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--amber);
+  margin-top: 2px;
+}
+.obp-circle.selected .obp-circle-tag {
+  color: var(--amber-mid);
+}
+.obp-wheel {
+  position: relative;
+  height: 220px;
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr;
+  margin-top: 4px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.obp-wheel-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 44px;
+  transform: translateY(-50%);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.05);
+  pointer-events: none;
+  z-index: 0;
+}
+.obp-wheel-col {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  padding: 88px 0;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 28%, #000 72%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 28%, #000 72%, transparent);
+}
+.obp-wheel-col::-webkit-scrollbar {
+  display: none;
+}
+.obp-wheel-item {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  scroll-snap-align: center;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--text3);
+  transition: color 0.15s;
+}
+.obp-wheel-item.sel {
+  color: var(--text);
+  font-weight: 800;
+}
+.obp-notif-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 8px;
+  align-items: start;
+}
+.obp-notif-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  transition: opacity 0.2s;
+}
+.obp-notif-col.off {
+  opacity: 0.55;
+}
+.obp-notif-icon {
+  font-size: 30px;
+  line-height: 1;
+}
+.obp-notif-label {
+  font-size: 14px;
+  font-weight: 800;
+}
+.obp-notif-time {
+  width: 100%;
+}
+.obp-notif-caption {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2);
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+}
+.obp-skip {
+  width: 100%;
+}
+.obp-review-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 16px;
+  margin-top: 8px;
+}
+.obp-review-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.obp-review-row:last-child {
+  border-bottom: none;
+}
+.obp-review-label {
+  font-size: 14px;
+  color: var(--text2);
+}
+.obp-review-value {
+  font-size: 14px;
+  font-weight: 700;
+  text-align: right;
+}
+.obp-celebrate {
+  justify-content: center;
+}
+.obp-burst {
+  font-size: 88px;
+  line-height: 1;
+  animation: obp-pop 0.6s cubic-bezier(0.22, 1.4, 0.4, 1) both;
+}
+@keyframes obp-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) rotate(-12deg);
+  }
+  70% {
+    transform: scale(1.15) rotate(6deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
 .ob-part-pill {
   padding: 7px 14px;
   border-radius: var(--radius-pill);
@@ -934,7 +1714,7 @@ body.modal-open {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: #f5f5f3;
+  background: #352b25;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -943,19 +1723,43 @@ body.modal-open {
   margin: 0 auto;
   overflow: hidden;
 }
+#splash-doodle {
+  position: absolute;
+  /* Figma placement: vector offset + stretched to match the design frame. */
+  left: -60.3%;
+  top: -17.8%;
+  width: 210.5%;
+  height: 182%;
+  z-index: 0;
+}
+#splash-doodle-path {
+  stroke-dasharray: 1 1;
+  stroke-dashoffset: 1;
+  /* Figma "path trim" draw-on: end 0→1, ease-out, then hold. Doubled to 1s. */
+  animation: splash-draw 1s cubic-bezier(0, 0, 0.58, 1) forwards;
+}
+@keyframes splash-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
 #splash-word {
-  font-family: "Unbounded", sans-serif;
+  position: relative;
+  z-index: 1;
+  /* FatFrank display font (bundled); Abordage/​sans-serif as graceful fallback. */
+  font-family: "FatFrank", "Abordage", sans-serif;
   font-size: 18vw;
   font-weight: 900;
-  color: #111;
-  letter-spacing: -0.05em;
+  color: #352b25;
+  letter-spacing: -0.03em;
   line-height: 0.9;
   text-align: center;
-  margin-top: 15vh;
-  opacity: 0;
+  margin-top: 34vh;
+  opacity: 1;
 }
 #splash-dog {
   position: absolute;
+  z-index: 1;
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
@@ -1063,3 +1867,359 @@ body.modal-open {
     transform: translateX(-50%) rotate(45deg);
   }
 }
+
+/* ── Onboarding: "Welcome to PawPal" screen (Figma node 100:5297) ───────── */
+.obw {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  overflow: hidden;
+  background: var(--color-pawpal-page);
+  display: flex;
+  flex-direction: column;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+/* Top region that holds the hand-drawn dog doodles. */
+.obw-art {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  z-index: 0;
+}
+.obw-dog {
+  position: absolute;
+  height: auto;
+  display: block;
+  pointer-events: none;
+}
+.obw-dog--blue {
+  top: 18.7%;
+  left: 0;
+  width: 39.86%;
+}
+.obw-dog--purple {
+  top: 21.97%;
+  left: 68.41%;
+  width: 34.96%;
+}
+.obw-dog--cream {
+  top: 62.4%;
+  left: -3.48%;
+  width: 48.04%;
+}
+.obw-dog--orange {
+  top: 51.5%;
+  left: 48.01%;
+  width: 43.6%;
+}
+.obw-ctas {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  width: 100%;
+  padding: 24px 16px calc(24px + var(--safe-bottom));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  /* Fade the page in behind the text so doodles never crowd the CTAs. */
+  background: linear-gradient(
+    to bottom,
+    transparent 0,
+    var(--color-pawpal-page) 40px
+  );
+}
+.obw-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  color: var(--color-pawpal-hero);
+}
+.obw-title {
+  margin: 0;
+  font-family: "FatFrank", "Abordage", sans-serif;
+  font-weight: 400;
+  font-size: 40px;
+  line-height: 1;
+  color: var(--color-pawpal-hero);
+}
+.obw-sub {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-weight: 400;
+  font-size: 22px;
+  color: var(--color-pawpal-hero);
+}
+.obw-buttons {
+  width: 100%;
+  max-width: 370px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.obw-btn {
+  height: 56px;
+  width: 100%;
+  border: none;
+  border-radius: 40px;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-weight: 400;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.12s ease, opacity 0.2s ease;
+}
+.obw-btn:active {
+  transform: scale(0.97);
+}
+.obw-btn--primary {
+  background: var(--color-data-yellow-3);
+  color: var(--color-pawpal-page);
+}
+.obw-btn--outline {
+  background: transparent;
+  border: 1px solid var(--color-data-yellow-3);
+  color: var(--color-data-yellow-3);
+}
+.obw-btn--ghost {
+  background: transparent;
+  color: var(--color-data-yellow-3);
+}
+
+/* ── Sitter claim (reuses the .obw shell, content near the top) ──────────── */
+.obw-ctas--top {
+  margin-top: 16vh;
+}
+.sitclaim-input {
+  width: 100%;
+  max-width: 370px;
+  height: 64px;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--color-data-yellow-3) 55%, transparent);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-pawpal-hero);
+  font-family: var(--font-ui);
+  font-size: 28px;
+  text-align: center;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  outline: none;
+}
+.sitclaim-input::placeholder {
+  color: color-mix(in srgb, var(--color-pawpal-hero) 40%, transparent);
+}
+.sitclaim-error {
+  margin: 0;
+  text-align: center;
+  font-size: 14px;
+  color: #ffb4a1;
+}
+
+/* ── Sitter mode (ephemeral guest experience) ───────────────────────────── */
+.sit {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  overflow-y: auto;
+  background: var(--color-pawpal-page);
+  color: var(--color-pawpal-hero);
+  display: flex;
+  flex-direction: column;
+}
+.sit-banner {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px;
+  background: var(--color-data-yellow-3);
+  color: var(--color-pawpal-page);
+}
+.sit-banner-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.sit-banner-title {
+  font-family: var(--font-ui);
+  font-weight: 900;
+  font-size: 16px;
+}
+.sit-banner-sub {
+  font-size: 12px;
+  opacity: 0.8;
+}
+.sit-banner-end {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 100px;
+  padding: 8px 18px;
+  background: var(--color-pawpal-page);
+  color: var(--color-data-yellow-3);
+  font-family: var(--font-ui);
+  font-weight: 700;
+  cursor: pointer;
+}
+.sit-body {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px 16px calc(24px + var(--safe-bottom));
+}
+.sit-hello {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-weight: 900;
+  font-size: 28px;
+  line-height: 1.15;
+}
+.sit-dog {
+  color: var(--color-data-yellow-3);
+}
+.sit-summary {
+  display: flex;
+  gap: 12px;
+}
+.sit-stat {
+  flex: 1;
+  min-width: 0;
+  background: var(--color-dash-surface);
+  border-radius: 20px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.sit-stat-value {
+  font-family: var(--font-ui);
+  font-weight: 900;
+  font-size: 28px;
+}
+.sit-stat-label {
+  font-size: 13px;
+  opacity: 0.7;
+}
+.sit-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.sit-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 20px;
+  border: none;
+  border-radius: 20px;
+  background: var(--color-data-yellow-3);
+  color: var(--color-pawpal-page);
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 18px;
+  cursor: pointer;
+}
+.sit-action:disabled {
+  opacity: 0.6;
+}
+.sit-action-icon {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.sit-info {
+  background: var(--color-dash-surface);
+  border-radius: 20px;
+  padding: 4px 16px;
+}
+.sit-info-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(233, 228, 196, 0.12);
+}
+.sit-info-row:last-child {
+  border-bottom: none;
+}
+.sit-info-label {
+  opacity: 0.6;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.sit-info-value {
+  text-align: right;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* ── Owner: Invite a sitter (on the Profile screen) ─────────────────────── */
+.invite-code-card {
+  background: var(--color-pawpal-page);
+  color: var(--color-pawpal-hero);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.invite-code {
+  font-family: var(--font-ui);
+  font-weight: 900;
+  font-size: 34px;
+  letter-spacing: 3px;
+  color: var(--color-data-yellow-3);
+}
+.invite-qr {
+  background: #ffffff;
+  padding: 12px;
+  border-radius: 12px;
+  display: flex;
+  line-height: 0;
+}
+.invite-durations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.invite-chip {
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 100px;
+  padding: 8px 14px;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  cursor: pointer;
+}
+.invite-chip.selected {
+  background: var(--color-pawpal-page);
+  color: var(--color-pawpal-hero);
+  border-color: var(--color-pawpal-page);
+}
+.invite-datetime {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-strong);
+  font-family: var(--font-ui);
+  font-size: 15px;
+}
+.invite-row {
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+
+
+

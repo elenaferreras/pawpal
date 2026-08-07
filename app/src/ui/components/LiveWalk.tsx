@@ -20,6 +20,7 @@ import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { Modal } from "./Modal";
 import { RouteCanvas } from "./RouteCanvas";
+import { RouteMap } from "./RouteMap";
 import { Icons } from "../lib/icons";
 import type { GpsCoord } from "../types";
 
@@ -256,6 +257,8 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
               <StatChip value={distanceKm.toFixed(2)} label="km" />
               <StatChip value={paceStr} label="pace" />
             </Grid>
+
+            {coords.length > 1 && <RouteMap coords={coords} height={200} mapStyle="dark" />}
 
             <VStack gap={1}>
               <Text type="label">Weather</Text>

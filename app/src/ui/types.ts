@@ -50,6 +50,7 @@ export interface Walk {
   friends: boolean;
   weather: string;
   notes: string;
+  assignee?: string;
   gpsRoute?: GpsCoord[];
   created: string;
 }
@@ -119,6 +120,8 @@ export interface VetRecords {
   vaccines: Vaccine[];
   reminders: Reminder[];
   medications: Medication[];
+  /** Free-form notes to bring to the next vet visit (shown on the dashboard). */
+  notes?: string;
 }
 
 export interface Database {
@@ -129,7 +132,20 @@ export interface Database {
   vetRecords: VetRecords;
 }
 
-export type ScreenId = "home" | "dashboard" | "walks" | "food" | "vet" | "profile";
+export type ScreenId =
+  | "home"
+  | "dashboard"
+  | "walks"
+  | "food"
+  | "vet"
+  | "settings"
+  | "settings-profile"
+  | "settings-profile-edit"
+  | "settings-notifications"
+  | "settings-account"
+  | "settings-sitting"
+  | "settings-sync"
+  | "settings-data";
 
 export interface ReminderConfigEntry {
   enabled: boolean;

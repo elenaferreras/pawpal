@@ -28,12 +28,18 @@ import {
   House,
   Stethoscope,
   User,
+  LayoutDashboard,
+  LayoutGrid,
+  ChartColumnBig,
+  Play,
   ChevronDown,
+  ChevronLeft,
 } from "lucide-react";
 
 export const Icons = {
   bell: Bell,
   caretRight: ChevronRight,
+  caretLeft: ChevronLeft,
   check: Check,
   checkCircle: CircleCheck,
   clipboardText: ClipboardList,
@@ -58,6 +64,10 @@ export const Icons = {
   house: House,
   stethoscope: Stethoscope,
   user: User,
+  layoutDashboard: LayoutDashboard,
+  layoutGrid: LayoutGrid,
+  chartColumn: ChartColumnBig,
+  play: Play,
   chevronDown: ChevronDown,
 } as const;
 

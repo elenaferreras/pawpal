@@ -61,6 +61,32 @@ export function Vet({ onAdd }: VetProps): React.ReactElement {
         }
       />
 
+      <SectionLabel>Notes for the vet</SectionLabel>
+      <Card padding={0}>
+        <textarea
+          value={db.vetRecords.notes ?? ""}
+          onChange={(e) =>
+            update((d) => {
+              d.vetRecords.notes = e.target.value;
+            })
+          }
+          placeholder="Anything to mention at the next visit…"
+          rows={4}
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            resize: "vertical",
+            border: "none",
+            outline: "none",
+            background: "transparent",
+            padding: 16,
+            font: "inherit",
+            color: "inherit",
+            lineHeight: 1.5,
+          }}
+        />
+      </Card>
+
       <SectionLabel>Reminders</SectionLabel>
       <Card padding={0}>
         {sortedReminders.length === 0 ? (

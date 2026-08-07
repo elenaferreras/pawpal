@@ -11,6 +11,7 @@ import { SegmentedControl, SegmentedControlItem } from "@astryxdesign/core/Segme
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { Header } from "../components/Header";
+import { RouteMap } from "../components/RouteMap";
 import { Icons } from "../lib/icons";
 import { fmtDate, WEATHER_MAP } from "../lib/date";
 import type { Walk } from "../types";
@@ -128,12 +129,18 @@ function WalkRow({
   onEdit: () => void;
   onDelete: () => void;
 }): React.ReactElement {
+  const [showMap, setShowMap] = useState(false);
+  const hasRoute = Array.isArray(walk.gpsRoute) && walk.gpsRoute.length > 1;
+
   return (
+    <VStack
+      gap={0}
+      style={{ borderTop: isFirst ? undefined : "1px solid var(--color-border, #eee)" }}
+    >
     <HStack
       gap={3}
       vAlign="start"
       padding={3}
-      style={{ borderTop: isFirst ? undefined : "1px solid var(--color-border, #eee)" }}
     >
       <span
         style={{
@@ -168,11 +175,27 @@ function WalkRow({
           </HStack>
         )}
         {walk.notes && <Text type="supporting">{walk.notes}</Text>}
+        {hasRoute && (
+          <Button
+            label={showMap ? "Hide route" : "Show route"}
+            size="sm"
+            variant="ghost"
+            icon={<Icon icon={Icons.pawPrint} />}
+            onClick={() => setShowMap((v) => !v)}
+            style={{ alignSelf: "start" }}
+          />
+        )}
       </VStack>
       <VStack gap={1} hAlign="end" style={{ flexShrink: 0 }}>
         <Button label="Edit" size="sm" variant="secondary" onClick={onEdit} />
         <IconButton label="Delete walk" size="sm" variant="ghost" icon={<Icon icon={Icons.x} />} onClick={onDelete} />
       </VStack>
     </HStack>
+    {hasRoute && showMap && walk.gpsRoute && (
+      <div style={{ padding: "0 12px 12px" }}>
+        <RouteMap coords={walk.gpsRoute} height={200} mapStyle="dark" />
+      </div>
+    )}
+    </VStack>
   );
 }
