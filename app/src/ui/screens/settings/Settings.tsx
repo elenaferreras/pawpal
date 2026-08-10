@@ -6,6 +6,7 @@ import { Icon } from "@astryxdesign/core/Icon";
 import { Icons } from "../../lib/icons";
 import { getCurrentUser, type AuthUser } from "../../lib/auth";
 import { getLastSync } from "../../lib/supabase";
+import { PageTitle } from "../../components/Typography";
 import type { ScreenId } from "../../types";
 import { DARK, HERO, MUTED, GroupCard, SectionLabel, SettingsRow } from "./shared";
 
@@ -45,10 +46,7 @@ export function Settings({ onNavigate, onBack }: SettingsProps): React.ReactElem
       {/* Header */}
       <div
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          padding: "calc(16px + env(safe-area-inset-top, 0px)) 16px 12px",
+          padding: "calc(16px + env(safe-area-inset-top, 0px)) 16px 0",
         }}
       >
         <button
@@ -71,17 +69,7 @@ export function Settings({ onNavigate, onBack }: SettingsProps): React.ReactElem
         >
           <Icon icon={Icons.caretLeft} color="inherit" />
         </button>
-        <span
-          style={{
-            fontFamily: "var(--font-ui)",
-            fontWeight: 900,
-            fontSize: 26,
-            lineHeight: 1,
-            color: HERO,
-          }}
-        >
-          Settings
-        </span>
+        <PageTitle>Settings</PageTitle>
       </div>
 
       <div style={{ padding: "4px 16px 0" }}>
@@ -126,7 +114,7 @@ export function Settings({ onNavigate, onBack }: SettingsProps): React.ReactElem
             <span
               style={{
                 fontFamily: "var(--font-ui)",
-                fontWeight: 900,
+                fontWeight: 700,
                 fontSize: 22,
                 lineHeight: 1.05,
                 color: DARK,

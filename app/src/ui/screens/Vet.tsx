@@ -8,7 +8,7 @@ import { Badge } from "@astryxdesign/core/Badge";
 import { ProgressBar } from "@astryxdesign/core/ProgressBar";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
-import { Header } from "../components/Header";
+import { PageTitle, Eyebrow } from "../components/Typography";
 import { Icons } from "../lib/icons";
 import { fmtDate } from "../lib/date";
 import type { Priority } from "../types";
@@ -32,6 +32,7 @@ export function Vet({ onAdd }: VetProps): React.ReactElement {
   const { db, update } = useDb();
   const toast = useToast();
   const { checkups, vaccines, reminders, medications } = db.vetRecords;
+  const name = db.profile.name.trim() || "Zipi";
 
   const del = (collection: Collection, index: number): void => {
     if (!window.confirm("Delete this record?")) return;
@@ -52,14 +53,19 @@ export function Vet({ onAdd }: VetProps): React.ReactElement {
     .sort((a, b) => new Date(b.c.date).getTime() - new Date(a.c.date).getTime());
 
   return (
-    <div className="screen">
-      <Header
-        title="Vet & Health"
-        subtitle="Checkups, vaccines & meds"
-        action={
-          <IconButton label="Add record" variant="primary" icon={<Icon icon={Icons.plus} />} onClick={onAdd} />
-        }
-      />
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "var(--color-pawpal-page)",
+        padding:
+          "calc(16px + env(safe-area-inset-top, 0px)) 16px calc(96px + env(safe-area-inset-bottom, 20px))",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <IconButton label="Add record" variant="primary" icon={<Icon icon={Icons.plus} />} onClick={onAdd} />
+      </div>
+      <PageTitle style={{ margin: "8px 0 4px" }}>{name}&rsquo;s Health</PageTitle>
+      <Eyebrow style={{ display: "block", margin: "0 0 20px" }}>Checkups, vaccines &amp; meds</Eyebrow>
 
       <SectionLabel>Notes for the vet</SectionLabel>
       <Card padding={0}>
@@ -236,11 +242,7 @@ export function Vet({ onAdd }: VetProps): React.ReactElement {
 }
 
 function SectionLabel({ children }: { children: ReactNode }): React.ReactElement {
-  return (
-    <Text type="label" color="secondary" as="div" style={{ margin: "20px 0 8px" }}>
-      {children}
-    </Text>
-  );
+  return <Eyebrow style={{ display: "block", margin: "20px 0 8px" }}>{children}</Eyebrow>;
 }
 
 function IconDot({ icon, accent }: { icon: IconComponent; accent: Accent }): React.ReactElement {

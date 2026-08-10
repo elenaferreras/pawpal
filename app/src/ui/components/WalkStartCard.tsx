@@ -56,7 +56,7 @@ export function WalkStartCard(): React.ReactElement {
       </span>
 
       <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: "auto" }}>
-        <span style={{ fontFamily: "var(--font-ui)", fontWeight: 900, fontSize: 30, lineHeight: 1 }}>
+        <span style={{ fontFamily: "var(--font-ui)", fontWeight: 700, fontSize: 30, lineHeight: 1 }}>
           {steps.toLocaleString("de-DE")}
         </span>
         <span style={{ fontFamily: "var(--font-ui)", fontWeight: 500, fontSize: 15, opacity: 0.75 }}>

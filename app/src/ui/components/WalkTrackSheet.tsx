@@ -89,7 +89,7 @@ export function WalkTrackSheet({ open, onClose }: WalkTrackSheetProps): React.Re
           style={{
             margin: 0,
             fontFamily: "var(--font-ui)",
-            fontWeight: 900,
+            fontWeight: 700,
             fontSize: 32,
             color: DARK,
           }}

@@ -48,7 +48,7 @@ export function ProfileDetails({ onNavigate, onBack }: ProfileDetailsProps): Rea
             <span style={{ fontSize: 52 }}>{p.emoji || "🐕"}</span>
           )}
         </span>
-        <span style={{ fontFamily: "var(--font-ui)", fontWeight: 900, fontSize: 24, color: DARK }}>
+        <span style={{ fontFamily: "var(--font-ui)", fontWeight: 700, fontSize: 24, color: DARK }}>
           {p.name || "My Dog"}
         </span>
         <span style={{ fontFamily: "var(--font-ui)", fontWeight: 500, fontSize: 14, color: MUTED }}>

@@ -7,7 +7,7 @@ import { Icon } from "@astryxdesign/core/Icon";
 import { ProgressBar } from "@astryxdesign/core/ProgressBar";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
-import { Header } from "../components/Header";
+import { PageTitle, Eyebrow } from "../components/Typography";
 import { Icons } from "../lib/icons";
 import { fmtDate } from "../lib/date";
 import type { Meal } from "../types";
@@ -35,6 +35,7 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
   const { db, update } = useDb();
   const toast = useToast();
   const p = db.profile;
+  const name = p.name.trim() || "Zipi";
   const n = p.mealsPerDay || 4;
   const portion = Math.round((p.foodGoal || 300) / n);
   const today = new Date().toISOString().split("T")[0];
@@ -83,18 +84,23 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
     .sort((a, b) => new Date(b.m.created || b.m.date).getTime() - new Date(a.m.created || a.m.date).getTime());
 
   return (
-    <div className="screen">
-      <Header
-        title="Food"
-        subtitle={`${doneSlots.size} of ${n} meals today`}
-        action={
-          <IconButton label="Log meal" variant="primary" icon={<Icon icon={Icons.plus} />} onClick={onAdd} />
-        }
-      />
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "var(--color-pawpal-page)",
+        padding:
+          "calc(16px + env(safe-area-inset-top, 0px)) 16px calc(96px + env(safe-area-inset-bottom, 20px))",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <IconButton label="Log meal" variant="primary" icon={<Icon icon={Icons.plus} />} onClick={onAdd} />
+      </div>
+      <PageTitle style={{ margin: "8px 0 4px" }}>{name}&rsquo;s Meals</PageTitle>
+      <Eyebrow style={{ display: "block", margin: "0 0 20px" }}>
+        {doneSlots.size} of {n} meals today
+      </Eyebrow>
 
-      <Text type="label" color="secondary" as="div" style={{ margin: "4px 0 8px" }}>
-        Today’s meals
-      </Text>
+      <Eyebrow style={{ display: "block", margin: "4px 0 8px" }}>Today&rsquo;s meals</Eyebrow>
       <VStack gap={2}>
         {names.map((name, i) => {
           const done = doneSlots.has(i);
@@ -156,9 +162,7 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
         </VStack>
       </Card>
 
-      <Text type="label" color="secondary" as="div" style={{ margin: "20px 0 8px" }}>
-        Meal history
-      </Text>
+      <Eyebrow style={{ display: "block", margin: "20px 0 8px" }}>Meal history</Eyebrow>
       <Card padding={0}>
         {history.length === 0 ? (
           <VStack gap={2} hAlign="center" padding={6}>

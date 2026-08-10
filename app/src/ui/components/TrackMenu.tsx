@@ -140,7 +140,7 @@ export function TrackMenu({ open, onClose, onWalk, onMeal, onDiary, onPoop, onVe
               border: "none",
               cursor: "pointer",
               color: "#fff",
-              fontWeight: 900,
+              fontWeight: 700,
               fontSize: 26,
               padding: 0,
               display: "flex",

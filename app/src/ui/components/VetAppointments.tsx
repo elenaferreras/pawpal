@@ -193,7 +193,7 @@ export function VetAppointments({ open, onClose, onAdd }: VetAppointmentsProps):
                     style={{
                       margin: 0,
                       fontSize: 32,
-                      fontWeight: 900,
+                      fontWeight: 700,
                       lineHeight: "normal",
                       color: "var(--color-pawpal-page)",
                     }}

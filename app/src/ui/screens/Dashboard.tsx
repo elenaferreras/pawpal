@@ -6,6 +6,7 @@ import { useLiveWalk } from "../components/LiveWalk";
 import { WalksBarChart, type WalksBar } from "../components/WalksBarChart";
 import { NotifPanel } from "../components/NotifPanel";
 import { DogFace } from "../avatar/DogAvatar";
+import { Eyebrow, CardTitle, StatNumber, Caption, Callout } from "../components/Typography";
 import { Icons } from "../lib/icons";
 import type { ScreenId } from "../types";
 
@@ -144,21 +145,10 @@ export function Dashboard({
           <DogFace avatar={p.avatar} size={48} />
         </button>
         <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+          <Eyebrow color={MUTED}>Hello,</Eyebrow>
           <span
             style={{
-              fontFamily: "var(--font-ui)",
-              fontWeight: 700,
-              fontSize: 12,
-              letterSpacing: 1,
-              color: MUTED,
-              textTransform: "uppercase",
-            }}
-          >
-            Hello,
-          </span>
-          <span
-            style={{
-              fontFamily: "var(--font-ui)",
+              fontFamily: "var(--font-brand)",
               fontWeight: 900,
               fontSize: 26,
               lineHeight: 1,
@@ -218,42 +208,14 @@ export function Dashboard({
           <WalksBarChart data={bars} height={131} gap={16} />
 
           <div style={{ marginTop: 20 }}>
-            <span
-              style={{
-                fontFamily: "var(--font-ui)",
-                fontWeight: 700,
-                fontSize: 13,
-                letterSpacing: 0.6,
-                color: MUTED,
-                textTransform: "uppercase",
-              }}
-            >
+            <Eyebrow color={MUTED} size={13} tracking={0.6}>
               This week&rsquo;s average
-            </span>
+            </Eyebrow>
             <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-              <span
-                style={{
-                  fontFamily: "var(--font-ui)",
-                  fontWeight: 900,
-                  fontSize: 44,
-                  lineHeight: 1.1,
-                  color: DARK,
-                }}
-              >
-                {average.toLocaleString("de-DE")}
-              </span>
-              <span
-                style={{
-                  fontFamily: "var(--font-ui)",
-                  fontWeight: 900,
-                  fontSize: 44,
-                  lineHeight: 1.1,
-                  color: MUTED,
-                  opacity: 0.6,
-                }}
-              >
+              <StatNumber color={DARK}>{average.toLocaleString("de-DE")}</StatNumber>
+              <StatNumber color={MUTED} style={{ opacity: 0.6 }}>
                 steps
-              </span>
+              </StatNumber>
             </div>
           </div>
         </div>
@@ -277,9 +239,7 @@ export function Dashboard({
             minHeight: 150,
           }}
         >
-          <span style={{ fontFamily: "var(--font-ui)", fontWeight: 900, fontSize: 24, lineHeight: 1.1 }}>
-            Ready for a walk?
-          </span>
+          <CardTitle>Ready for a walk?</CardTitle>
           <button
             type="button"
             aria-label={walkActive ? "Walk in progress" : "Start a walk"}
@@ -350,16 +310,7 @@ export function Dashboard({
             gap: 12,
           }}
         >
-          <span
-            style={{
-              fontFamily: "var(--font-ui)",
-              fontWeight: 900,
-              fontSize: 24,
-              color: HERO,
-            }}
-          >
-            Meals
-          </span>
+          <CardTitle color={HERO}>Meals</CardTitle>
           <div style={{ display: "flex", gap: 12 }}>
             {Array.from({ length: mealsPerDay }, (_, slot) => {
               const done = eatenSlots.has(slot);
@@ -389,17 +340,9 @@ export function Dashboard({
                   >
                     {done && <Icon icon={Icons.checkCircle} color="inherit" />}
                   </button>
-                  <span
-                    style={{
-                      fontFamily: "var(--font-ui)",
-                      fontWeight: 500,
-                      fontSize: 12,
-                      color: HERO,
-                      opacity: 0.7,
-                    }}
-                  >
+                  <Caption color={HERO} style={{ opacity: 0.7 }}>
                     {ORDINALS[slot] ?? slot + 1}
-                  </span>
+                  </Caption>
                 </div>
               );
             })}
@@ -429,7 +372,7 @@ export function Dashboard({
             style={{
               background: "var(--color-dash-pooped)",
               padding: "16px 24px",
-              fontFamily: "var(--font-ui)",
+              fontFamily: "var(--font-brand)",
               fontWeight: 700,
               fontSize: 18,
               color: DARK,
@@ -440,16 +383,13 @@ export function Dashboard({
           <div
             style={{
               padding: "16px 24px 20px",
-              fontFamily: "var(--font-ui)",
-              fontWeight: 500,
-              fontSize: 16,
-              lineHeight: 1.5,
-              color: DARK,
               whiteSpace: "pre-wrap",
               opacity: vetNotes ? 1 : 0.5,
             }}
           >
-            {vetNotes || "Tap to add notes for your next vet visit."}
+            <Callout color={DARK}>
+              {vetNotes || "Tap to add notes for your next vet visit."}
+            </Callout>
           </div>
         </button>
       </div>
@@ -494,14 +434,12 @@ function QuickCard({
         minHeight: 71,
         cursor: "pointer",
         color: "var(--color-pawpal-page)",
-        fontFamily: "var(--font-ui)",
-        fontWeight: 900,
-        fontSize: 16,
-        letterSpacing: -0.2,
       }}
     >
-      <span
+      <CardTitle
+        size={16}
         style={{
+          letterSpacing: -0.2,
           minWidth: 0,
           overflow: "hidden",
           textOverflow: "ellipsis",
@@ -509,7 +447,7 @@ function QuickCard({
         }}
       >
         {label}
-      </span>
+      </CardTitle>
       <span
         style={{
           width: 26,

@@ -24,8 +24,13 @@
 }
 
 :root {
-  /* App UI/display font — the Abordage design font, with system-sans fallback. */
-  --font-ui: "Abordage", -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+  /* Primary UI font: San Francisco via the system stack (0 KB, native feel). */
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+    "Segoe UI", Roboto, system-ui, sans-serif;
+  /* Brand accent font (Abordage) — used sparingly for hero/display moments. */
+  --font-brand: "Abordage", var(--font-ui);
+  /* Wordmark font (FatFrank) — splash + onboarding hero only. */
+  --font-wordmark: "FatFrank", "Abordage", var(--font-ui);
   --amber: #e8920a;
   --amber-light: #fff4df;
   --amber-mid: #f5c96a;
@@ -83,7 +88,7 @@ button {
 }
 .hdr-title {
   font-size: 28px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -1px;
   line-height: 1;
 }
@@ -249,7 +254,7 @@ button {
 }
 .dog-hero h2 {
   font-size: 32px;
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: -1px;
   line-height: 1.1;
 }
@@ -614,7 +619,7 @@ body.modal-open {
 }
 .modal-title {
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.5px;
   padding: 6px 22px 18px;
 }
@@ -695,7 +700,7 @@ body.modal-open {
 .profile-name {
   text-align: center;
   font-size: 26px;
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: -0.5px;
 }
 .profile-sub {
@@ -811,7 +816,7 @@ body.modal-open {
 }
 .ob-title {
   font-size: 30px;
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: -1px;
   text-align: center;
   margin-bottom: 8px;
@@ -2050,7 +2055,7 @@ body.modal-open {
 }
 .sit-banner-title {
   font-family: var(--font-ui);
-  font-weight: 900;
+  font-weight: 700;
   font-size: 16px;
 }
 .sit-banner-sub {
@@ -2077,7 +2082,7 @@ body.modal-open {
 .sit-hello {
   margin: 0;
   font-family: var(--font-ui);
-  font-weight: 900;
+  font-weight: 700;
   font-size: 28px;
   line-height: 1.15;
 }
@@ -2101,7 +2106,7 @@ body.modal-open {
 }
 .sit-stat-value {
   font-family: var(--font-ui);
-  font-weight: 900;
+  font-weight: 700;
   font-size: 28px;
 }
 .sit-stat-label {

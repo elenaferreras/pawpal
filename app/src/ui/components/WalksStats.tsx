@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useDb } from "../lib/store";
 import { Icon } from "@astryxdesign/core/Icon";
 import { Icons } from "../lib/icons";
+import { PageTitle, StatNumber } from "./Typography";
 
 interface WalksStatsProps {
   /** Optional back affordance; omitted when shown as a tab. */
@@ -95,18 +96,7 @@ export function WalksStats({ onBack }: WalksStatsProps): React.ReactElement {
         </button>
       )}
 
-      <h1
-        style={{
-          margin: "16px 0 24px",
-          fontFamily: "var(--font-ui)",
-          fontWeight: 300,
-          fontSize: "clamp(44px, 16vw, 72px)",
-          lineHeight: 1.0,
-          color: "var(--color-pawpal-hero)",
-        }}
-      >
-        {name}&rsquo;s Walks
-      </h1>
+      <PageTitle>{name}&rsquo;s Walks</PageTitle>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
@@ -162,20 +152,14 @@ export function WalksStats({ onBack }: WalksStatsProps): React.ReactElement {
                 month: "long",
               })}
             </p>
-            <p
-              style={{
-                margin: 0,
-                fontFamily: "var(--font-ui)",
-                fontWeight: 700,
-                fontSize: 32,
-                color: "var(--color-pawpal-hero)",
-              }}
-            >
-              {selectedDay.future
-                ? "Not yet"
-                : selectedDay.steps > 0
-                  ? `${selectedDay.steps.toLocaleString("de-DE")} steps`
-                  : "No walk"}
+            <p style={{ margin: 0 }}>
+              <StatNumber size={32} weight={700} color="var(--color-pawpal-hero)">
+                {selectedDay.future
+                  ? "Not yet"
+                  : selectedDay.steps > 0
+                    ? `${selectedDay.steps.toLocaleString("de-DE")} steps`
+                    : "No walk"}
+              </StatNumber>
             </p>
           </>
         ) : (
@@ -191,16 +175,10 @@ export function WalksStats({ onBack }: WalksStatsProps): React.ReactElement {
             >
               Average of
             </p>
-            <p
-              style={{
-                margin: 0,
-                fontFamily: "var(--font-ui)",
-                fontWeight: 700,
-                fontSize: 32,
-                color: "var(--color-pawpal-hero)",
-              }}
-            >
-              {avg.toLocaleString("de-DE")} steps
+            <p style={{ margin: 0 }}>
+              <StatNumber size={32} weight={700} color="var(--color-pawpal-hero)">
+                {avg.toLocaleString("de-DE")} steps
+              </StatNumber>
             </p>
           </>
         )}

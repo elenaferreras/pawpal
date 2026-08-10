@@ -1,6 +1,7 @@
 import type { ComponentType, CSSProperties, ReactNode } from "react";
 import { Icon } from "@astryxdesign/core/Icon";
 import { Icons } from "../../lib/icons";
+import { Eyebrow, Headline, Footnote } from "../../components/Typography";
 
 // Dashboard design tokens (mirrors screens/Dashboard.tsx).
 export const DARK = "var(--color-pawpal-page)"; // #352B25 page background
@@ -65,7 +66,7 @@ export function SettingsPage({
         <span
           style={{
             fontFamily: "var(--font-ui)",
-            fontWeight: 900,
+            fontWeight: 700,
             fontSize: 26,
             lineHeight: 1,
             color: HERO,
@@ -83,7 +84,7 @@ export function SettingsPage({
   );
 }
 
-/** Uppercase muted section label, tuned for the dark page background. */
+/** Uppercase muted section label — the {@link Eyebrow} token as a spaced block. */
 export function SectionLabel({
   children,
   style,
@@ -92,20 +93,7 @@ export function SectionLabel({
   style?: CSSProperties;
 }): React.ReactElement {
   return (
-    <div
-      style={{
-        fontFamily: "var(--font-ui)",
-        fontWeight: 700,
-        fontSize: 12,
-        letterSpacing: 1,
-        color: MUTED,
-        textTransform: "uppercase",
-        margin: "20px 4px 8px",
-        ...style,
-      }}
-    >
-      {children}
-    </div>
+    <Eyebrow style={{ display: "block", margin: "20px 4px 8px", ...style }}>{children}</Eyebrow>
   );
 }
 
@@ -129,7 +117,7 @@ export function Panel({
   );
 }
 
-/** Cream primary text used inside a {@link Panel}. */
+/** Cream primary text used inside a {@link Panel} — HIG Headline. */
 export function PanelTitle({
   children,
   style,
@@ -138,21 +126,13 @@ export function PanelTitle({
   style?: CSSProperties;
 }): React.ReactElement {
   return (
-    <span
-      style={{
-        fontFamily: "var(--font-ui)",
-        fontWeight: 700,
-        fontSize: 16,
-        color: HERO,
-        ...style,
-      }}
-    >
+    <Headline color={HERO} style={style}>
       {children}
-    </span>
+    </Headline>
   );
 }
 
-/** Muted supporting text used inside a {@link Panel}. */
+/** Muted supporting text used inside a {@link Panel} — HIG Footnote. */
 export function PanelText({
   children,
   style,
@@ -161,17 +141,9 @@ export function PanelText({
   style?: CSSProperties;
 }): React.ReactElement {
   return (
-    <span
-      style={{
-        fontFamily: "var(--font-ui)",
-        fontWeight: 500,
-        fontSize: 13,
-        color: MUTED,
-        ...style,
-      }}
-    >
+    <Footnote color={MUTED} style={style}>
       {children}
-    </span>
+    </Footnote>
   );
 }
 
@@ -234,30 +206,18 @@ export function SettingsRow({
         <Icon icon={icon} color="inherit" />
       </span>
       <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
-        <span
-          style={{
-            fontFamily: "var(--font-ui)",
-            fontWeight: 700,
-            fontSize: 16,
-            color: HERO,
-          }}
-        >
-          {label}
-        </span>
+        <Headline color={HERO}>{label}</Headline>
         {subtitle && (
-          <span
+          <Footnote
+            color={MUTED}
             style={{
-              fontFamily: "var(--font-ui)",
-              fontWeight: 500,
-              fontSize: 13,
-              color: MUTED,
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
             }}
           >
             {subtitle}
-          </span>
+          </Footnote>
         )}
       </span>
       {badge ? (
