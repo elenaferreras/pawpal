@@ -130,7 +130,7 @@ export function Dashboard({
             width: 48,
             height: 48,
             borderRadius: "50%",
-            background: "var(--color-dash-pooped)",
+            background: p.avatar?.bg ?? "var(--color-dash-pooped)",
             flexShrink: 0,
             overflow: "hidden",
             display: "flex",

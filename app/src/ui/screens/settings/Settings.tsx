@@ -110,7 +110,7 @@ export function Settings({ onNavigate, onBack }: SettingsProps): React.ReactElem
               borderRadius: "50%",
               overflow: "hidden",
               flexShrink: 0,
-              background: "var(--color-dash-pooped)",
+              background: p.avatar?.bg ?? "var(--color-dash-pooped)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",

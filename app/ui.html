@@ -7,9 +7,11 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <!-- black-translucent lets the web content extend behind the iOS status bar
+         so the .ios-status-blur overlay can frost the content passing under it. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="PawPal" />
-    <meta name="theme-color" content="#E8920A" />
+    <meta name="theme-color" content="transparent" />
     <link rel="manifest" href="./manifest.json" />
     <link rel="icon" type="image/png" href="./icon-192.png" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
@@ -24,6 +26,9 @@
     />
   </head>
   <body>
+    <!-- Frosted-glass status-bar overlay for iOS home-screen (standalone) mode.
+         Purely decorative; styling + display-mode gating live in global.css. -->
+    <div class="ios-status-blur" aria-hidden="true"></div>
     <div id="root"></div>
     <script type="module" src="/src/ui/main.tsx"></script>
   </body>

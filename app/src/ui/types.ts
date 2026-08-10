@@ -16,6 +16,8 @@ export interface Avatar {
   colour: string;
   eyes: string;
   nose: string;
+  /** Background circle colour (hex) shown behind the dog. */
+  bg?: string;
 }
 
 export interface Profile {

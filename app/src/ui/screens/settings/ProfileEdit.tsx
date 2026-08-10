@@ -7,7 +7,9 @@ import { Slider } from "@astryxdesign/core/Slider";
 import { useDb } from "../../lib/store";
 import { useToast } from "../../lib/toast";
 import { DateField } from "../../components/fields";
-import { AvatarEditor } from "../../avatar/AvatarEditor";
+import { DogAvatar } from "../../avatar/DogAvatar";
+import { AvatarSheet } from "../../avatar/AvatarSheet";
+import { DEFAULT_AVATAR_BG } from "../../avatar/presets";
 import type { Avatar, Profile as ProfileT } from "../../types";
 import { SettingsPage, SectionLabel, Panel, PanelTitle } from "./shared";
 
@@ -17,6 +19,7 @@ const DEFAULT_AVATAR: Avatar = {
   colour: "orange",
   eyes: "Normal",
   nose: "Normal",
+  bg: DEFAULT_AVATAR_BG,
 };
 
 const MEAL_OPTIONS = [1, 2, 3, 4, 5];
@@ -36,6 +39,7 @@ export function ProfileEdit({ onBack }: { onBack: () => void }): React.ReactElem
   const [vet, setVet] = useState(p.vet);
   const [vetPhone, setVetPhone] = useState(p.vetPhone);
   const [avatar, setAvatar] = useState<Avatar>(p.avatar ? { ...p.avatar } : DEFAULT_AVATAR);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const portion = Math.round(foodGoal / mealsPerDay);
 
@@ -64,8 +68,44 @@ export function ProfileEdit({ onBack }: { onBack: () => void }): React.ReactElem
     <SettingsPage title="Edit profile" onBack={onBack}>
       <SectionLabel>Avatar</SectionLabel>
       <Panel>
-        <AvatarEditor value={avatar} onChange={setAvatar} previewSize={140} />
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
+          <button
+            type="button"
+            aria-label="Edit profile picture"
+            onClick={() => setSheetOpen(true)}
+            style={{
+              width: 140,
+              height: 140,
+              borderRadius: "50%",
+              background: avatar.bg ?? DEFAULT_AVATAR_BG,
+              border: "none",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              overflow: "hidden",
+              padding: 0,
+            }}
+          >
+            <DogAvatar avatar={avatar} size={116} />
+          </button>
+          <Button
+            label="Change picture"
+            variant="secondary"
+            onClick={() => setSheetOpen(true)}
+          />
+        </div>
       </Panel>
+
+      <AvatarSheet
+        open={sheetOpen}
+        value={avatar}
+        onConfirm={(next) => {
+          setAvatar(next);
+          setSheetOpen(false);
+        }}
+        onClose={() => setSheetOpen(false)}
+      />
 
       <SectionLabel>Details</SectionLabel>
       <Panel>

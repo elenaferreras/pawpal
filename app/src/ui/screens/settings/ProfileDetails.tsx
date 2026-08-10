@@ -36,7 +36,7 @@ export function ProfileDetails({ onNavigate, onBack }: ProfileDetailsProps): Rea
             height: 96,
             borderRadius: "50%",
             overflow: "hidden",
-            background: "var(--color-dash-pooped)",
+            background: p.avatar?.bg ?? "var(--color-dash-pooped)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",

@@ -34,6 +34,7 @@ import {
   Play,
   ChevronDown,
   ChevronLeft,
+  Lock,
 } from "lucide-react";
 
 export const Icons = {
@@ -69,6 +70,7 @@ export const Icons = {
   chartColumn: ChartColumnBig,
   play: Play,
   chevronDown: ChevronDown,
+  lock: Lock,
 } as const;
 
 export type AppIconName = keyof typeof Icons;

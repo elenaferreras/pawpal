@@ -2222,5 +2222,58 @@ body.modal-open {
   border-top: 1px solid var(--border);
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+   iOS home-screen (PWA) frosted status-bar overlay
+   ─────────────────────────────────────────────────────────────────────────
+   When launched from the home screen with
+   `apple-mobile-web-app-status-bar-style: black-translucent`, the web content
+   extends behind the iOS status bar. This overlay frosts whatever scrollable
+   content passes underneath it so the status bar reads as native "frosted
+   glass" instead of a flat colour.
+
+   Tuning: everything is driven by the `--ios-blur-*` custom properties below —
+   adjust blur intensity, tint colour/opacity, or fallback height in one place.
+   The overlay is hidden by default and only rendered in standalone display
+   mode, so it never affects normal in-browser viewing. */
+:root {
+  /* Status-bar height. Falls back to 44px on devices without safe-area insets. */
+  --ios-blur-height: env(safe-area-inset-top, 44px);
+  /* Blur radius applied to the content behind the bar. */
+  --ios-blur-amount: 20px;
+  /* Semi-transparent tint layered over the blur (frosted, not just blurred).
+     Defaults to a dark tint that matches the app's dark surface. */
+  --ios-blur-tint: rgba(53, 43, 37, 0.45);
+}
+
+.ios-status-blur {
+  display: none;
+}
+
+@media (display-mode: standalone) {
+  .ios-status-blur {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--ios-blur-height);
+    /* Guard against a 0px safe-area inset (older/edge devices) collapsing the bar. */
+    min-height: max(var(--ios-blur-height), 20px);
+    z-index: 1000;
+    /* Purely decorative — never intercept touches/clicks. */
+    pointer-events: none;
+    background-color: var(--ios-blur-tint);
+    -webkit-backdrop-filter: blur(var(--ios-blur-amount));
+    backdrop-filter: blur(var(--ios-blur-amount));
+  }
+}
+
+/* Light-appearance devices: switch the tint to a light frosted glass so text
+   under the status bar stays legible. */
+@media (display-mode: standalone) and (prefers-color-scheme: light) {
+  :root {
+    --ios-blur-tint: rgba(255, 255, 255, 0.5);
+  }
+}
 
 
