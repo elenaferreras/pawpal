@@ -1,5 +1,5 @@
 import { VStack } from "@astryxdesign/core/Stack";
-import { Button } from "@astryxdesign/core/Button";
+import { Button } from "../../components/Button";
 import { useDb } from "../../lib/store";
 import { useToast } from "../../lib/toast";
 import { getLastSync, syncFromSupabase } from "../../lib/supabase";

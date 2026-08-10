@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { HStack, VStack } from "@astryxdesign/core/Stack";
-import { Button } from "@astryxdesign/core/Button";
+import { Button } from "../../components/Button";
 import { Switch } from "@astryxdesign/core/Switch";
 import { useToast } from "../../lib/toast";
 import { TimeField } from "../../components/fields";

@@ -21,7 +21,11 @@ export function Modal({ open, title, onClose, children }: ModalProps): ReactNode
     <Dialog isOpen={open} onOpenChange={handleOpenChange} purpose="form" width="min(560px, 94vw)">
       <Layout
         header={title ? <DialogHeader title={title} onOpenChange={handleOpenChange} /> : undefined}
-        content={<LayoutContent>{children}</LayoutContent>}
+        content={
+          <LayoutContent>
+            <div className="btn-surface-light">{children}</div>
+          </LayoutContent>
+        }
       />
     </Dialog>
   );

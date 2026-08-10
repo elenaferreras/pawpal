@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { HStack, VStack } from "@astryxdesign/core/Stack";
-import { Button } from "@astryxdesign/core/Button";
+import { Button } from "./Button";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { getCurrentUser } from "../lib/auth";

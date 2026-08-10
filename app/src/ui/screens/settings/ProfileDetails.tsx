@@ -1,121 +1,184 @@
+import type { ReactNode } from "react";
+import { Icon } from "@astryxdesign/core/Icon";
 import { useDb } from "../../lib/store";
-import { calcAge } from "../../lib/date";
 import { DogFace } from "../../avatar/DogAvatar";
 import { Icons } from "../../lib/icons";
+import { Button } from "../../components/Button";
 import type { ScreenId } from "../../types";
-import { DARK, HERO, MUTED, SURFACE, SettingsPage, SectionLabel, GroupCard, SettingsRow } from "./shared";
+import { HERO, MUTED, SettingsPage, SectionLabel } from "./shared";
 
 interface ProfileDetailsProps {
   onNavigate: (id: ScreenId) => void;
   onBack: () => void;
 }
 
-/** Profile Details subpage: pet summary, edit profile, and add-a-pet (coming soon). */
+const GROUP = "var(--color-settings-group)"; // #221D1A deep list surface
+
+/** DD/MM/YYYY for the stored `YYYY-MM-DD` birthday, or an em dash if unset. */
+function formatBirthday(value?: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value ?? "");
+  if (!match) return "—";
+  const [, y, m, d] = match;
+  return `${d}/${m}/${y}`;
+}
+
+/**
+ * Profile Details subpage (Figma node 180:3354): centred avatar with an EDIT
+ * pill, then grouped label/value rows for the pet's details, and a Manage group.
+ */
 export function ProfileDetails({ onNavigate, onBack }: ProfileDetailsProps): React.ReactElement {
   const { db } = useDb();
   const p = db.profile;
-  const age = calcAge(p.birthday);
+  const edit = (): void => onNavigate("settings-profile-edit");
+
+  const details: { label: string; value: string }[] = [
+    { label: "Name", value: p.name || "—" },
+    { label: "Birthday", value: formatBirthday(p.birthday) },
+    { label: "Weight", value: p.weight ? `${p.weight} kg` : "—" },
+    { label: "Food goal", value: `${p.foodGoal || 300}g / day` },
+    { label: "Vet", value: p.vet || "—" },
+  ];
 
   return (
     <SettingsPage title="Profile details" onBack={onBack}>
-      {/* Pet summary */}
+      {/* Avatar with an overlapping EDIT pill */}
       <div
         style={{
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          gap: 10,
-          background: HERO,
-          borderRadius: 28,
-          padding: "24px 16px",
+          padding: "8px 24px 0",
         }}
       >
         <span
           style={{
-            width: 96,
-            height: 96,
+            width: 112,
+            height: 112,
             borderRadius: "50%",
             overflow: "hidden",
             background: p.avatar?.bg ?? "var(--color-dash-pooped)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            marginBottom: -18,
           }}
         >
           {p.avatar ? (
-            <DogFace avatar={p.avatar} size={96} />
+            <DogFace avatar={p.avatar} size={112} />
           ) : (
-            <span style={{ fontSize: 52 }}>{p.emoji || "🐕"}</span>
+            <span style={{ fontSize: 60 }}>{p.emoji || "🐕"}</span>
           )}
         </span>
-        <span style={{ fontFamily: "var(--font-ui)", fontWeight: 700, fontSize: 24, color: DARK }}>
-          {p.name || "My Dog"}
-        </span>
-        <span style={{ fontFamily: "var(--font-ui)", fontWeight: 500, fontSize: 14, color: MUTED }}>
-          {[p.breed, age].filter(Boolean).join(" · ") || "Tap Edit to set up your profile"}
-        </span>
+        <Button
+          variant="primary"
+          label="Edit"
+          onClick={edit}
+          style={{
+            minWidth: 0,
+            padding: "8px 24px",
+            fontSize: 16,
+            fontWeight: 510,
+            textTransform: "uppercase",
+            position: "relative",
+          }}
+        />
       </div>
 
-      <SectionLabel>Details</SectionLabel>
-      <GroupCard>
-        <InfoRow label="Breed" value={p.breed || "—"} isFirst />
-        <InfoRow label="Age" value={age || p.birthday || "—"} />
-        <InfoRow label="Weight" value={p.weight ? `${p.weight} kg` : "—"} />
-        <InfoRow label="Food goal" value={`${p.foodGoal || 300}g / day`} />
-        <InfoRow label="Vet" value={p.vet || "—"} />
-        <InfoRow label="Vet phone" value={p.vetPhone || "—"} />
-      </GroupCard>
+      <SectionLabel style={{ color: HERO, fontSize: 16, fontWeight: 510, margin: "20px 4px 8px" }}>
+        Details
+      </SectionLabel>
+      <Group>
+        {details.map((d) => (
+          <DetailRow key={d.label} label={d.label} value={d.value} onClick={edit} />
+        ))}
+      </Group>
 
-      <SectionLabel>Manage</SectionLabel>
-      <GroupCard>
-        <SettingsRow
-          isFirst
-          icon={Icons.pencilSimple}
-          iconBg="var(--color-dash-pooped)"
-          label="Edit profile"
-          subtitle="Name, breed, food goal & vet"
-          onClick={() => onNavigate("settings-profile-edit")}
-        />
-        <SettingsRow
-          icon={Icons.plus}
-          iconBg="var(--color-dash-trained)"
-          label="Add a new pet"
-          subtitle="Track more than one companion"
-          badge="Coming soon"
-          disabled
-        />
-      </GroupCard>
+      <SectionLabel style={{ color: HERO, fontSize: 16, fontWeight: 510, margin: "20px 4px 8px" }}>
+        Manage
+      </SectionLabel>
+      <Group>
+        <DetailRow label="Add a new pet" value="Coming soon" muted />
+      </Group>
     </SettingsPage>
   );
 }
 
-function InfoRow({
-  label,
-  value,
-  isFirst = false,
-}: {
-  label: string;
-  value: string;
-  isFirst?: boolean;
-}): React.ReactElement {
+/** Deep rounded surface that groups a set of {@link DetailRow}s. */
+function Group({ children }: { children: ReactNode }): React.ReactElement {
   return (
     <div
       style={{
+        background: GROUP,
+        borderRadius: 16,
+        overflow: "hidden",
         display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 12,
-        padding: "14px 16px",
-        borderTop: isFirst ? "none" : "1px solid rgba(255,255,255,0.07)",
-        background: SURFACE,
+        flexDirection: "column",
+        gap: 4,
       }}
     >
-      <span style={{ fontFamily: "var(--font-ui)", fontWeight: 500, fontSize: 15, color: MUTED }}>
-        {label}
-      </span>
-      <span style={{ fontFamily: "var(--font-ui)", fontWeight: 700, fontSize: 15, color: HERO }}>
-        {value}
-      </span>
+      {children}
     </div>
+  );
+}
+
+/** A label + value row with a trailing chevron. Tappable when `onClick` is set. */
+function DetailRow({
+  label,
+  value,
+  onClick,
+  muted = false,
+}: {
+  label: string;
+  value: string;
+  onClick?: () => void;
+  muted?: boolean;
+}): React.ReactElement {
+  const clickable = onClick != null;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!clickable}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 16,
+        width: "100%",
+        textAlign: "left",
+        padding: 16,
+        background: "none",
+        border: "none",
+        cursor: clickable ? "pointer" : "default",
+      }}
+    >
+      <span
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          fontFamily: "var(--font-ui)",
+          fontSize: 16,
+          color: HERO,
+        }}
+      >
+        <span style={{ whiteSpace: "nowrap" }}>{label}</span>
+        <span
+          style={{
+            opacity: muted ? 0.5 : 0.8,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {value}
+        </span>
+      </span>
+      <span style={{ color: MUTED, display: "flex", flexShrink: 0 }}>
+        <Icon icon={Icons.caretRight} color="inherit" />
+      </span>
+    </button>
   );
 }

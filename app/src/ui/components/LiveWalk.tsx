@@ -12,7 +12,7 @@ import { VStack } from "@astryxdesign/core/Stack";
 import { Grid } from "@astryxdesign/core/Grid";
 import { Text } from "@astryxdesign/core/Text";
 import { Card } from "@astryxdesign/core/Card";
-import { Button } from "@astryxdesign/core/Button";
+import { Button } from "./Button";
 import { TextArea } from "@astryxdesign/core/TextArea";
 import { ToggleButton } from "@astryxdesign/core/ToggleButton";
 import { Icon } from "@astryxdesign/core/Icon";

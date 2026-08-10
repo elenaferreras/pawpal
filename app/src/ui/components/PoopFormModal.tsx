@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { VStack, HStack } from "@astryxdesign/core/Stack";
-import { Button } from "@astryxdesign/core/Button";
+import { Button } from "./Button";
 import { IconButton } from "@astryxdesign/core/IconButton";
 import { Icon } from "@astryxdesign/core/Icon";
 import { TextArea } from "@astryxdesign/core/TextArea";

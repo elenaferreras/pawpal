@@ -52,6 +52,10 @@ const pawpalTokens: Record<string, [light: string, dark: string]> = {
   "--color-dash-pooped": ["#EDD4FD", "#EDD4FD"], // "Pooped" card + "Notes" header (purple)
   "--color-dash-trained": ["#FFFF83", "#FFFF83"], // "Trained" card (yellow)
   "--color-dash-surface": ["#3E332C", "#3E332C"], // dark "Meals" card surface
+
+  // Settings list groups (Figma Profile details node 180:3354) — a deeper
+  // surface than the dashboard cards, used for grouped label/value rows.
+  "--color-settings-group": ["#221D1A", "#221D1A"],
 };
 
 export const pawpalTheme = defineTheme({

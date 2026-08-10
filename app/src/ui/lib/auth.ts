@@ -141,6 +141,18 @@ export async function signIn(email: string, password: string): Promise<AuthSessi
   return session;
 }
 
+// Trigger a password-reset email via GoTrue's recover endpoint. Resolves once
+// the request is accepted; the user follows the emailed link to set a new one.
+export async function requestPasswordReset(email: string): Promise<void> {
+  const { url, key } = getSBConfig();
+  const res = await fetch(`${url}/auth/v1/recover`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", apikey: key },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) throw new Error(await readError(res));
+}
+
 export async function signOut(): Promise<void> {
   const session = readSession();
   const { url, key } = getSBConfig();

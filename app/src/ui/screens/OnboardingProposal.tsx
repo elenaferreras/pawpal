@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import { VStack } from "@astryxdesign/core/Stack";
 import { Text, Heading } from "@astryxdesign/core/Text";
-import { Button } from "@astryxdesign/core/Button";
+import { Button } from "../components/Button";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { Slider } from "@astryxdesign/core/Slider";
 import { Switch } from "@astryxdesign/core/Switch";
+import { Icon } from "@astryxdesign/core/Icon";
+import { Icons } from "../lib/icons";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { StickerSheet } from "../components/StickerSheet";
 import { DogFace } from "../avatar/DogAvatar";
 import { TimeField } from "../components/fields";
 import { requestNotificationPermission, saveNotifConfig } from "../lib/notifications";
-import { signIn, signUp } from "../lib/auth";
+import { requestPasswordReset, signIn, signUp } from "../lib/auth";
 import { syncFromSupabase } from "../lib/supabase";
 import type { Avatar, Database, Profile } from "../types";
 
@@ -470,11 +472,30 @@ function AuthGate({
   const [mode, setMode] = useState<AuthMode>("choose");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const canSubmit = emailOk && password.length >= 6 && !busy;
+
+  // Send a reset link. Requires a valid email in the field first.
+  const forgot = async (): Promise<void> => {
+    if (!emailOk) {
+      setError("Enter your email above to reset your password");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await requestPasswordReset(email.trim());
+      toast("Password reset link sent — check your email ✉️");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't send the reset link. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const submit = async (): Promise<void> => {
     if (!canSubmit) {
@@ -522,29 +543,29 @@ function AuthGate({
           </div>
 
           <div className="obw-buttons">
-            <button
-              type="button"
-              className="obw-btn obw-btn--primary"
+            <Button
+              variant="primary"
+              fullWidth
               onClick={() => {
                 setError(null);
                 setMode("signup");
               }}
             >
               Sign up
-            </button>
-            <button
-              type="button"
-              className="obw-btn obw-btn--outline"
+            </Button>
+            <Button
+              variant="secondary"
+              fullWidth
               onClick={() => {
                 setError(null);
                 setMode("login");
               }}
             >
               Log in
-            </button>
-            <button type="button" className="obw-btn obw-btn--ghost" onClick={onDogSit}>
+            </Button>
+            <Button variant="ghost" fullWidth onClick={onDogSit}>
               I&rsquo;m dog sitting today
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -554,68 +575,104 @@ function AuthGate({
   const isSignup = mode === "signup";
 
   return (
-    <div className="ob-overlay open">
-      <div className="obp-progress-wrap" />
-      <div className="ob-slide obp-slide">
-        <VStack gap={3} className="obp-fill obp-auth">
-          <span className="obp-eyebrow">{isSignup ? "New here" : "Welcome back"}</span>
-          <h2 className="obp-title">{isSignup ? "Create your account" : "Log in"}</h2>
-          <Text type="supporting" className="obp-sub-left">
-            {isSignup
-              ? "We'll keep your pup's data safely backed up."
-              : "Sign in to restore your pup's data."}
-          </Text>
-          <TextInput
-            label="Email"
-            type="email"
-            value={email}
-            placeholder="you@example.com"
-            onChange={(v: string) => {
-              setEmail(v);
-              setError(null);
-            }}
-          />
-          <TextInput
-            label="Password"
-            type="password"
-            value={password}
-            placeholder={isSignup ? "At least 6 characters" : "Your password"}
-            onChange={(v: string) => {
-              setPassword(v);
-              setError(null);
-            }}
-            status={error ? { type: "error", message: error } : undefined}
-          />
-          <div className="ob-spacer" />
-          <VStack gap={2}>
-            <Button
-              label={busy ? "Please wait…" : isSignup ? "Create account" : "Log in"}
-              variant="primary"
-              onClick={() => void submit()}
-              isDisabled={busy}
-              style={{ width: "100%" }}
-            />
-            <Button
-              label={isSignup ? "I already have an account" : "Create an account instead"}
-              variant="ghost"
-              onClick={() => {
+    <div className="oba">
+      <button
+        type="button"
+        aria-label="Back"
+        className="oba-back"
+        onClick={() => {
+          setError(null);
+          setMode("choose");
+        }}
+      >
+        <Icon icon={Icons.caretLeft} color="inherit" />
+      </button>
+
+      <h1 className="oba-title">{isSignup ? "Let's get started!" : "Welcome back!"}</h1>
+
+      <div className="oba-fields">
+        <div className="oba-field">
+          <label className="oba-field-label" htmlFor="oba-email">
+            Email
+          </label>
+          <div className="oba-input-wrap">
+            <input
+              id="oba-email"
+              className="oba-input"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              value={email}
+              placeholder="you@example.com"
+              onChange={(e) => {
+                setEmail(e.target.value);
                 setError(null);
-                setMode(isSignup ? "login" : "signup");
               }}
-              className="obp-skip"
             />
-            <Button
-              label="Back"
-              variant="ghost"
-              onClick={() => {
+          </div>
+        </div>
+
+        <div className="oba-field">
+          <label className="oba-field-label" htmlFor="oba-password">
+            Password
+          </label>
+          <div className={`oba-input-wrap${error ? " error" : ""}`}>
+            <input
+              id="oba-password"
+              className="oba-input"
+              type={showPassword ? "text" : "password"}
+              autoComplete={isSignup ? "new-password" : "current-password"}
+              value={password}
+              placeholder={isSignup ? "At least 6 characters" : "Your password"}
+              onChange={(e) => {
+                setPassword(e.target.value);
                 setError(null);
-                setMode("choose");
               }}
-              className="obp-skip"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void submit();
+              }}
             />
-          </VStack>
-        </VStack>
+            <button
+              type="button"
+              className="oba-eye"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-pressed={showPassword}
+              onClick={() => setShowPassword((v) => !v)}
+            >
+              <Icon icon={showPassword ? Icons.eyeOff : Icons.eye} color="inherit" />
+            </button>
+          </div>
+          {error && <p className="oba-fielderror">{error}</p>}
+        </div>
       </div>
+
+      <button
+        type="button"
+        className="oba-submit"
+        onClick={() => void submit()}
+        disabled={busy}
+      >
+        {busy ? "Please wait…" : isSignup ? "Create account" : "Log in"}
+      </button>
+
+      {isSignup ? (
+        <button
+          type="button"
+          className="oba-link"
+          onClick={() => {
+            setError(null);
+            setMode("login");
+          }}
+        >
+          I already have an account
+        </button>
+      ) : (
+        <button type="button" className="oba-link" onClick={() => void forgot()} disabled={busy}>
+          Forgot password
+        </button>
+      )}
+
+      <div className="oba-spacer" />
     </div>
   );
 }

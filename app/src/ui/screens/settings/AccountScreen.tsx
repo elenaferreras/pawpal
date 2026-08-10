@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { VStack } from "@astryxdesign/core/Stack";
-import { Button } from "@astryxdesign/core/Button";
+import { Button } from "../../components/Button";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { useDb } from "../../lib/store";
 import { useToast } from "../../lib/toast";

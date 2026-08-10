@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { HStack, VStack } from "@astryxdesign/core/Stack";
 import { Text, Heading } from "@astryxdesign/core/Text";
-import { Button } from "@astryxdesign/core/Button";
+import { Button } from "../components/Button";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { Slider } from "@astryxdesign/core/Slider";
 import { SegmentedControl, SegmentedControlItem } from "@astryxdesign/core/SegmentedControl";

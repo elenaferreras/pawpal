@@ -1965,35 +1965,234 @@ body.modal-open {
   flex-direction: column;
   gap: 16px;
 }
-.obw-btn {
-  height: 56px;
-  width: 100%;
-  border: none;
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Shared Button (components/Button.tsx)
+   ─────────────────────────────────────────────────────────────────────────
+   One pill button for the whole app. Variants + shape from Figma node 108:992.
+   Colours are driven by the `--btn-*` custom properties so intensity/tint can
+   be retuned in one place. Theme-aware: the outlined/ghost foreground defaults
+   to the brand accent (reads well on the app's dark surfaces); inside a
+   `.btn-surface-light` wrapper (applied by the Modal) it flips to a dark
+   foreground so it stays legible on light surfaces. */
+:root {
+  --btn-accent: var(--color-data-yellow-3); /* #FFFF83 filled-button surface */
+  --btn-on-accent: var(--color-pawpal-page); /* #352B25 text on the accent fill */
+  --btn-fg: var(--color-data-yellow-3); /* outline/ghost text + border (dark surfaces) */
+  --btn-danger: #e5484d; /* destructive fill */
+  --btn-on-danger: #ffffff;
+}
+/* Light-surface override: dark, legible outline/ghost foreground. */
+.btn-surface-light {
+  --btn-fg: var(--color-pawpal-page);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 150px;
+  padding: 16px 24px;
+  border: 1px solid transparent;
   border-radius: 40px;
-  cursor: pointer;
   font-family: var(--font-ui);
-  font-weight: 400;
-  font-size: 24px;
+  font-size: 16px;
+  font-weight: 590;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease, opacity 0.2s ease, background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+.btn:active {
+  transform: scale(0.97);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+  pointer-events: none;
+}
+.btn--full {
+  width: 100%;
+}
+.btn--sm {
+  min-width: 0;
+  padding: 10px 16px;
+  font-size: 14px;
+}
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  font-size: 1.1em;
+}
+.btn--primary {
+  background: var(--btn-accent);
+  color: var(--btn-on-accent);
+  font-weight: 700;
+}
+.btn--secondary {
+  background: transparent;
+  border-color: var(--btn-fg);
+  color: var(--btn-fg);
+  font-weight: 590;
+}
+.btn--ghost {
+  background: transparent;
+  color: var(--btn-fg);
+  font-weight: 510;
+}
+.btn--destructive {
+  background: var(--btn-danger);
+  color: var(--btn-on-danger);
+  font-weight: 700;
+}
+
+/* ── Log in / sign up (brown-toned form, matches Figma node 201:1227) ───── */
+.oba {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  overflow-y: auto;
+  background: var(--color-pawpal-page);
+  display: flex;
+  flex-direction: column;
+  max-width: 430px;
+  margin: 0 auto;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 24px calc(24px + var(--safe-bottom));
+}
+.oba-back {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  margin: 4px 0 20px;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--color-pawpal-hero);
+  background: color-mix(in srgb, var(--color-pawpal-hero) 16%, transparent);
+  transition: transform 0.12s ease, background 0.2s ease;
+}
+.oba-back:active {
+  transform: scale(0.92);
+}
+.oba-title {
+  margin: 0 0 24px;
+  font-family: "FatFrank", "Abordage", sans-serif;
+  font-weight: 400;
+  font-size: 40px;
+  line-height: 1.05;
+  color: var(--color-pawpal-hero);
+}
+.oba-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.oba-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.oba-field-label {
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--color-pawpal-hero);
+}
+.oba-input-wrap {
+  display: flex;
+  align-items: center;
+  height: 56px;
+  padding: 0 18px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--color-pawpal-hero) 34%, transparent);
+  background: transparent;
+  transition: border-color 0.18s ease;
+}
+.oba-input-wrap:focus-within {
+  border-color: var(--color-pawpal-hero);
+}
+.oba-input-wrap.error {
+  border-color: #ff9d84;
+}
+.oba-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: 17px;
+  color: var(--color-pawpal-hero);
+}
+.oba-input::placeholder {
+  color: color-mix(in srgb, var(--color-pawpal-hero) 45%, transparent);
+}
+.oba-eye {
+  flex-shrink: 0;
+  margin-left: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: color-mix(in srgb, var(--color-pawpal-hero) 70%, transparent);
+  padding: 6px;
+}
+.oba-eye:active {
+  opacity: 0.6;
+}
+.oba-fielderror {
+  margin: 2px 2px 0;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.4;
+  color: #ff9d84;
+}
+.oba-submit {
+  height: 56px;
+  width: 100%;
+  margin-top: 26px;
+  border: none;
+  border-radius: 100px;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--color-pawpal-page);
+  background: var(--color-data-yellow-3);
   transition: transform 0.12s ease, opacity 0.2s ease;
 }
-.obw-btn:active {
-  transform: scale(0.97);
+.oba-submit:active {
+  transform: scale(0.98);
 }
-.obw-btn--primary {
-  background: var(--color-data-yellow-3);
-  color: var(--color-pawpal-page);
+.oba-submit:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
-.obw-btn--outline {
-  background: transparent;
-  border: 1px solid var(--color-data-yellow-3);
+.oba-link {
+  align-self: center;
+  margin-top: 20px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 15px;
   color: var(--color-data-yellow-3);
 }
-.obw-btn--ghost {
-  background: transparent;
-  color: var(--color-data-yellow-3);
+.oba-link:active {
+  opacity: 0.6;
+}
+.oba-spacer {
+  flex: 1 1 auto;
+  min-height: 20px;
 }
 
 /* ── Sitter claim (reuses the .obw shell, content near the top) ──────────── */

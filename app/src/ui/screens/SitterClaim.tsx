@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { claimInvite, formatCode, type SitterState } from "../lib/sitter";
+import { Button } from "../components/Button";
 
 interface SitterClaimProps {
   initialCode?: string;
@@ -65,18 +66,17 @@ export function SitterClaim({
           />
           {error && <p className="sitclaim-error">{error}</p>}
 
-          <button
-            type="button"
-            className="obw-btn obw-btn--primary"
+          <Button
+            variant="primary"
+            fullWidth
             onClick={() => void submit()}
-            disabled={!canSubmit}
-            style={{ opacity: canSubmit ? 1 : 0.5 }}
+            isDisabled={!canSubmit}
           >
             {busy ? "Joining\u2026" : "Start sitting"}
-          </button>
-          <button type="button" className="obw-btn obw-btn--ghost" onClick={onClose}>
+          </Button>
+          <Button variant="ghost" fullWidth onClick={onClose}>
             Back
-          </button>
+          </Button>
         </div>
       </div>
     </div>

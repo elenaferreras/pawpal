@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { HStack, VStack } from "@astryxdesign/core/Stack";
 import { Text } from "@astryxdesign/core/Text";
-import { Button } from "@astryxdesign/core/Button";
+import { Button } from "./Button";
 import { ToggleButton } from "@astryxdesign/core/ToggleButton";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { TextArea } from "@astryxdesign/core/TextArea";
