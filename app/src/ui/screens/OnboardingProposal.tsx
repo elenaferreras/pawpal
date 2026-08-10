@@ -509,10 +509,10 @@ function AuthGate({
       <div className="obw">
         {/* Hand-drawn dog doodles (Figma node 100:5297). */}
         <div className="obw-art" aria-hidden>
-          <img className="obw-dog obw-dog--blue" src="/onboarding/dog-blue.svg" alt="" />
-          <img className="obw-dog obw-dog--purple" src="/onboarding/dog-purple.svg" alt="" />
-          <img className="obw-dog obw-dog--cream" src="/onboarding/dog-cream.svg" alt="" />
-          <img className="obw-dog obw-dog--orange" src="/onboarding/dog-orange.svg" alt="" />
+          <img className="obw-dog obw-dog--blue" src="onboarding/dog-blue.svg" alt="" />
+          <img className="obw-dog obw-dog--purple" src="onboarding/dog-purple.svg" alt="" />
+          <img className="obw-dog obw-dog--cream" src="onboarding/dog-cream.svg" alt="" />
+          <img className="obw-dog obw-dog--orange" src="onboarding/dog-orange.svg" alt="" />
         </div>
 
         <div className="obw-ctas">

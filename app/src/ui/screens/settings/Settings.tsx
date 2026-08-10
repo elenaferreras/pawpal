@@ -7,7 +7,7 @@ import { getCurrentUser, type AuthUser } from "../../lib/auth";
 import { getLastSync } from "../../lib/supabase";
 import { PageTitle } from "../../components/Typography";
 import type { ScreenId } from "../../types";
-import { DARK, HERO, MUTED, SURFACE, GroupCard, SectionLabel, SettingsRow } from "./shared";
+import { DARK, HERO, MUTED, GroupCard, SectionLabel, SettingsRow } from "./shared";
 
 interface SettingsProps {
   onNavigate: (id: ScreenId) => void;
@@ -86,7 +86,7 @@ export function Settings({ onNavigate, onBack }: SettingsProps): React.ReactElem
             gap: 16,
             width: "100%",
             textAlign: "left",
-            background: SURFACE,
+            background: "#221D1A",
             borderRadius: 28,
             border: "none",
             padding: 16,
