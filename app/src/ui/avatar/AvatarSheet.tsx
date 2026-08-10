@@ -71,6 +71,8 @@ export function AvatarSheet({ open, value, onConfirm, onClose }: AvatarSheetProp
           paddingBottom: "calc(20px + env(safe-area-inset-bottom, 0px))",
           maxHeight: "92vh",
           overflowY: "auto",
+          overflowX: "hidden",
+          boxSizing: "border-box",
         }}
       >
         {/* Grabber */}
@@ -122,10 +124,11 @@ export function AvatarSheet({ open, value, onConfirm, onClose }: AvatarSheetProp
         <div
           style={{
             display: "flex",
-            gap: 24,
+            gap: 16,
             alignItems: "center",
             justifyContent: "center",
             padding: "4px 16px 20px",
+            flexWrap: "wrap",
           }}
         >
           {AVATAR_BG_COLORS.map((c) => {
@@ -157,9 +160,10 @@ export function AvatarSheet({ open, value, onConfirm, onClose }: AvatarSheetProp
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 22,
+            gap: 12,
             padding: "0 16px 8px",
             justifyItems: "center",
+            boxSizing: "border-box",
           }}
         >
           {AVATAR_PRESETS.map((preset) => {
@@ -172,8 +176,8 @@ export function AvatarSheet({ open, value, onConfirm, onClose }: AvatarSheetProp
                 aria-pressed={selected}
                 onClick={() => setParts(preset.parts)}
                 style={{
-                  width: 104,
-                  height: 104,
+                  width: "100%",
+                  aspectRatio: "1 / 1",
                   borderRadius: "50%",
                   background: bg,
                   cursor: "pointer",
@@ -186,7 +190,7 @@ export function AvatarSheet({ open, value, onConfirm, onClose }: AvatarSheetProp
                   boxShadow: selected ? `0 0 0 4px ${YELLOW}` : "none",
                 }}
               >
-                <DogAvatar avatar={{ ...preset.parts, bg }} size={84} />
+                <DogAvatar avatar={{ ...preset.parts, bg }} size={80} />
               </button>
             );
           })}
@@ -195,8 +199,8 @@ export function AvatarSheet({ open, value, onConfirm, onClose }: AvatarSheetProp
           <div
             aria-label="Locked"
             style={{
-              width: 104,
-              height: 104,
+              width: "100%",
+              aspectRatio: "1 / 1",
               borderRadius: "50%",
               background: bg,
               opacity: 0.3,
