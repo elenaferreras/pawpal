@@ -1,10 +1,11 @@
 /* PawPal design system — ported from the original single-file app. */
 
 /* Splash / display wordmark font (FatFrank Heavy). Bundled OTF in
-   app/public/fonts/. Weight range 100–900 so any requested weight uses it. */
+   app/src/ui/styles/fonts/ (inlined into the build). Weight range 100–900 so
+   any requested weight uses it. */
 @font-face {
   font-family: "FatFrank";
-  src: url("/fonts/FatFrank.otf") format("opentype");
+  src: url("./fonts/FatFrank.otf") format("opentype");
   font-weight: 100 900;
   font-style: normal;
   font-display: swap;
@@ -15,8 +16,8 @@
    file instead of synthesising a faux-bold. */
 @font-face {
   font-family: "Abordage";
-  src: url("/fonts/Abordage-Regular.woff2") format("woff2"),
-    url("/fonts/Abordage-Regular.woff") format("woff");
+  src: url("./fonts/Abordage-Regular.woff2") format("woff2"),
+    url("./fonts/Abordage-Regular.woff") format("woff");
   font-weight: 100 900;
   font-style: normal;
   font-display: swap;
