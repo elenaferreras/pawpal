@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useDb } from "../../lib/store";
-import { calcAge } from "../../lib/date";
 import { DogFace } from "../../avatar/DogAvatar";
 import { Icon } from "@astryxdesign/core/Icon";
 import { Icons } from "../../lib/icons";
@@ -8,7 +7,7 @@ import { getCurrentUser, type AuthUser } from "../../lib/auth";
 import { getLastSync } from "../../lib/supabase";
 import { PageTitle } from "../../components/Typography";
 import type { ScreenId } from "../../types";
-import { DARK, HERO, MUTED, GroupCard, SectionLabel, SettingsRow } from "./shared";
+import { DARK, HERO, MUTED, SURFACE, GroupCard, SectionLabel, SettingsRow } from "./shared";
 
 interface SettingsProps {
   onNavigate: (id: ScreenId) => void;
@@ -31,8 +30,7 @@ export function Settings({ onNavigate, onBack }: SettingsProps): React.ReactElem
     return () => window.removeEventListener("pawpal:auth", onAuth);
   }, []);
 
-  const age = calcAge(p.birthday);
-  const petSub = [p.breed, age].filter(Boolean).join(" · ");
+  const petSub = p.breed;
   const lastSync = getLastSync();
 
   return (
@@ -46,17 +44,22 @@ export function Settings({ onNavigate, onBack }: SettingsProps): React.ReactElem
       {/* Header */}
       <div
         style={{
-          padding: "calc(16px + env(safe-area-inset-top, 0px)) 16px 0",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          padding: "calc(16px + env(safe-area-inset-top, 0px)) 16px 8px",
         }}
       >
+        <PageTitle style={{ margin: 0 }}>Settings</PageTitle>
         <button
           type="button"
-          aria-label="Back"
+          aria-label="Close"
           onClick={onBack}
           style={{
             width: 44,
             height: 44,
-            marginLeft: -8,
+            marginRight: -8,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -67,9 +70,8 @@ export function Settings({ onNavigate, onBack }: SettingsProps): React.ReactElem
             flexShrink: 0,
           }}
         >
-          <Icon icon={Icons.caretLeft} color="inherit" />
+          <Icon icon={Icons.x} color="inherit" />
         </button>
-        <PageTitle>Settings</PageTitle>
       </div>
 
       <div style={{ padding: "4px 16px 0" }}>
@@ -84,7 +86,7 @@ export function Settings({ onNavigate, onBack }: SettingsProps): React.ReactElem
             gap: 16,
             width: "100%",
             textAlign: "left",
-            background: HERO,
+            background: SURFACE,
             borderRadius: 28,
             border: "none",
             padding: 16,
@@ -117,7 +119,7 @@ export function Settings({ onNavigate, onBack }: SettingsProps): React.ReactElem
                 fontWeight: 700,
                 fontSize: 22,
                 lineHeight: 1.05,
-                color: DARK,
+                color: HERO,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
@@ -149,13 +151,6 @@ export function Settings({ onNavigate, onBack }: SettingsProps): React.ReactElem
         <GroupCard>
           <SettingsRow
             isFirst
-            icon={Icons.dog}
-            iconBg="var(--color-dash-pooped)"
-            label="Profile details"
-            subtitle="Edit profile · add a pet"
-            onClick={() => onNavigate("settings-profile")}
-          />
-          <SettingsRow
             icon={Icons.bell}
             iconBg="var(--color-dash-trained)"
             label="Notifications"
@@ -166,7 +161,7 @@ export function Settings({ onNavigate, onBack }: SettingsProps): React.ReactElem
             icon={Icons.user}
             iconBg="var(--color-dash-walk)"
             label="Account"
-            subtitle={user ? user.email : "Sign in to back up your pup"}
+            subtitle={user ? user.email : "Sign in and back up your data"}
             onClick={() => onNavigate("settings-account")}
           />
         </GroupCard>

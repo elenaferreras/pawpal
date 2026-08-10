@@ -10,7 +10,7 @@ import type { CSSProperties, ReactNode } from "react";
  * ("{name}'s Walks", "{name}'s Meals", "{name}'s Health", "Settings")
  * render through this so they stay visually identical.
  *
- * Brand font (Abordage) hero — matches the Figma dashboard headers.
+ * SF (system) Bold 34 — HIG Large Title.
  */
 export function PageTitle({
   children,
@@ -28,10 +28,11 @@ export function PageTitle({
     <h1
       style={{
         margin: "16px 0 24px",
-        fontFamily: "var(--font-brand)",
-        fontWeight: 300,
-        fontSize: "clamp(44px, 16vw, 72px)",
-        lineHeight: 1,
+        fontFamily: "var(--font-ui)",
+        fontWeight: 700,
+        fontSize: 34,
+        lineHeight: "41px",
+        letterSpacing: -0.4,
         color,
         textAlign: align,
         ...style,

@@ -2238,8 +2238,12 @@ body.modal-open {
 
    Tuning: everything is driven by the `--ios-blur-*` custom properties below —
    adjust blur intensity, tint colour/opacity, or fallback height in one place.
-   The overlay is hidden by default and only rendered in standalone display
-   mode, so it never affects normal in-browser viewing. */
+   The overlay is fully styled but hidden by default; it's only revealed in
+   home-screen / standalone mode, so it never affects normal in-browser
+   viewing. Visibility is switched on by the `.pwa-standalone` class (set from
+   JS in main.tsx — this is what catches iOS, which reports standalone via
+   `navigator.standalone` rather than the display-mode media query). The
+   `@media (display-mode: standalone)` rule is a CSS-only fallback. */
 :root {
   /* Status-bar height. Falls back to 44px on devices without safe-area insets. */
   --ios-blur-height: env(safe-area-inset-top, 44px);
@@ -2250,32 +2254,39 @@ body.modal-open {
   --ios-blur-tint: rgba(53, 43, 37, 0.45);
 }
 
+/* Fully styled, but hidden until standalone mode is detected. */
 .ios-status-blur {
   display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--ios-blur-height);
+  /* Guard against a 0px safe-area inset (older/edge devices) collapsing the bar. */
+  min-height: max(var(--ios-blur-height), 20px);
+  z-index: 1000;
+  /* Purely decorative — never intercept touches/clicks. */
+  pointer-events: none;
+  background-color: var(--ios-blur-tint);
+  -webkit-backdrop-filter: blur(var(--ios-blur-amount));
+  backdrop-filter: blur(var(--ios-blur-amount));
 }
 
+/* Reveal in home-screen / standalone mode (JS-detected, incl. iOS). */
+.pwa-standalone .ios-status-blur {
+  display: block;
+}
+
+/* CSS-only fallback for engines that match the display-mode media query. */
 @media (display-mode: standalone) {
   .ios-status-blur {
     display: block;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: var(--ios-blur-height);
-    /* Guard against a 0px safe-area inset (older/edge devices) collapsing the bar. */
-    min-height: max(var(--ios-blur-height), 20px);
-    z-index: 1000;
-    /* Purely decorative — never intercept touches/clicks. */
-    pointer-events: none;
-    background-color: var(--ios-blur-tint);
-    -webkit-backdrop-filter: blur(var(--ios-blur-amount));
-    backdrop-filter: blur(var(--ios-blur-amount));
   }
 }
 
 /* Light-appearance devices: switch the tint to a light frosted glass so text
    under the status bar stays legible. */
-@media (display-mode: standalone) and (prefers-color-scheme: light) {
+@media (prefers-color-scheme: light) {
   :root {
     --ios-blur-tint: rgba(255, 255, 255, 0.5);
   }
