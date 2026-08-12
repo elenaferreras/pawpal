@@ -22,7 +22,11 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return preflight();
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
-  let body: { token?: string; entry?: { type?: string; data?: unknown } };
+  let body: {
+    token?: string;
+    ping?: boolean;
+    entry?: { type?: string; data?: unknown };
+  };
   try {
     body = await req.json();
   } catch {
@@ -30,10 +34,28 @@ Deno.serve(async (req) => {
   }
 
   const token = String(body.token ?? "");
+  if (!token) return json({ error: "bad_request" }, 400);
+
+  // Heartbeat: the sitter app polls this to confirm its session is still alive.
+  // Revoking an invite deletes the session row, so a revoked sitter gets
+  // "no_session" here and is signed out even if they never log anything.
+  if (body.ping) {
+    const sRes = await sb(
+      `sitter_sessions?token=eq.${token}&select=expires_at&limit=1`,
+    );
+    if (!sRes.ok) return json({ error: "lookup_failed" }, 500);
+    const [row] = (await sRes.json()) as Array<{ expires_at: string }>;
+    if (!row) return json({ error: "no_session" }, 401);
+    if (new Date(row.expires_at) <= new Date()) {
+      return json({ error: "session_expired" }, 410);
+    }
+    return json({ ok: true });
+  }
+
   const type = String(body.entry?.type ?? "");
   const data = (body.entry?.data ?? {}) as Record<string, unknown>;
   const arrayKey = ARRAY_FOR[type];
-  if (!token || !arrayKey) return json({ error: "bad_request" }, 400);
+  if (!arrayKey) return json({ error: "bad_request" }, 400);
 
   // Validate the session.
   const sRes = await sb(

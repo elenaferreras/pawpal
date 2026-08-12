@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Icon } from "@astryxdesign/core/Icon";
 import { useToast } from "../lib/toast";
 import { Icons } from "../lib/icons";
@@ -7,6 +7,7 @@ import {
   clearSitterSession,
   saveSitterSession,
   sitterLog,
+  validateSitterSession,
   type SitterEntry,
   type SitterState,
 } from "../lib/sitter";
@@ -42,6 +43,31 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
   const toast = useToast();
   const [snapshot, setSnapshot] = useState<Database>(state.snapshot);
   const [busy, setBusy] = useState<string | null>(null);
+
+  // Heartbeat: poll the server so a revoked (or expired) session signs the
+  // sitter out promptly, even if they never log another activity. Runs on
+  // mount, whenever the tab becomes visible, and every 20s while visible.
+  useEffect(() => {
+    let stopped = false;
+    const check = async (): Promise<void> => {
+      if (document.visibilityState !== "visible") return;
+      const ok = await validateSitterSession(state.session.token);
+      if (!ok && !stopped) {
+        clearSitterSession();
+        toast("Your sitting access was ended by the owner.");
+        onEnd();
+      }
+    };
+    void check();
+    const id = window.setInterval(() => void check(), 20000);
+    const onVisible = (): void => void check();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      stopped = true;
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [state.session.token, onEnd, toast]);
 
   const dog = snapshot.profile?.name || state.session.dogName || "this pup";
   const avatar = snapshot.profile?.avatar;

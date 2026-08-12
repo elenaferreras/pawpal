@@ -179,6 +179,28 @@ export async function sitterLog(
   return out.snapshot;
 }
 
+/**
+ * Confirm a sitter session is still valid on the server. Returns `false` once
+ * the owner has revoked the invite (session deleted) or it has expired, so the
+ * sitter app can sign the guest out promptly. Network errors return `true` to
+ * avoid kicking a sitter out over a transient blip.
+ */
+export async function validateSitterSession(token: string): Promise<boolean> {
+  try {
+    const res = await fetch(fnUrl("sitter-log"), {
+      method: "POST",
+      headers: { apikey: getSBConfig().key, "Content-Type": "application/json" },
+      body: JSON.stringify({ token, ping: true }),
+    });
+    if (res.ok) return true;
+    // Session gone (revoked) or expired → end the guest session.
+    if (res.status === 401 || res.status === 410) return false;
+    return true;
+  } catch {
+    return true;
+  }
+}
+
 // ── Ephemeral session persistence (sessionStorage; cleared on tab close) ─────
 
 export function saveSitterSession(state: SitterState): void {

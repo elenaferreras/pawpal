@@ -10,6 +10,30 @@ const SB_KEY = "sb_publishable_l2TVcGUHf5UiqQDJaGZHeQ_AV9n9zFp";
 // the live poll tell our own pushes apart from a sitter's remote changes.
 const CLOUD_SEEN_KEY = "pawpal_cloud_seen";
 
+// The identity (row key) the local database currently belongs to. Used to stop
+// one account's data leaking into another's cloud row when you switch accounts
+// on the same device: pushes are blocked until the data is reconciled to match
+// the signed-in identity (see reconcileIdentity in store.tsx).
+const DATA_OWNER_KEY = "pawpal_data_owner";
+
+/** The row key the on-device database is currently claimed by, if known. */
+export function getDataOwner(): string | null {
+  try {
+    return localStorage.getItem(DATA_OWNER_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** Record which identity the on-device database now represents. */
+export function setDataOwner(key: string): void {
+  try {
+    localStorage.setItem(DATA_OWNER_KEY, key);
+  } catch {
+    /* ignore */
+  }
+}
+
 export interface SBConfig {
   url: string;
   key: string;
@@ -59,6 +83,11 @@ export function autoSyncToSupabase(db: Database): void {
     void (async () => {
       try {
         const rowKey = getRowKey();
+        // Guard against cross-account leakage: if the local data still belongs
+        // to a different identity (an account switch that hasn't been
+        // reconciled yet), don't push it into this identity's cloud row.
+        const owner = getDataOwner();
+        if (owner !== null && owner !== rowKey) return;
         const userId = getCurrentUserId();
         const payload = JSON.parse(JSON.stringify(db)) as Database;
         // Strip photos to avoid hitting row-size limits.
@@ -81,6 +110,8 @@ export function autoSyncToSupabase(db: Database): void {
           }),
         });
         if (res.ok) {
+          // The local data is now confirmed to belong to this identity.
+          setDataOwner(rowKey);
           // Remember the version we just wrote so the live poll can tell our
           // own pushes apart from a sitter's remote changes.
           try {
