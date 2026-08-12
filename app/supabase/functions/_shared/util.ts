@@ -60,8 +60,12 @@ export async function getUser(
   authHeader: string | null,
 ): Promise<{ id: string; email?: string } | null> {
   if (!authHeader) return null;
+  // Authenticate the validation request with the service-role key: it is always
+  // a valid API key, whereas the legacy anon key may be disabled on projects
+  // that use the new publishable/secret key system. The bearer token in
+  // `authHeader` is still what GoTrue decodes into the user.
   const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-    headers: { apikey: ANON_KEY, Authorization: authHeader },
+    headers: { apikey: SERVICE_ROLE, Authorization: authHeader },
   });
   if (!res.ok) return null;
   const u = (await res.json()) as { id?: string; email?: string };
