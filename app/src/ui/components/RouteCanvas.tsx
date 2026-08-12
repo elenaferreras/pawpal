@@ -29,10 +29,10 @@ export function RouteCanvas({ coords }: RouteCanvasProps): React.ReactElement {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
       ctx.clearRect(0, 0, cssW, cssH);
-      ctx.fillStyle = "#E8F4F0";
+      ctx.fillStyle = "#3E332C";
       ctx.fillRect(0, 0, cssW, cssH);
       if (coords.length < 2) {
-        ctx.fillStyle = "#2AA98B";
+        ctx.fillStyle = "#8C8976";
         ctx.font = "13px -apple-system, sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
@@ -59,7 +59,7 @@ export function RouteCanvas({ coords }: RouteCanvasProps): React.ReactElement {
       for (let i = 1; i < coords.length; i++) {
         ctx.lineTo(toX(coords[i].lng), toY(coords[i].lat));
       }
-      ctx.strokeStyle = "#2AA98B";
+      ctx.strokeStyle = "#FFFF83";
       ctx.lineWidth = 3;
       ctx.lineJoin = "round";
       ctx.lineCap = "round";
@@ -67,15 +67,15 @@ export function RouteCanvas({ coords }: RouteCanvasProps): React.ReactElement {
 
       ctx.beginPath();
       ctx.arc(toX(coords[0].lng), toY(coords[0].lat), 5, 0, Math.PI * 2);
-      ctx.fillStyle = "#0F6E56";
+      ctx.fillStyle = "#E9E4C4";
       ctx.fill();
 
       const last = coords[coords.length - 1];
       ctx.beginPath();
       ctx.arc(toX(last.lng), toY(last.lat), 7, 0, Math.PI * 2);
-      ctx.fillStyle = "#F5A623";
+      ctx.fillStyle = "#E96A41";
       ctx.fill();
-      ctx.strokeStyle = "white";
+      ctx.strokeStyle = "#352B25";
       ctx.lineWidth = 2;
       ctx.stroke();
     };

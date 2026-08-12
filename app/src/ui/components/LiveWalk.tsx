@@ -220,35 +220,61 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
         </div>
       )}
 
+      {open && phase === "active" && (
+        <div className="lws-scrim" onClick={() => setOpen(false)}>
+          <div
+            className="lws"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Walk in progress"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="lws-grip" aria-hidden />
+            <div className="lws-head">
+              <span className="lws-title">
+                <span className="live-dot" />
+                Walk in progress
+              </span>
+              <button
+                type="button"
+                className="lws-min"
+                aria-label="Minimise"
+                onClick={() => setOpen(false)}
+              >
+                <Icon icon={Icons.chevronDown} color="inherit" />
+              </button>
+            </div>
+
+            <div className="lws-stats">
+              <SheetStat value={`${mm}:${ss}`} label="Time" />
+              <SheetStat value={String(steps)} label="Steps" />
+              <SheetStat value={distanceKm.toFixed(2)} label="km" />
+              <SheetStat value={paceStr} label="min/km" />
+            </div>
+
+            <div className="lws-route">
+              <RouteCanvas coords={coords} />
+            </div>
+
+            <div className="lws-gps">{gpsStatus}</div>
+
+            <div className="lws-actions">
+              <button type="button" className="lws-btn lws-btn--primary" onClick={finish}>
+                Finish walk
+              </button>
+              <button type="button" className="lws-btn lws-btn--cancel" onClick={cancel}>
+                Cancel walk
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Modal
-        open={open}
-        title={phase === "summary" ? "Walk complete! 🎉" : "Walk in progress"}
+        open={open && phase === "summary"}
+        title="Walk complete! 🎉"
         onClose={() => setOpen(false)}
       >
-        {phase === "active" && (
-          <VStack gap={3}>
-            <Grid columns={4} gap={2}>
-              <StatChip value={`${mm}:${ss}`} label="Time" />
-              <StatChip value={String(steps)} label="Steps" />
-              <StatChip value={distanceKm.toFixed(2)} label="km" />
-              <StatChip value={paceStr} label="min/km" />
-            </Grid>
-            <RouteCanvas coords={coords} />
-            <Card variant="muted" padding={2}>
-              <Text type="supporting">{gpsStatus}</Text>
-            </Card>
-            <Button
-              label="Minimise"
-              variant="ghost"
-              icon={<Icon icon={Icons.chevronDown} />}
-              onClick={() => setOpen(false)}
-              style={{ width: "100%" }}
-            />
-            <Button label="Finish walk" variant="secondary" onClick={finish} style={{ width: "100%" }} />
-            <Button label="Cancel" variant="destructive" onClick={cancel} style={{ width: "100%" }} />
-          </VStack>
-        )}
-
         {phase === "summary" && (
           <VStack gap={3}>
             <Grid columns={4} gap={2}>
@@ -306,6 +332,17 @@ function StatChip({ value, label }: { value: string; label: string }): React.Rea
         <Text type="supporting">{label}</Text>
       </VStack>
     </Card>
+  );
+}
+
+// Dark-surface stat used on the "Walk in progress" bottom sheet. Flexes to an
+// equal share of the row so the four stats always fit without horizontal scroll.
+function SheetStat({ value, label }: { value: string; label: string }): React.ReactElement {
+  return (
+    <div className="lws-stat">
+      <span className="lws-stat-value">{value}</span>
+      <span className="lws-stat-label">{label}</span>
+    </div>
   );
 }
 

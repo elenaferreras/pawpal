@@ -207,7 +207,21 @@ export function Dashboard({
 
           <WalksBarChart data={bars} height={131} gap={16} />
 
-          <div style={{ marginTop: 20 }}>
+          <button
+            type="button"
+            onClick={() => onNavigate("walks")}
+            aria-label="View walks"
+            style={{
+              marginTop: 20,
+              display: "block",
+              width: "100%",
+              textAlign: "left",
+              border: "none",
+              background: "none",
+              padding: 0,
+              cursor: "pointer",
+            }}
+          >
             <Eyebrow color={MUTED} size={13} tracking={0.6}>
               This week&rsquo;s average
             </Eyebrow>
@@ -217,7 +231,7 @@ export function Dashboard({
                 steps
               </StatNumber>
             </div>
-          </div>
+          </button>
         </div>
       </div>
 

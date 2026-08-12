@@ -6,7 +6,7 @@ import "@astryxdesign/core/astryx.css";
 import "@astryxdesign/theme-butter/theme.css";
 import "./styles/global.css";
 
-// Flag home-screen / standalone launches so the frosted iOS status-bar overlay
+// Flag home-screen / standalone launches so the iOS status-bar overlay
 // (.ios-status-blur, styled in global.css) is revealed. iOS reports this via the
 // non-standard `navigator.standalone`; other engines via the display-mode query.
 const isStandalone =
@@ -14,6 +14,17 @@ const isStandalone =
   window.matchMedia("(display-mode: standalone)").matches;
 if (isStandalone) {
   document.documentElement.classList.add("pwa-standalone");
+}
+
+// Status-bar overlay: page-coloured at rest, transparent once scrolled so
+// content passes behind it. Toggle the `.scrolled` class on any scroll.
+const statusBar = document.querySelector<HTMLElement>(".ios-status-blur");
+if (statusBar) {
+  const syncStatusBar = (): void => {
+    statusBar.classList.toggle("scrolled", window.scrollY > 4);
+  };
+  window.addEventListener("scroll", syncStatusBar, { passive: true });
+  syncStatusBar();
 }
 
 // Register the service-worker sandbox (built separately → dist/code.js).

@@ -1,10 +1,13 @@
 import type { ReactNode } from "react";
+import { useState } from "react";
 import { Icon } from "@astryxdesign/core/Icon";
 import { useDb } from "../../lib/store";
+import { useToast } from "../../lib/toast";
 import { DogFace } from "../../avatar/DogAvatar";
 import { Icons } from "../../lib/icons";
 import { Button } from "../../components/Button";
-import type { ScreenId } from "../../types";
+import { FieldEditSheet, type FieldEditType } from "../../components/FieldEditSheet";
+import type { Profile, ScreenId } from "../../types";
 import { HERO, MUTED, SettingsPage, SectionLabel } from "./shared";
 
 interface ProfileDetailsProps {
@@ -22,22 +25,76 @@ function formatBirthday(value?: string): string {
   return `${d}/${m}/${y}`;
 }
 
+/** A single editable profile field, driving both the list row and its sheet. */
+interface EditableField {
+  key: "name" | "birthday" | "weight" | "foodGoal" | "vet";
+  label: string;
+  /** Display value for the list row. */
+  value: string;
+  /** Raw value passed into the edit sheet's input. */
+  editValue: string;
+  type: FieldEditType;
+  unit?: string;
+  placeholder?: string;
+}
+
 /**
  * Profile Details subpage (Figma node 180:3354): centred avatar with an EDIT
  * pill, then grouped label/value rows for the pet's details, and a Manage group.
+ * Tapping a detail row opens a bottom sheet to edit that single field.
  */
 export function ProfileDetails({ onNavigate, onBack }: ProfileDetailsProps): React.ReactElement {
-  const { db } = useDb();
+  const { db, update } = useDb();
+  const toast = useToast();
   const p = db.profile;
   const edit = (): void => onNavigate("settings-profile-edit");
+  const [editing, setEditing] = useState<EditableField["key"] | null>(null);
 
-  const details: { label: string; value: string }[] = [
-    { label: "Name", value: p.name || "—" },
-    { label: "Birthday", value: formatBirthday(p.birthday) },
-    { label: "Weight", value: p.weight ? `${p.weight} kg` : "—" },
-    { label: "Food goal", value: `${p.foodGoal || 300}g / day` },
-    { label: "Vet", value: p.vet || "—" },
+  const details: EditableField[] = [
+    { key: "name", label: "Name", value: p.name || "—", editValue: p.name, type: "text" },
+    {
+      key: "birthday",
+      label: "Birthday",
+      value: formatBirthday(p.birthday),
+      editValue: p.birthday || "",
+      type: "date",
+    },
+    {
+      key: "weight",
+      label: "Weight",
+      value: p.weight ? `${p.weight} kg` : "—",
+      editValue: p.weight || "",
+      type: "number",
+      unit: "kg",
+    },
+    {
+      key: "foodGoal",
+      label: "Food goal",
+      value: `${p.foodGoal || 300}g / day`,
+      editValue: String(p.foodGoal || 300),
+      type: "number",
+      unit: "g / day",
+    },
+    { key: "vet", label: "Vet", value: p.vet || "—", editValue: p.vet, type: "text" },
   ];
+
+  const activeField = details.find((d) => d.key === editing) ?? null;
+
+  const saveField = (key: EditableField["key"], raw: string): void => {
+    const value = raw.trim();
+    update((d) => {
+      const next: Profile = d.profile;
+      if (key === "foodGoal") {
+        next.foodGoal = parseInt(value, 10) || next.foodGoal;
+      } else if (key === "weight") {
+        next.weight = value;
+      } else {
+        next[key] = value;
+      }
+    });
+    setEditing(null);
+    toast("Profile saved! 🐾");
+  };
 
   return (
     <SettingsPage title="Profile details" onBack={onBack}>
@@ -89,7 +146,7 @@ export function ProfileDetails({ onNavigate, onBack }: ProfileDetailsProps): Rea
       </SectionLabel>
       <Group>
         {details.map((d) => (
-          <DetailRow key={d.label} label={d.label} value={d.value} onClick={edit} />
+          <DetailRow key={d.label} label={d.label} value={d.value} onClick={() => setEditing(d.key)} />
         ))}
       </Group>
 
@@ -99,6 +156,17 @@ export function ProfileDetails({ onNavigate, onBack }: ProfileDetailsProps): Rea
       <Group>
         <DetailRow label="Add a new pet" value="Coming soon" muted />
       </Group>
+
+      <FieldEditSheet
+        open={activeField != null}
+        title={activeField?.label ?? ""}
+        value={activeField?.editValue ?? ""}
+        type={activeField?.type}
+        unit={activeField?.unit}
+        placeholder={activeField?.placeholder}
+        onSave={(v) => activeField && saveField(activeField.key, v)}
+        onClose={() => setEditing(null)}
+      />
     </SettingsPage>
   );
 }

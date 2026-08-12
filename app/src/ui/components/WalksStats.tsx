@@ -7,6 +7,8 @@ import { PageTitle, StatNumber } from "./Typography";
 interface WalksStatsProps {
   /** Optional back affordance; omitted when shown as a tab. */
   onBack?: () => void;
+  /** Opens the add-walk flow from the header plus button. */
+  onAdd?: () => void;
 }
 
 const WEEKDAYS = ["M", "T", "W", "T", "F", "S", "S"];
@@ -30,7 +32,7 @@ interface DayInfo {
  * (Mon-aligned) as a grid: active days are light-blue cells with an orange dot
  * sized by step count; empty/future days are muted cells with a small dot.
  */
-export function WalksStats({ onBack }: WalksStatsProps): React.ReactElement {
+export function WalksStats({ onBack, onAdd }: WalksStatsProps): React.ReactElement {
   const { db } = useDb();
   const [selected, setSelected] = useState<number | null>(null);
 
@@ -96,7 +98,30 @@ export function WalksStats({ onBack }: WalksStatsProps): React.ReactElement {
         </button>
       )}
 
-      <PageTitle>{name}&rsquo;s Walks</PageTitle>
+      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <PageTitle style={{ flex: 1 }}>{name}&rsquo;s Walks</PageTitle>
+        {onAdd && (
+          <button
+            type="button"
+            aria-label="Add walk"
+            onClick={onAdd}
+            style={{
+              flexShrink: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 12,
+              border: "none",
+              borderRadius: 100,
+              background: "none",
+              color: "var(--color-pawpal-hero)",
+              cursor: "pointer",
+            }}
+          >
+            <Icon icon={Icons.plusCircle} width={32} height={32} color="inherit" />
+          </button>
+        )}
+      </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>

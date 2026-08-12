@@ -225,7 +225,7 @@ function Shell(): React.ReactElement {
             ))}
           {screen === "walks" &&
             (design === "new" ? (
-              <WalksStats />
+              <WalksStats onAdd={() => setModal("walk-choose")} />
             ) : (
               <Walks onAdd={() => setModal("walk-choose")} onEdit={(i) => openManualWalk(i)} />
             ))}
