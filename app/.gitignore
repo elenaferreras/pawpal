@@ -7,3 +7,8 @@ dist/
 # Logs & OS cruft
 *.log
 .DS_Store
+
+# Supabase CLI local state
+**/.temp/
+supabase/.branches/
+supabase/.temp/
