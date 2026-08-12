@@ -5,7 +5,11 @@
 // owner's dog, and append activities through the server broker.
 import type { BathroomLog, Database, Meal, Walk } from "../types";
 import { getSBConfig } from "./supabase";
-import { getCurrentUserId, getValidAccessToken } from "./auth";
+import {
+  forceRefreshAccessToken,
+  getCurrentUserId,
+  getValidAccessToken,
+} from "./auth";
 
 const SITTER_SESSION_KEY = "pawpal_sitter";
 
@@ -66,30 +70,51 @@ async function ownerHeaders(): Promise<Record<string, string>> {
   };
 }
 
+/**
+ * POST to a sitter Edge Function as the owner. If the server rejects our token
+ * (401) — e.g. it was issued before a project key rotation and looks valid to
+ * the client — force a refresh and retry once before giving up.
+ */
+async function ownerPost(body: unknown): Promise<Response> {
+  let res = await fetch(fnUrl("sitter-owner"), {
+    method: "POST",
+    headers: await ownerHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (res.status === 401) {
+    const token = await forceRefreshAccessToken();
+    if (!token) {
+      throw new Error("Your session expired. Please sign in again to continue.");
+    }
+    res = await fetch(fnUrl("sitter-owner"), {
+      method: "POST",
+      headers: {
+        apikey: getSBConfig().key,
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  }
+  return res;
+}
+
 export async function createInvite(
   durationPreset: DurationPreset,
   opts: { customExpiresAt?: string; dogName?: string } = {},
 ): Promise<CreatedInvite> {
-  const res = await fetch(fnUrl("sitter-owner"), {
-    method: "POST",
-    headers: await ownerHeaders(),
-    body: JSON.stringify({
-      action: "create",
-      durationPreset,
-      customExpiresAt: opts.customExpiresAt,
-      dogName: opts.dogName,
-    }),
+  const res = await ownerPost({
+    action: "create",
+    durationPreset,
+    customExpiresAt: opts.customExpiresAt,
+    dogName: opts.dogName,
   });
   if (!res.ok) throw new Error((await errText(res)) || "Could not create invite.");
   return (await res.json()) as CreatedInvite;
 }
 
 export async function revokeInvite(inviteId: string): Promise<void> {
-  const res = await fetch(fnUrl("sitter-owner"), {
-    method: "POST",
-    headers: await ownerHeaders(),
-    body: JSON.stringify({ action: "revoke", inviteId }),
-  });
+  const res = await ownerPost({ action: "revoke", inviteId });
   if (!res.ok) throw new Error((await errText(res)) || "Could not revoke invite.");
 }
 

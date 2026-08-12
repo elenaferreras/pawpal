@@ -203,3 +203,19 @@ export async function getValidAccessToken(): Promise<string | null> {
   const refreshed = await refreshing;
   return refreshed?.accessToken ?? null;
 }
+
+// Force a token refresh regardless of the cached expiry. Used when the server
+// rejects a token the client still believed was valid (e.g. it was issued
+// before a project key rotation). Returns a fresh token, or null if the refresh
+// token is no longer valid (in which case the user must sign in again).
+export async function forceRefreshAccessToken(): Promise<string | null> {
+  const session = readSession();
+  if (!session) return null;
+  if (!refreshing) {
+    refreshing = refreshSession(session).finally(() => {
+      refreshing = null;
+    });
+  }
+  const refreshed = await refreshing;
+  return refreshed?.accessToken ?? null;
+}
