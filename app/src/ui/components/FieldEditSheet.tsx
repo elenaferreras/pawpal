@@ -6,7 +6,7 @@ const DARK = "var(--color-pawpal-page)"; // #352B25
 const SHEET = "var(--color-pawpal-hero)"; // cream sheet surface
 const PRIMARY = "var(--color-data-yellow-3)"; // #FFFF83 confirm button
 
-export type FieldEditType = "text" | "number" | "date";
+export type FieldEditType = "text" | "number" | "decimal" | "tel" | "date";
 
 interface FieldEditSheetProps {
   open: boolean;
@@ -45,14 +45,37 @@ export function FieldEditSheet({
   useEffect(() => {
     if (!open) return;
     setDraft(value);
-    // Focus the field once the slide-up settles.
-    const t = setTimeout(() => inputRef.current?.focus(), 320);
-    return () => clearTimeout(t);
-  }, [open, value]);
+    // Focus the field as soon as it mounts so the correct keyboard pops up with
+    // the sheet. For dates, also open the native picker (wheel on iOS).
+    const el = inputRef.current;
+    const raf = requestAnimationFrame(() => {
+      el?.focus();
+      if (type === "date") {
+        try {
+          (el as (HTMLInputElement & { showPicker?: () => void }) | null)?.showPicker?.();
+        } catch {
+          // showPicker can require a user gesture in some browsers — tapping the
+          // field still opens the picker in that case.
+        }
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [open, value, type]);
 
   if (!open) return null;
 
   const confirm = (): void => onSave(draft);
+
+  // Map each field to the right input control + on-screen keyboard.
+  const inputType = type === "date" ? "date" : type === "tel" ? "tel" : "text";
+  const inputMode: React.HTMLAttributes<HTMLInputElement>["inputMode"] =
+    type === "number"
+      ? "numeric"
+      : type === "decimal"
+        ? "decimal"
+        : type === "tel"
+          ? "tel"
+          : undefined;
 
   return (
     <div className="walk-sheet-scrim" onClick={onClose}>
@@ -160,8 +183,9 @@ export function FieldEditSheet({
             >
               <input
                 ref={inputRef}
-                type={type === "number" ? "text" : type}
-                inputMode={type === "number" ? "decimal" : undefined}
+                autoFocus
+                type={inputType}
+                inputMode={inputMode}
                 value={draft}
                 placeholder={placeholder}
                 onChange={(e) => setDraft(e.target.value)}

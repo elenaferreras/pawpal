@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { useDb } from "../lib/store";
 import { Icon } from "@astryxdesign/core/Icon";
 import { Icons } from "../lib/icons";
+import { useLiveWalk } from "./LiveWalk";
+import { RouteMap } from "./RouteMap";
 import { PageTitle, StatNumber } from "./Typography";
 
 interface WalksStatsProps {
@@ -34,6 +36,7 @@ interface DayInfo {
  */
 export function WalksStats({ onBack, onAdd }: WalksStatsProps): React.ReactElement {
   const { db } = useDb();
+  const { active: walkActive, coords, openSheet } = useLiveWalk();
   const [selected, setSelected] = useState<number | null>(null);
 
   const { days, maxSteps, avg } = useMemo(() => {
@@ -122,6 +125,68 @@ export function WalksStats({ onBack, onAdd }: WalksStatsProps): React.ReactEleme
           </button>
         )}
       </div>
+
+      {walkActive && (
+        <button
+          type="button"
+          aria-label="Open walk in progress"
+          onClick={openSheet}
+          style={{
+            background: "var(--color-dash-walk)",
+            borderRadius: 40,
+            padding: "20px 16px",
+            marginBottom: 12,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+            width: "100%",
+            border: "none",
+            textAlign: "left",
+            cursor: "pointer",
+          }}
+        >
+          <p
+            style={{
+              margin: 0,
+              fontFamily: "var(--font-brand)",
+              fontWeight: 400,
+              fontSize: 32,
+              lineHeight: 1,
+              color: "var(--color-pawpal-page)",
+            }}
+          >
+            Walk in progress
+          </p>
+          <div
+            style={{
+              height: 134,
+              borderRadius: 24,
+              overflow: "hidden",
+              width: "100%",
+              background: "var(--color-walkcell-empty)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {coords.length > 1 ? (
+              <RouteMap coords={coords} height={134} mapStyle="voyager" />
+            ) : (
+              <span
+                style={{
+                  fontFamily: "var(--font-ui)",
+                  fontWeight: 500,
+                  fontSize: 15,
+                  color: "var(--color-pawpal-hero)",
+                  opacity: 0.85,
+                }}
+              >
+                📍 Acquiring GPS…
+              </span>
+            )}
+          </div>
+        </button>
+      )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>

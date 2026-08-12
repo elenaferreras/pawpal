@@ -106,6 +106,7 @@ export function WalkTrackSheet({ open, onClose }: WalkTrackSheetProps): React.Re
               padding: 6,
               borderRadius: 16,
               background: DARK,
+              overflow: "hidden",
             }}
           >
             {days.map((d) => {
@@ -119,13 +120,14 @@ export function WalkTrackSheet({ open, onClose }: WalkTrackSheetProps): React.Re
                   aria-pressed={active}
                   style={{
                     flex: 1,
-                    padding: "8px 4px",
+                    minWidth: 0,
+                    padding: "8px 2px",
                     borderRadius: 12,
                     border: "none",
                     cursor: "pointer",
                     fontFamily: "var(--font-ui)",
                     fontWeight: 500,
-                    fontSize: 15,
+                    fontSize: 14,
                     whiteSpace: "nowrap",
                     background: active ? "var(--color-track-poop)" : "transparent",
                     color: active ? DARK : "var(--color-track-poop)",

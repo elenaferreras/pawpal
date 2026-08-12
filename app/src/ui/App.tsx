@@ -15,6 +15,7 @@ import { WalksStats } from "./components/WalksStats";
 import { WalkTrackSheet } from "./components/WalkTrackSheet";
 import { Splash } from "./components/Splash";
 import { WalkChooser } from "./components/WalkChooser";
+import { WalkChooserSheet } from "./components/WalkChooserSheet";
 import { WalkFormModal } from "./components/WalkFormModal";
 import { FoodFormModal } from "./components/FoodFormModal";
 import { PoopFormModal } from "./components/PoopFormModal";
@@ -26,7 +27,6 @@ import { Food } from "./screens/Food";
 import { Vet } from "./screens/Vet";
 import { Settings } from "./screens/settings/Settings";
 import { ProfileDetails } from "./screens/settings/ProfileDetails";
-import { ProfileEdit } from "./screens/settings/ProfileEdit";
 import { NotificationsScreen } from "./screens/settings/NotificationsScreen";
 import { AccountScreen } from "./screens/settings/AccountScreen";
 import { DogSittingScreen } from "./screens/settings/DogSittingScreen";
@@ -235,10 +235,7 @@ function Shell(): React.ReactElement {
             <Settings onNavigate={navigate} onBack={() => navigate("home")} />
           )}
           {screen === "settings-profile" && (
-            <ProfileDetails onNavigate={navigate} onBack={() => navigate("settings")} />
-          )}
-          {screen === "settings-profile-edit" && (
-            <ProfileEdit onBack={() => navigate("settings-profile")} />
+            <ProfileDetails onBack={() => navigate("settings")} />
           )}
           {screen === "settings-notifications" && (
             <NotificationsScreen onBack={() => navigate("settings")} />
@@ -272,11 +269,19 @@ function Shell(): React.ReactElement {
             onVet={design === "new" ? () => navigate("vet") : () => setModal("vet")}
           />
 
-          <WalkChooser
-            open={modal === "walk-choose"}
-            onClose={() => setModal("none")}
-            onManual={() => openManualWalk(null)}
-          />
+          {design === "new" ? (
+            <WalkChooserSheet
+              open={modal === "walk-choose"}
+              onClose={() => setModal("none")}
+              onManual={() => setModal("walk-track")}
+            />
+          ) : (
+            <WalkChooser
+              open={modal === "walk-choose"}
+              onClose={() => setModal("none")}
+              onManual={() => openManualWalk(null)}
+            />
+          )}
           <WalkFormModal
             open={modal === "walk-manual"}
             editIndex={editWalkIndex}

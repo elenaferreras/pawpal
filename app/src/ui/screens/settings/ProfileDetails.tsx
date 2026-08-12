@@ -4,18 +4,29 @@ import { Icon } from "@astryxdesign/core/Icon";
 import { useDb } from "../../lib/store";
 import { useToast } from "../../lib/toast";
 import { DogFace } from "../../avatar/DogAvatar";
+import { AvatarSheet } from "../../avatar/AvatarSheet";
+import { DEFAULT_AVATAR_BG } from "../../avatar/presets";
 import { Icons } from "../../lib/icons";
 import { Button } from "../../components/Button";
 import { FieldEditSheet, type FieldEditType } from "../../components/FieldEditSheet";
-import type { Profile, ScreenId } from "../../types";
+import type { Avatar, Profile } from "../../types";
 import { HERO, MUTED, SettingsPage, SectionLabel } from "./shared";
 
 interface ProfileDetailsProps {
-  onNavigate: (id: ScreenId) => void;
   onBack: () => void;
 }
 
 const GROUP = "var(--color-settings-group)"; // #221D1A deep list surface
+
+/** Fallback avatar for the picker when the pet has none saved yet. */
+const DEFAULT_AVATAR: Avatar = {
+  head: "Normal",
+  body: "Normal",
+  colour: "orange",
+  eyes: "Normal",
+  nose: "Normal",
+  bg: DEFAULT_AVATAR_BG,
+};
 
 /** DD/MM/YYYY for the stored `YYYY-MM-DD` birthday, or an em dash if unset. */
 function formatBirthday(value?: string): string {
@@ -27,7 +38,7 @@ function formatBirthday(value?: string): string {
 
 /** A single editable profile field, driving both the list row and its sheet. */
 interface EditableField {
-  key: "name" | "birthday" | "weight" | "foodGoal" | "vet";
+  key: "name" | "breed" | "birthday" | "weight" | "foodGoal" | "mealsPerDay" | "vet" | "vetPhone";
   label: string;
   /** Display value for the list row. */
   value: string;
@@ -43,15 +54,16 @@ interface EditableField {
  * pill, then grouped label/value rows for the pet's details, and a Manage group.
  * Tapping a detail row opens a bottom sheet to edit that single field.
  */
-export function ProfileDetails({ onNavigate, onBack }: ProfileDetailsProps): React.ReactElement {
+export function ProfileDetails({ onBack }: ProfileDetailsProps): React.ReactElement {
   const { db, update } = useDb();
   const toast = useToast();
   const p = db.profile;
-  const edit = (): void => onNavigate("settings-profile-edit");
+  const [avatarOpen, setAvatarOpen] = useState(false);
   const [editing, setEditing] = useState<EditableField["key"] | null>(null);
 
   const details: EditableField[] = [
     { key: "name", label: "Name", value: p.name || "—", editValue: p.name, type: "text" },
+    { key: "breed", label: "Breed", value: p.breed || "—", editValue: p.breed, type: "text" },
     {
       key: "birthday",
       label: "Birthday",
@@ -59,12 +71,15 @@ export function ProfileDetails({ onNavigate, onBack }: ProfileDetailsProps): Rea
       editValue: p.birthday || "",
       type: "date",
     },
+  ];
+
+  const health: EditableField[] = [
     {
       key: "weight",
       label: "Weight",
       value: p.weight ? `${p.weight} kg` : "—",
       editValue: p.weight || "",
-      type: "number",
+      type: "decimal",
       unit: "kg",
     },
     {
@@ -75,10 +90,33 @@ export function ProfileDetails({ onNavigate, onBack }: ProfileDetailsProps): Rea
       type: "number",
       unit: "g / day",
     },
-    { key: "vet", label: "Vet", value: p.vet || "—", editValue: p.vet, type: "text" },
+    {
+      key: "mealsPerDay",
+      label: "Meals per day",
+      value: p.mealsPerDay ? String(p.mealsPerDay) : "—",
+      editValue: p.mealsPerDay ? String(p.mealsPerDay) : "",
+      type: "number",
+    },
+    { key: "vet", label: "Vet name", value: p.vet || "—", editValue: p.vet, type: "text" },
+    {
+      key: "vetPhone",
+      label: "Vet phone",
+      value: p.vetPhone || "—",
+      editValue: p.vetPhone,
+      type: "tel",
+    },
   ];
 
-  const activeField = details.find((d) => d.key === editing) ?? null;
+  const activeField =
+    [...details, ...health].find((d) => d.key === editing) ?? null;
+
+  const saveAvatar = (next: Avatar): void => {
+    update((d) => {
+      d.profile.avatar = next;
+    });
+    setAvatarOpen(false);
+    toast("Profile picture updated! 🐾");
+  };
 
   const saveField = (key: EditableField["key"], raw: string): void => {
     const value = raw.trim();
@@ -86,6 +124,8 @@ export function ProfileDetails({ onNavigate, onBack }: ProfileDetailsProps): Rea
       const next: Profile = d.profile;
       if (key === "foodGoal") {
         next.foodGoal = parseInt(value, 10) || next.foodGoal;
+      } else if (key === "mealsPerDay") {
+        next.mealsPerDay = parseInt(value, 10) || next.mealsPerDay;
       } else if (key === "weight") {
         next.weight = value;
       } else {
@@ -129,7 +169,7 @@ export function ProfileDetails({ onNavigate, onBack }: ProfileDetailsProps): Rea
         <Button
           variant="primary"
           label="Edit"
-          onClick={edit}
+          onClick={() => setAvatarOpen(true)}
           style={{
             minWidth: 0,
             padding: "8px 24px",
@@ -151,6 +191,15 @@ export function ProfileDetails({ onNavigate, onBack }: ProfileDetailsProps): Rea
       </Group>
 
       <SectionLabel style={{ color: HERO, fontSize: 16, fontWeight: 510, margin: "20px 4px 8px" }}>
+        Health
+      </SectionLabel>
+      <Group>
+        {health.map((d) => (
+          <DetailRow key={d.label} label={d.label} value={d.value} onClick={() => setEditing(d.key)} />
+        ))}
+      </Group>
+
+      <SectionLabel style={{ color: HERO, fontSize: 16, fontWeight: 510, margin: "20px 4px 8px" }}>
         Manage
       </SectionLabel>
       <Group>
@@ -166,6 +215,13 @@ export function ProfileDetails({ onNavigate, onBack }: ProfileDetailsProps): Rea
         placeholder={activeField?.placeholder}
         onSave={(v) => activeField && saveField(activeField.key, v)}
         onClose={() => setEditing(null)}
+      />
+
+      <AvatarSheet
+        open={avatarOpen}
+        value={p.avatar ?? DEFAULT_AVATAR}
+        onConfirm={saveAvatar}
+        onClose={() => setAvatarOpen(false)}
       />
     </SettingsPage>
   );

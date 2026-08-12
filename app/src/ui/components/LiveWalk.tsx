@@ -29,6 +29,12 @@ type Phase = "idle" | "active" | "summary";
 interface LiveWalkContextValue {
   active: boolean;
   start: () => void;
+  /** Re-open the live walk sheet (e.g. to finish the walk). */
+  openSheet: () => void;
+  /** Live GPS route captured so far (empty until fixes arrive). */
+  coords: GpsCoord[];
+  /** Elapsed seconds since the walk started. */
+  elapsed: number;
 }
 
 const LiveWalkContext = createContext<LiveWalkContextValue | null>(null);
@@ -207,7 +213,7 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
       : "—";
 
   return (
-    <LiveWalkContext.Provider value={{ active: phase !== "idle", start }}>
+    <LiveWalkContext.Provider value={{ active: phase !== "idle", start, openSheet: () => setOpen(true), coords, elapsed }}>
       {children}
 
       {phase !== "idle" && !open && (

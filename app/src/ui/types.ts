@@ -142,7 +142,6 @@ export type ScreenId =
   | "vet"
   | "settings"
   | "settings-profile"
-  | "settings-profile-edit"
   | "settings-notifications"
   | "settings-account"
   | "settings-sitting"

@@ -40,7 +40,7 @@ const pawpalTokens: Record<string, [light: string, dark: string]> = {
 
   // "Zipi's Walks" step heatmap (Figma node 31:259).
   "--color-walkcell": ["#C4DFFE", "#C4DFFE"], // active day cell (light blue)
-  "--color-walkcell-dot": ["#E96A41", "#E96A41"], // active day dot (orange)
+  "--color-walkcell-dot": ["#FFFF83", "#FFFF83"], // active day dot (yellow)
   "--color-walkcell-empty": ["#5E5349", "#5E5349"], // empty/future day cell
   "--color-walkcell-empty-dot": ["#463B32", "#463B32"], // empty day dot (brown)
 

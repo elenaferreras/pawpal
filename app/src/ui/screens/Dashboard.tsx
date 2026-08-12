@@ -267,9 +267,9 @@ export function Dashboard({
             style={{
               display: "flex",
               alignItems: "center",
-              justifyContent: "space-between",
+              justifyContent: walkActive ? "center" : "space-between",
               gap: 8,
-              padding: "6px 6px 6px 18px",
+              padding: walkActive ? "13px 12px" : "6px 6px 6px 18px",
               borderRadius: 100,
               border: "none",
               cursor: "pointer",
@@ -281,22 +281,37 @@ export function Dashboard({
               width: "100%",
             }}
           >
-            {walkActive ? "In progress" : "Start"}
-            <span
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: "50%",
-                background: DARK,
-                color: HERO,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              <Icon icon={Icons.play} color="inherit" />
-            </span>
+            {walkActive ? (
+              <span
+                style={{
+                  minWidth: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                In progress
+              </span>
+            ) : (
+              <>
+                <span>Start</span>
+                <span
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: "50%",
+                    background: DARK,
+                    color: HERO,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Icon icon={Icons.play} color="inherit" />
+                </span>
+              </>
+            )}
           </button>
         </div>
 
