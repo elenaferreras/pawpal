@@ -5,11 +5,10 @@ import type { Avatar } from "../types";
 import { DogAvatar } from "./DogAvatar";
 import {
   AVATAR_BG_COLORS,
-  AVATAR_PRESETS,
   DEFAULT_AVATAR_BG,
-  partsEqual,
   type AvatarParts,
 } from "./presets";
+import { AVATAR_STICKERS } from "./stickers";
 
 const DARK = "#352B25";
 const YELLOW = "#FFFF83";
@@ -28,19 +27,21 @@ interface AvatarSheetProps {
 export function AvatarSheet({ open, value, onConfirm, onClose }: AvatarSheetProps): React.ReactElement | null {
   const [parts, setParts] = useState<AvatarParts>(() => toParts(value));
   const [bg, setBg] = useState<string>(value.bg ?? DEFAULT_AVATAR_BG);
+  const [sticker, setSticker] = useState<string | undefined>(value.sticker);
 
   // Re-sync the draft whenever the sheet is (re)opened.
   useEffect(() => {
     if (open) {
       setParts(toParts(value));
       setBg(value.bg ?? DEFAULT_AVATAR_BG);
+      setSticker(value.sticker);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   if (!open) return null;
 
-  const preview: Avatar = { ...parts, bg };
+  const preview: Avatar = { ...parts, bg, sticker };
 
   return (
     <div
@@ -155,7 +156,7 @@ export function AvatarSheet({ open, value, onConfirm, onClose }: AvatarSheetProp
           })}
         </div>
 
-        {/* Preset grid */}
+        {/* Sticker grid — the selectable dog avatars */}
         <div
           style={{
             display: "grid",
@@ -166,15 +167,15 @@ export function AvatarSheet({ open, value, onConfirm, onClose }: AvatarSheetProp
             boxSizing: "border-box",
           }}
         >
-          {AVATAR_PRESETS.map((preset) => {
-            const selected = partsEqual(parts, preset.parts);
+          {AVATAR_STICKERS.map((s) => {
+            const selected = sticker === s.id;
             return (
               <button
-                key={preset.id}
+                key={s.id}
                 type="button"
-                aria-label={preset.label}
+                aria-label={s.label}
                 aria-pressed={selected}
-                onClick={() => setParts(preset.parts)}
+                onClick={() => setSticker(s.id)}
                 style={{
                   width: "100%",
                   aspectRatio: "1 / 1",
@@ -190,28 +191,10 @@ export function AvatarSheet({ open, value, onConfirm, onClose }: AvatarSheetProp
                   boxShadow: selected ? `0 0 0 4px ${YELLOW}` : "none",
                 }}
               >
-                <DogAvatar avatar={{ ...preset.parts, bg }} size={80} />
+                <img src={s.url} alt="" width={80} height={80} style={{ display: "block" }} />
               </button>
             );
           })}
-
-          {/* Locked slot — coming soon */}
-          <div
-            aria-label="Locked"
-            style={{
-              width: "100%",
-              aspectRatio: "1 / 1",
-              borderRadius: "50%",
-              background: bg,
-              opacity: 0.3,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: DARK,
-            }}
-          >
-            <Icon icon={Icons.lock} color="inherit" />
-          </div>
         </div>
       </div>
     </div>

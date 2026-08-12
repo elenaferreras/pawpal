@@ -14,11 +14,13 @@ import {
 } from "./assets.generated";
 import { headThumb, bodyThumb, eyeThumb, noseThumb } from "./build";
 import { DogAvatar } from "./DogAvatar";
+import { AVATAR_STICKERS } from "./stickers";
 
-type Tab = "colour" | "head" | "eyes" | "nose" | "body";
+type Tab = "pups" | "colour" | "head" | "eyes" | "nose" | "body";
 
-const TABS: Tab[] = ["colour", "head", "eyes", "nose", "body"];
+const TABS: Tab[] = ["pups", "colour", "head", "eyes", "nose", "body"];
 const TAB_LABELS: Record<Tab, string> = {
+  pups: "Pups",
   colour: "Colour",
   head: "Head",
   eyes: "Eyes",
@@ -50,8 +52,9 @@ export function AvatarEditor({
   onChange,
   previewSize = 150,
 }: AvatarEditorProps): React.ReactElement {
-  const [tab, setTab] = useState<Tab>("colour");
-  const set = (patch: Partial<Avatar>): void => onChange({ ...value, ...patch });
+  const [tab, setTab] = useState<Tab>("pups");
+  // Applying any part edit clears an active sticker so the composed dog shows.
+  const set = (patch: Partial<Avatar>): void => onChange({ ...value, sticker: undefined, ...patch });
 
   return (
     <div>
@@ -66,6 +69,22 @@ export function AvatarEditor({
           ))}
         </SegmentedControl>
       </div>
+
+      {tab === "pups" && (
+        <div className="av-grid">
+          {AVATAR_STICKERS.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              className={"av-thumb av-thumb-part" + (value.sticker === s.id ? " selected" : "")}
+              onClick={() => set({ sticker: s.id })}
+            >
+              <img src={s.url} alt={s.label} />
+              <span className="av-thumb-label">{s.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {tab === "colour" && (
         <div className="av-grid av-grid-colour">

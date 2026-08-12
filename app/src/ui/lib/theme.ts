@@ -16,6 +16,9 @@ const pawpalTokens: Record<string, [light: string, dark: string]> = {
   // Dashboard bar chart — exact Figma bar colour, mapped onto the data-viz
   // yellow ramp so charts stay theme-aware.
   "--color-data-yellow-3": ["#FFFF83", "#FFFF83"],
+  // Softer, paler yellow used for low-emphasis selected states (e.g. sitter
+  // duration chips) so they don't compete with the bright yellow CTA.
+  "--color-data-yellow-1": ["#FDF6BA", "#FDF6BA"],
 
   // Brand surfaces from the Figma dashboard.
   "--color-pawpal-hero": ["#E9E4C4", "#E9E4C4"], // cream hero card

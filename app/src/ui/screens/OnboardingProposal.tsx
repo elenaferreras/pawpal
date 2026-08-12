@@ -1,16 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { VStack } from "@astryxdesign/core/Stack";
-import { Text, Heading } from "@astryxdesign/core/Text";
 import { Button } from "../components/Button";
-import { TextInput } from "@astryxdesign/core/TextInput";
 import { Slider } from "@astryxdesign/core/Slider";
 import { Toggle } from "../components/Toggle";
 import { Icon } from "@astryxdesign/core/Icon";
 import { Icons } from "../lib/icons";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
-import { StickerSheet } from "../components/StickerSheet";
-import { DogFace } from "../avatar/DogAvatar";
+import { AVATAR_STICKERS } from "../avatar/stickers";
+import { AVATAR_BG_COLORS, DEFAULT_AVATAR_BG } from "../avatar/presets";
 import { TimeField } from "../components/fields";
 import { requestNotificationPermission, saveNotifConfig } from "../lib/notifications";
 import { requestPasswordReset, signIn, signUp } from "../lib/auth";
@@ -51,11 +48,9 @@ const MONTHS: WheelItem[] = [
 const DAYS: WheelItem[] = Array.from({ length: 31 }, (_, i) => ({ value: i + 1, label: String(i + 1) }));
 
 // Warm, single-focus steps in the spirit of "How We Feel" — one question per
-// screen. Intro (0-1), review (10), notifications (11) and outro (12) sit
-// outside the progress bar; only the answer steps (2-9) advance it.
+// screen. Each step is its own full-screen dark shell. Step numbering keeps its
+// historical offset so the flow constants below stay stable.
 const FIRST_INPUT_STEP = 2;
-const LAST_INPUT_STEP = 9;
-const INPUT_STEPS = LAST_INPUT_STEP - FIRST_INPUT_STEP + 1;
 const REVIEW_STEP = 10;
 const NOTIF_STEP = 11;
 const FINISH_STEP = 12;
@@ -71,11 +66,12 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
   const toast = useToast();
 
   const [phase, setPhase] = useState<"auth" | "flow">("auth");
-  const [step, setStep] = useState(0);
-  const [dir, setDir] = useState<"fwd" | "back">("fwd");
+  // The flow now opens on "Find your pup" — the old hero/intro steps are gone.
+  const [step, setStep] = useState(FIRST_INPUT_STEP);
 
   const avatar = DEFAULT_AVATAR;
-  const [sticker, setSticker] = useState<string | null>(null);
+  const [sticker, setSticker] = useState<string>(AVATAR_STICKERS[0].id);
+  const [bg, setBg] = useState<string>(DEFAULT_AVATAR_BG);
   const [name, setName] = useState("");
   const [nameError, setNameError] = useState(false);
   const [breed, setBreed] = useState("");
@@ -93,7 +89,6 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
   const [vetNotif, setVetNotif] = useState(true);
 
   const go = (target: number): void => {
-    setDir(target > step ? "fwd" : "back");
     setStep(target);
   };
   const next = (): void => go(step + 1);
@@ -120,7 +115,7 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
       mealsPerDay,
       vet,
       vetPhone,
-      avatar,
+      avatar: { ...avatar, sticker, bg },
       emoji: "🐕",
       onboarded: true,
     };
@@ -167,12 +162,6 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
     celebrate();
   };
 
-  const progress =
-    step < FIRST_INPUT_STEP
-      ? 0
-      : Math.min(1, (step - FIRST_INPUT_STEP + 1) / INPUT_STEPS);
-  const showProgress = step >= FIRST_INPUT_STEP && step <= LAST_INPUT_STEP;
-
   if (phase === "auth") {
     return (
       <AuthGate
@@ -183,276 +172,151 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
     );
   }
 
-  return (
-    <div className="ob-overlay open">
-      {showProgress ? (
-        <div className="obp-progress-wrap">
-          <div className="obp-progress-track">
-            <div className="obp-progress-fill" style={{ width: `${progress * 100}%` }} />
-          </div>
-          <span className="obp-progress-label">
-            Step {step - FIRST_INPUT_STEP + 1} of {INPUT_STEPS}
-          </span>
-        </div>
-      ) : (
-        <div className="obp-progress-wrap" />
-      )}
+  // First flow step — the redesigned "Find your pup" avatar picker. It runs in
+  // its own full-screen dark shell (matching the auth screens) rather than the
+  // light questionnaire overlay used by the remaining steps.
+  if (step === FIRST_INPUT_STEP) {
+    return (
+      <FindYourPup
+        sticker={sticker}
+        onSticker={setSticker}
+        bg={bg}
+        onBg={setBg}
+        onBack={() => setPhase("auth")}
+        onNext={next}
+      />
+    );
+  }
 
-      <div key={step} className={`ob-slide obp-slide obp-${dir}`}>
-        {step === 0 && (
-          <div className="obp-hero">
-            <h1 className="obp-hero-title">
-              Ready for
-              <br />
-              <span className="obp-hero-title-accent">tail wags?</span>
-            </h1>
+  // Name step — same full-screen dark shell, with an autofocused text input.
+  if (step === 3) {
+    return (
+      <NameStep
+        value={name}
+        error={nameError}
+        onChange={(v) => {
+          setName(v);
+          setNameError(false);
+        }}
+        onBack={() => go(FIRST_INPUT_STEP)}
+        onNext={nextFromName}
+      />
+    );
+  }
 
-            <div className="obp-hero-stage">
-              <span className="obp-bubble obp-bubble--walk">walk</span>
-              <span className="obp-bubble obp-bubble--treat">treat</span>
-              <span className="obp-bubble obp-bubble--woof">woof!</span>
-              <div className="obp-hero-pane">
-                <DogFace avatar={avatar} size={150} className="obp-hero-dog" />
-              </div>
-            </div>
+  // Breed step — same full-screen dark shell with an autofocused input.
+  if (step === 4) {
+    return (
+      <BreedStep
+        value={breed}
+        dogName={dogName}
+        onChange={setBreed}
+        onBack={back}
+        onNext={next}
+      />
+    );
+  }
 
-            <Button label="Let's go" variant="primary" onClick={next} className="obp-cta" />
-            <Text type="supporting" className="obp-fineprint">
-              Takes about a minute · Everything stays on your device
-            </Text>
-          </div>
-        )}
+  if (step === 5) {
+    return (
+      <BirthdayStep
+        dogName={dogName}
+        value={birthday}
+        onChange={setBirthday}
+        onBack={back}
+        onNext={next}
+      />
+    );
+  }
 
-        {step === 1 && (
-          <VStack gap={3} className="obp-fill">
-            <div className="obp-hero-emoji obp-hero-emoji--sm">✨</div>
-            <h2 className="obp-title">Here&apos;s how PawPal helps</h2>
-            <VStack gap={2} className="obp-benefits">
-              <Benefit icon="🚶" title="Never miss a walk" body="Track routes, steps and potty breaks with a tap." />
-              <Benefit icon="🍽️" title="Feed with confidence" body="Daily goals and meal reminders, made simple." />
-              <Benefit icon="🩺" title="Stay on top of health" body="Vet visits and weight, all in one timeline." />
-            </VStack>
-            <div className="ob-spacer" />
-            <GooNav onBack={back} onNext={next} nextLabel="Let's go" />
-          </VStack>
-        )}
+  if (step === 6) {
+    return (
+      <WeightStep
+        dogName={dogName}
+        value={weight}
+        onChange={setWeight}
+        onBack={back}
+        onNext={next}
+      />
+    );
+  }
 
-        {step === 2 && (
-          <VStack gap={3} className="obp-fill">
-            <span className="obp-eyebrow">First, the fun part</span>
-            <h2 className="obp-title">Find your pup</h2>
-            <Text type="supporting" className="obp-sub-left">
-              Peel a sticker off the sheet to make it yours — you can always swap it later.
-            </Text>
-            <div className="obp-avatar-stage">
-              <StickerSheet value={sticker} onChange={setSticker} />
-            </div>
-            <div className="ob-spacer" />
-            <GooNav onBack={back} onNext={next} />
-          </VStack>
-        )}
+  if (step === 7) {
+    return (
+      <FoodGoalStep
+        dogName={dogName}
+        value={foodGoal}
+        onChange={setFoodGoal}
+        onBack={back}
+        onNext={next}
+      />
+    );
+  }
 
-        {step === 3 && (
-          <VStack gap={3} className="obp-fill">
-            <span className="obp-eyebrow">Nice to meet them</span>
-            <h2 className="obp-title">What&apos;s their name?</h2>
-            <Text type="supporting" className="obp-sub-left">
-              We&apos;ll use it to make PawPal feel like home.
-            </Text>
-            <TextInput
-              label="Name"
-              value={name}
-              placeholder="e.g. Zipi"
-              onChange={setName}
-              status={nameError ? { type: "error", message: "Every good dog needs a name 🐶" } : undefined}
-            />
-            <div className="ob-spacer" />
-            <GooNav onBack={back} onNext={nextFromName} />
-          </VStack>
-        )}
+  if (step === 8) {
+    return (
+      <MealsStep
+        dogName={dogName}
+        value={mealsPerDay}
+        onChange={setMealsPerDay}
+        onBack={back}
+        onNext={next}
+      />
+    );
+  }
 
-        {step === 4 && (
-          <VStack gap={3} className="obp-fill">
-            <span className="obp-eyebrow">Getting to know {dogName}</span>
-            <h2 className="obp-title">What breed is {dogName}?</h2>
-            <Text type="supporting" className="obp-sub-left">
-              Helps us tailor care tips. Not sure yet? You can skip this.
-            </Text>
-            <TextInput label="Breed" value={breed} placeholder="e.g. Mixed breed" onChange={setBreed} />
-            <div className="ob-spacer" />
-            <GooNav onBack={back} onNext={next} />
-          </VStack>
-        )}
+  if (step === 9) {
+    return (
+      <VetStep
+        dogName={dogName}
+        vet={vet}
+        vetPhone={vetPhone}
+        onVet={setVet}
+        onVetPhone={setVetPhone}
+        onBack={back}
+        onNext={next}
+      />
+    );
+  }
 
-        {step === 5 && (
-          <VStack gap={3} className="obp-fill">
-            <span className="obp-eyebrow">Mark the calendar</span>
-            <h2 className="obp-title">When do we get to celebrate {dogName}?</h2>
-            <Text type="supporting" className="obp-sub-left">
-              Their birthday lets us track age and milestones.
-            </Text>
-            <WheelDate value={birthday} onChange={setBirthday} />
-            <div className="ob-spacer" />
-            <GooNav onBack={back} onNext={next} />
-          </VStack>
-        )}
+  if (step === REVIEW_STEP) {
+    return (
+      <ReviewStep
+        dogName={dogName}
+        name={name}
+        breed={breed}
+        birthday={birthday}
+        foodGoal={foodGoal}
+        mealsPerDay={mealsPerDay}
+        vet={vet}
+        onBack={back}
+        onNext={() => go(NOTIF_STEP)}
+      />
+    );
+  }
 
-        {step === 6 && (
-          <VStack gap={3} className="obp-fill">
-            <span className="obp-eyebrow">Health basics</span>
-            <h2 className="obp-title">How much does {dogName} weigh?</h2>
-            <Text type="supporting" className="obp-sub-left">
-              Weight helps us gauge portions and spot changes over time.
-            </Text>
-            <TextInput label="Weight (kg)" value={weight} placeholder="e.g. 12" onChange={setWeight} />
-            <div className="ob-spacer" />
-            <GooNav onBack={back} onNext={next} />
-          </VStack>
-        )}
+  if (step === NOTIF_STEP) {
+    return (
+      <NotifStep
+        dogName={dogName}
+        walkNotif={walkNotif}
+        onWalkNotif={setWalkNotif}
+        walkTime={walkTime}
+        onWalkTime={setWalkTime}
+        feedNotif={feedNotif}
+        onFeedNotif={setFeedNotif}
+        feedTime={feedTime}
+        onFeedTime={setFeedTime}
+        vetNotif={vetNotif}
+        onVetNotif={setVetNotif}
+        onBack={back}
+        onEnable={() => void enableReminders()}
+        onSkip={celebrate}
+      />
+    );
+  }
 
-        {step === 7 && (
-          <VStack gap={3} className="obp-fill">
-            <span className="obp-eyebrow">Mealtime</span>
-            <h2 className="obp-title">{dogName}&apos;s daily food goal</h2>
-            <Text type="supporting" className="obp-sub-left">
-              Set a gentle target — we&apos;ll help you keep the bowl balanced.
-            </Text>
-            <div className="obp-goal-readout">
-              <span className="obp-goal-value">{foodGoal}</span>
-              <span className="obp-goal-unit">grams / day</span>
-            </div>
-            <Slider
-              label="Daily food goal"
-              value={foodGoal}
-              min={50}
-              max={1000}
-              step={10}
-              onChange={(v: number) => setFoodGoal(v)}
-            />
-            <div className="ob-spacer" />
-            <GooNav onBack={back} onNext={next} />
-          </VStack>
-        )}
-
-        {step === 8 && (
-          <VStack gap={3} className="obp-fill">
-            <span className="obp-eyebrow">Routine</span>
-            <h2 className="obp-title">How many meals a day?</h2>
-            <Text type="supporting" className="obp-sub-left">
-              Splitting food across meals keeps {dogName} satisfied.
-            </Text>
-            <div className="obp-circle-grid" role="radiogroup" aria-label="Meals per day">
-              {MEAL_OPTIONS.map((mealCount) => {
-                const selected = mealsPerDay === mealCount;
-                const recommended = mealCount === RECOMMENDED_MEALS;
-                return (
-                  <button
-                    key={mealCount}
-                    type="button"
-                    role="radio"
-                    aria-checked={selected}
-                    className={`obp-circle${selected ? " selected" : ""}`}
-                    onClick={() => setMealsPerDay(mealCount)}
-                  >
-                    <span className="obp-circle-count">{mealCount}</span>
-                    <span className="obp-circle-unit">per day</span>
-                    {recommended && <span className="obp-circle-tag">Recommended</span>}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="ob-spacer" />
-            <GooNav onBack={back} onNext={next} />
-          </VStack>
-        )}
-
-        {step === 9 && (
-          <VStack gap={3} className="obp-fill">
-            <span className="obp-eyebrow">Health &amp; safety</span>
-            <h2 className="obp-title">{dogName}&apos;s vet</h2>
-            <Text type="supporting" className="obp-sub-left">
-              Keep your vet a tap away for appointments and emergencies. You can add this later.
-            </Text>
-            <TextInput label="Vet name" value={vet} placeholder="e.g. Elm Street Vets" onChange={setVet} />
-            <TextInput label="Vet phone" value={vetPhone} placeholder="e.g. 555 0100" onChange={setVetPhone} />
-            <div className="ob-spacer" />
-            <VStack gap={2}>
-              <GooNav onBack={back} onNext={next} />
-              <Button label="Skip for now" variant="ghost" onClick={next} className="obp-skip" />
-            </VStack>
-          </VStack>
-        )}
-
-        {step === REVIEW_STEP && (
-          <VStack gap={3} className="obp-fill">
-            <div className="obp-hero-emoji obp-hero-emoji--sm">🔒</div>
-            <h2 className="obp-title">You&apos;re all set</h2>
-            <Text type="supporting" className="obp-sub-left">
-              Everything you&apos;ve entered stays private on your device. Ready to start caring for{" "}
-              {dogName}?
-            </Text>
-            <div className="obp-review-card">
-              <ReviewRow label="Name" value={name.trim() || "—"} />
-              <ReviewRow label="Breed" value={breed || "—"} />
-              <ReviewRow label="Birthday" value={prettyDate(birthday)} />
-              <ReviewRow label="Food goal" value={`${foodGoal} g/day · ${mealsPerDay} meals`} />
-              <ReviewRow label="Vet" value={vet || "Not added"} />
-            </div>
-            <div className="ob-spacer" />
-            <GooNav onBack={back} onNext={() => go(NOTIF_STEP)} nextLabel="Continue" />
-          </VStack>
-        )}
-
-        {step === NOTIF_STEP && (
-          <VStack gap={3} className="obp-fill">
-            <div className="obp-hero-emoji obp-hero-emoji--sm">🔔</div>
-            <h2 className="obp-title">Never miss a moment with {dogName}</h2>
-            <Text type="supporting" className="obp-sub-left">
-              Gentle nudges so a walk, meal or vet visit never slips your mind. Pick what helps —
-              you can change these anytime.
-            </Text>
-            <div className="obp-notif-grid">
-              <NotifOption
-                icon="🚶"
-                label="Walks"
-                enabled={walkNotif}
-                onToggle={setWalkNotif}
-                time={walkTime}
-                onTime={setWalkTime}
-              />
-              <NotifOption
-                icon="🍖"
-                label="Feeding"
-                enabled={feedNotif}
-                onToggle={setFeedNotif}
-                time={feedTime}
-                onTime={setFeedTime}
-              />
-              <NotifOption
-                icon="🩺"
-                label="Vet"
-                enabled={vetNotif}
-                onToggle={setVetNotif}
-                caption="Around 9 AM"
-              />
-            </div>
-            <div className="ob-spacer" />
-            <VStack gap={2}>
-              <Button
-                label="Turn on reminders"
-                variant="primary"
-                onClick={() => void enableReminders()}
-                style={{ width: "100%" }}
-              />
-              <Button label="Set up later" variant="ghost" onClick={celebrate} className="obp-skip" />
-            </VStack>
-          </VStack>
-        )}
-
-        {step === FINISH_STEP && <Celebration dogName={dogName} onDone={finish} />}
-      </div>
-    </div>
-  );
+  return <Celebration dogName={dogName} onDone={finish} />;
 }
 
 type AuthMode = "choose" | "signup" | "login";
@@ -573,6 +437,10 @@ function AuthGate({
   }
 
   const isSignup = mode === "signup";
+  // An error belongs to the email field when the email itself is invalid;
+  // otherwise it relates to the password / auth attempt.
+  const emailError = error != null && !emailOk;
+  const passwordError = error != null && emailOk;
 
   return (
     <div className="oba">
@@ -595,7 +463,7 @@ function AuthGate({
           <label className="oba-field-label" htmlFor="oba-email">
             Email
           </label>
-          <div className="oba-input-wrap">
+          <div className={`oba-input-wrap${emailError ? " error" : ""}`}>
             <input
               id="oba-email"
               className="oba-input"
@@ -610,13 +478,14 @@ function AuthGate({
               }}
             />
           </div>
+          {emailError && <p className="oba-fielderror">{error}</p>}
         </div>
 
         <div className="oba-field">
           <label className="oba-field-label" htmlFor="oba-password">
             Password
           </label>
-          <div className={`oba-input-wrap${error ? " error" : ""}`}>
+          <div className={`oba-input-wrap${passwordError ? " error" : ""}`}>
             <input
               id="oba-password"
               className="oba-input"
@@ -642,7 +511,7 @@ function AuthGate({
               <Icon icon={showPassword ? Icons.eyeOff : Icons.eye} color="inherit" />
             </button>
           </div>
-          {error && <p className="oba-fielderror">{error}</p>}
+          {passwordError && <p className="oba-fielderror">{error}</p>}
         </div>
       </div>
 
@@ -677,67 +546,614 @@ function AuthGate({
   );
 }
 
-function GooNav({
+// Redesigned first onboarding step (new dark UI, Figma node 156:881). A live
+// preview, a background-colour picker, and a grid of hand-drawn dog stickers.
+// The picked pup + colour become the profile avatar.
+function FindYourPup({
+  sticker,
+  onSticker,
+  bg,
+  onBg,
   onBack,
   onNext,
-  nextLabel = "Next",
 }: {
+  sticker: string;
+  onSticker: (id: string) => void;
+  bg: string;
+  onBg: (hex: string) => void;
   onBack: () => void;
   onNext: () => void;
-  nextLabel?: string;
 }): React.ReactElement {
+  const selectedUrl = AVATAR_STICKERS.find((s) => s.id === sticker)?.url;
   return (
-    <div className="obp-goonav">
-      <div className="obp-goonav-goo" aria-hidden>
-        <span className="obp-goonav-blob obp-goonav-blob--back" />
-        <span className="obp-goonav-blob obp-goonav-blob--next" />
+    <div className="fyp">
+      <button type="button" aria-label="Back" className="oba-back" onClick={onBack}>
+        <Icon icon={Icons.caretLeft} color="inherit" />
+      </button>
+
+      <h1 className="fyp-title">Find your pup</h1>
+      <p className="fyp-sub">
+        Pick the pup that looks most like yours — you can always change it later.
+      </p>
+
+      {/* Live preview of the chosen pup on the chosen background. */}
+      <div className="fyp-preview" style={{ background: bg }}>
+        {selectedUrl && <img src={selectedUrl} alt="" className="fyp-preview-img" />}
       </div>
-      <button
-        type="button"
-        className="obp-goonav-btn obp-goonav-btn--back"
-        onClick={onBack}
-      >
-        Back
-      </button>
-      <button
-        type="button"
-        className="obp-goonav-btn obp-goonav-btn--next"
-        onClick={onNext}
-      >
-        {nextLabel}
-      </button>
-      <svg className="obp-goo-svg" aria-hidden width="0" height="0">
-        <defs>
-          <filter id="obp-goo">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="blur" />
-            <feColorMatrix
-              in="blur"
-              mode="matrix"
-              values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7"
-              result="goo"
+
+      {/* Background colour picker. */}
+      <div className="fyp-colors" role="radiogroup" aria-label="Background colour">
+        {AVATAR_BG_COLORS.map((c) => {
+          const selected = bg.toUpperCase() === c.hex.toUpperCase();
+          return (
+            <button
+              key={c.key}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              aria-label={`${c.key} background`}
+              className={`fyp-color${selected ? " selected" : ""}`}
+              style={{ background: c.hex }}
+              onClick={() => onBg(c.hex)}
             />
-            <feComposite in="SourceGraphic" in2="goo" operator="atop" />
-          </filter>
-        </defs>
-      </svg>
+          );
+        })}
+      </div>
+
+      {/* Sticker grid — each tile takes the chosen background colour. */}
+      <div className="fyp-grid" role="radiogroup" aria-label="Choose your pup">
+        {AVATAR_STICKERS.map((s) => {
+          const selected = sticker === s.id;
+          return (
+            <button
+              key={s.id}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              aria-label={s.label}
+              className={`fyp-tile${selected ? " selected" : ""}`}
+              style={{ background: bg }}
+              onClick={() => onSticker(s.id)}
+            >
+              <img src={s.url} alt="" className="fyp-tile-img" />
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="oba-spacer" />
+
+      <button type="button" className="oba-submit" onClick={onNext}>
+        Continue
+      </button>
     </div>
   );
 }
 
-function Benefit({ icon, title, body }: { icon: string; title: string; body: string }): React.ReactElement {
+// Name step (new dark UI). Full-screen dark shell with an autofocused text
+// input and the shared pill button.
+function NameStep({
+  value,
+  error,
+  onChange,
+  onBack,
+  onNext,
+}: {
+  value: string;
+  error: boolean;
+  onChange: (value: string) => void;
+  onBack: () => void;
+  onNext: () => void;
+}): React.ReactElement {
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
   return (
-    <div className="obp-benefit">
-      <div className="obp-benefit-icon" aria-hidden>
-        {icon}
+    <div className="obn">
+      <button type="button" aria-label="Back" className="oba-back" onClick={onBack}>
+        <Icon icon={Icons.caretLeft} color="inherit" />
+      </button>
+
+      <h1 className="fyp-title">What&apos;s their name?</h1>
+      <p className="fyp-sub">We&apos;ll use it to make PawPal feel like home.</p>
+
+      <div className="oba-field">
+        <label className="oba-field-label" htmlFor="obn-name">
+          Name
+        </label>
+        <div className={`oba-input-wrap${error ? " error" : ""}`}>
+          <input
+            id="obn-name"
+            ref={inputRef}
+            className="oba-input"
+            type="text"
+            autoComplete="off"
+            value={value}
+            placeholder="e.g. Zipi"
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onNext();
+            }}
+          />
+        </div>
+        {error && <p className="oba-fielderror">Every good dog needs a name 🐶</p>}
       </div>
-      <VStack gap={0}>
-        <Text type="label" className="obp-benefit-title">
-          {title}
-        </Text>
-        <Text type="supporting" className="obp-benefit-body">
-          {body}
-        </Text>
-      </VStack>
+
+      <div className="oba-spacer" />
+
+      <button type="button" className="oba-submit" onClick={onNext}>
+        Continue
+      </button>
+    </div>
+  );
+}
+
+// Breed step (new dark UI). Full-screen dark shell with an autofocused text
+// input and the shared pill button.
+function BreedStep({
+  value,
+  dogName,
+  onChange,
+  onBack,
+  onNext,
+}: {
+  value: string;
+  dogName: string;
+  onChange: (value: string) => void;
+  onBack: () => void;
+  onNext: () => void;
+}): React.ReactElement {
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  return (
+    <div className="obn">
+      <button type="button" aria-label="Back" className="oba-back" onClick={onBack}>
+        <Icon icon={Icons.caretLeft} color="inherit" />
+      </button>
+
+      <h1 className="fyp-title">What breed is {dogName}?</h1>
+      <p className="fyp-sub">Helps us tailor care tips. Not sure yet? You can skip this.</p>
+
+      <div className="oba-field">
+        <label className="oba-field-label" htmlFor="obn-breed">
+          Breed
+        </label>
+        <div className="oba-input-wrap">
+          <input
+            id="obn-breed"
+            ref={inputRef}
+            className="oba-input"
+            type="text"
+            autoComplete="off"
+            value={value}
+            placeholder="e.g. Mixed breed"
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onNext();
+            }}
+          />
+        </div>
+      </div>
+
+      <div className="oba-spacer" />
+
+      <button type="button" className="oba-submit" onClick={onNext}>
+        Continue
+      </button>
+    </div>
+  );
+}
+
+// Birthday step (new dark UI). Dark shell wrapping the month/day/year wheel.
+function BirthdayStep({
+  dogName,
+  value,
+  onChange,
+  onBack,
+  onNext,
+}: {
+  dogName: string;
+  value: string;
+  onChange: (value: string) => void;
+  onBack: () => void;
+  onNext: () => void;
+}): React.ReactElement {
+  return (
+    <div className="obn">
+      <button type="button" aria-label="Back" className="oba-back" onClick={onBack}>
+        <Icon icon={Icons.caretLeft} color="inherit" />
+      </button>
+
+      <h1 className="fyp-title">When do we get to celebrate {dogName}?</h1>
+      <p className="fyp-sub">Their birthday lets us track age and milestones.</p>
+
+      <WheelDate value={value} onChange={onChange} />
+
+      <div className="oba-spacer" />
+
+      <button type="button" className="oba-submit" onClick={onNext}>
+        Continue
+      </button>
+    </div>
+  );
+}
+
+// Weight step (new dark UI). Autofocused numeric input.
+function WeightStep({
+  dogName,
+  value,
+  onChange,
+  onBack,
+  onNext,
+}: {
+  dogName: string;
+  value: string;
+  onChange: (value: string) => void;
+  onBack: () => void;
+  onNext: () => void;
+}): React.ReactElement {
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  return (
+    <div className="obn">
+      <button type="button" aria-label="Back" className="oba-back" onClick={onBack}>
+        <Icon icon={Icons.caretLeft} color="inherit" />
+      </button>
+
+      <h1 className="fyp-title">How much does {dogName} weigh?</h1>
+      <p className="fyp-sub">Weight helps us gauge portions and spot changes over time.</p>
+
+      <div className="oba-field">
+        <label className="oba-field-label" htmlFor="obn-weight">
+          Weight (kg)
+        </label>
+        <div className="oba-input-wrap">
+          <input
+            id="obn-weight"
+            ref={inputRef}
+            className="oba-input"
+            type="text"
+            inputMode="decimal"
+            autoComplete="off"
+            value={value}
+            placeholder="e.g. 12"
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onNext();
+            }}
+          />
+        </div>
+      </div>
+
+      <div className="oba-spacer" />
+
+      <button type="button" className="oba-submit" onClick={onNext}>
+        Continue
+      </button>
+    </div>
+  );
+}
+
+// Food goal step (new dark UI). Big readout above the shared slider.
+function FoodGoalStep({
+  dogName,
+  value,
+  onChange,
+  onBack,
+  onNext,
+}: {
+  dogName: string;
+  value: number;
+  onChange: (value: number) => void;
+  onBack: () => void;
+  onNext: () => void;
+}): React.ReactElement {
+  return (
+    <div className="obn">
+      <button type="button" aria-label="Back" className="oba-back" onClick={onBack}>
+        <Icon icon={Icons.caretLeft} color="inherit" />
+      </button>
+
+      <h1 className="fyp-title">{dogName}’s daily food goal</h1>
+      <p className="fyp-sub">Set a gentle target — we’ll help you keep the bowl balanced.</p>
+
+      <div className="obp-goal-readout">
+        <span className="obp-goal-value">{value}</span>
+        <span className="obp-goal-unit">grams / day</span>
+      </div>
+      <Slider
+        label="Daily food goal"
+        value={value}
+        min={50}
+        max={1000}
+        step={10}
+        onChange={(v: number) => onChange(v)}
+      />
+
+      <div className="oba-spacer" />
+
+      <button type="button" className="oba-submit" onClick={onNext}>
+        Continue
+      </button>
+    </div>
+  );
+}
+
+// Meals-per-day step (new dark UI). Circular radio grid.
+function MealsStep({
+  dogName,
+  value,
+  onChange,
+  onBack,
+  onNext,
+}: {
+  dogName: string;
+  value: number;
+  onChange: (value: number) => void;
+  onBack: () => void;
+  onNext: () => void;
+}): React.ReactElement {
+  return (
+    <div className="obn">
+      <button type="button" aria-label="Back" className="oba-back" onClick={onBack}>
+        <Icon icon={Icons.caretLeft} color="inherit" />
+      </button>
+
+      <h1 className="fyp-title">How many meals a day?</h1>
+      <p className="fyp-sub">Splitting food across meals keeps {dogName} satisfied.</p>
+
+      <div className="obp-circle-grid" role="radiogroup" aria-label="Meals per day">
+        {MEAL_OPTIONS.map((mealCount) => {
+          const selected = value === mealCount;
+          const recommended = mealCount === RECOMMENDED_MEALS;
+          return (
+            <button
+              key={mealCount}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              className={`obp-circle${selected ? " selected" : ""}`}
+              onClick={() => onChange(mealCount)}
+            >
+              <span className="obp-circle-count">{mealCount}</span>
+              <span className="obp-circle-unit">per day</span>
+              {recommended && <span className="obp-circle-tag">Recommended</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="oba-spacer" />
+
+      <button type="button" className="oba-submit" onClick={onNext}>
+        Continue
+      </button>
+    </div>
+  );
+}
+
+// Vet step (new dark UI). Two optional inputs plus a skip link.
+function VetStep({
+  dogName,
+  vet,
+  vetPhone,
+  onVet,
+  onVetPhone,
+  onBack,
+  onNext,
+}: {
+  dogName: string;
+  vet: string;
+  vetPhone: string;
+  onVet: (value: string) => void;
+  onVetPhone: (value: string) => void;
+  onBack: () => void;
+  onNext: () => void;
+}): React.ReactElement {
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  return (
+    <div className="obn">
+      <button type="button" aria-label="Back" className="oba-back" onClick={onBack}>
+        <Icon icon={Icons.caretLeft} color="inherit" />
+      </button>
+
+      <h1 className="fyp-title">{dogName}’s vet</h1>
+      <p className="fyp-sub">
+        Keep your vet a tap away for appointments and emergencies. You can add this later.
+      </p>
+
+      <div className="oba-fields">
+        <div className="oba-field">
+          <label className="oba-field-label" htmlFor="obn-vet">
+            Vet name
+          </label>
+          <div className="oba-input-wrap">
+            <input
+              id="obn-vet"
+              ref={inputRef}
+              className="oba-input"
+              type="text"
+              autoComplete="off"
+              value={vet}
+              placeholder="e.g. Elm Street Vets"
+              onChange={(e) => onVet(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="oba-field">
+          <label className="oba-field-label" htmlFor="obn-vetphone">
+            Vet phone
+          </label>
+          <div className="oba-input-wrap">
+            <input
+              id="obn-vetphone"
+              className="oba-input"
+              type="tel"
+              inputMode="tel"
+              autoComplete="off"
+              value={vetPhone}
+              placeholder="e.g. 555 0100"
+              onChange={(e) => onVetPhone(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") onNext();
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="oba-spacer" />
+
+      <button type="button" className="oba-submit" onClick={onNext}>
+        Continue
+      </button>
+      <button type="button" className="oba-link" onClick={onNext}>
+        Skip for now
+      </button>
+    </div>
+  );
+}
+
+// Review step (new dark UI). Summary card before the notifications step.
+function ReviewStep({
+  dogName,
+  name,
+  breed,
+  birthday,
+  foodGoal,
+  mealsPerDay,
+  vet,
+  onBack,
+  onNext,
+}: {
+  dogName: string;
+  name: string;
+  breed: string;
+  birthday: string;
+  foodGoal: number;
+  mealsPerDay: number;
+  vet: string;
+  onBack: () => void;
+  onNext: () => void;
+}): React.ReactElement {
+  return (
+    <div className="obn">
+      <button type="button" aria-label="Back" className="oba-back" onClick={onBack}>
+        <Icon icon={Icons.caretLeft} color="inherit" />
+      </button>
+
+      <h1 className="fyp-title">You’re all set</h1>
+      <p className="fyp-sub">
+        Everything you’ve entered stays private on your device. Ready to start caring for {dogName}?
+      </p>
+
+      <div className="obp-review-card">
+        <ReviewRow label="Name" value={name.trim() || "—"} />
+        <ReviewRow label="Breed" value={breed || "—"} />
+        <ReviewRow label="Birthday" value={prettyDate(birthday)} />
+        <ReviewRow label="Food goal" value={`${foodGoal} g/day · ${mealsPerDay} meals`} />
+        <ReviewRow label="Vet" value={vet || "Not added"} />
+      </div>
+
+      <div className="oba-spacer" />
+
+      <button type="button" className="oba-submit" onClick={onNext}>
+        Continue
+      </button>
+    </div>
+  );
+}
+
+// Notifications step (new dark UI). Reminder toggles plus enable / skip actions.
+function NotifStep({
+  dogName,
+  walkNotif,
+  onWalkNotif,
+  walkTime,
+  onWalkTime,
+  feedNotif,
+  onFeedNotif,
+  feedTime,
+  onFeedTime,
+  vetNotif,
+  onVetNotif,
+  onBack,
+  onEnable,
+  onSkip,
+}: {
+  dogName: string;
+  walkNotif: boolean;
+  onWalkNotif: (value: boolean) => void;
+  walkTime: string;
+  onWalkTime: (value: string) => void;
+  feedNotif: boolean;
+  onFeedNotif: (value: boolean) => void;
+  feedTime: string;
+  onFeedTime: (value: string) => void;
+  vetNotif: boolean;
+  onVetNotif: (value: boolean) => void;
+  onBack: () => void;
+  onEnable: () => void;
+  onSkip: () => void;
+}): React.ReactElement {
+  return (
+    <div className="obn">
+      <button type="button" aria-label="Back" className="oba-back" onClick={onBack}>
+        <Icon icon={Icons.caretLeft} color="inherit" />
+      </button>
+
+      <h1 className="fyp-title">Never miss a moment with {dogName}</h1>
+      <p className="fyp-sub">
+        Gentle nudges so a walk, meal or vet visit never slips your mind. Pick what helps — you can
+        change these anytime.
+      </p>
+
+      <div className="obp-notif-grid">
+        <NotifOption
+          icon="🚶"
+          label="Walks"
+          enabled={walkNotif}
+          onToggle={onWalkNotif}
+          time={walkTime}
+          onTime={onWalkTime}
+        />
+        <NotifOption
+          icon="🍖"
+          label="Feeding"
+          enabled={feedNotif}
+          onToggle={onFeedNotif}
+          time={feedTime}
+          onTime={onFeedTime}
+        />
+        <NotifOption
+          icon="🩺"
+          label="Vet"
+          enabled={vetNotif}
+          onToggle={onVetNotif}
+          caption="Around 9 AM"
+        />
+      </div>
+
+      <div className="oba-spacer" />
+
+      <button type="button" className="oba-submit" onClick={onEnable}>
+        Turn on reminders
+      </button>
+      <button type="button" className="oba-link" onClick={onSkip}>
+        Set up later
+      </button>
     </div>
   );
 }
@@ -801,15 +1217,17 @@ function Celebration({ dogName, onDone }: { dogName: string; onDone: () => void 
   }, [onDone]);
 
   return (
-    <VStack gap={3} hAlign="center" className="obp-center obp-celebrate">
+    <div className="obn obn-celebrate">
       <div className="obp-burst" aria-hidden>
         🎉
       </div>
-      <Heading level={1}>Welcome aboard!</Heading>
-      <Text type="supporting" className="obp-lede">
+      <h1 className="fyp-title" style={{ textAlign: "center" }}>
+        Welcome aboard!
+      </h1>
+      <p className="fyp-sub" style={{ textAlign: "center" }}>
         {dogName} is going to love this. Taking you to the dashboard…
-      </Text>
-    </VStack>
+      </p>
+    </div>
   );
 }
 

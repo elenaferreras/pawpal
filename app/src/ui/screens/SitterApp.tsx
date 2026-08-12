@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Icon } from "@astryxdesign/core/Icon";
 import { useToast } from "../lib/toast";
 import { Icons } from "../lib/icons";
+import { DogFace } from "../avatar/DogAvatar";
 import {
   clearSitterSession,
   saveSitterSession,
@@ -18,6 +19,9 @@ interface SitterAppProps {
 
 const HERO = "var(--color-pawpal-hero)";
 const DARK = "var(--color-pawpal-page)";
+const WALK = "var(--color-dash-walk)"; // blue
+const MEAL = "var(--color-dash-trained)"; // yellow
+const POOP = "var(--color-dash-pooped)"; // purple
 
 function localISO(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -40,6 +44,8 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
   const [busy, setBusy] = useState<string | null>(null);
 
   const dog = snapshot.profile?.name || state.session.dogName || "this pup";
+  const avatar = snapshot.profile?.avatar;
+  const avatarBg = avatar?.bg ?? "var(--color-dash-pooped)";
   const todayISO = localISO(new Date());
   const endsAt = fmtTime(state.session.expiresAt);
 
@@ -122,7 +128,7 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
 
   return (
     <div className="sit">
-      {/* Banner */}
+      {/* Top bar */}
       <div className="sit-banner">
         <div className="sit-banner-text">
           <span className="sit-banner-title">Sitting for {dog}</span>
@@ -134,17 +140,23 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
       </div>
 
       <div className="sit-body">
-        <h1 className="sit-hello">
-          Hi! You&rsquo;re looking after
-          <br />
-          <span className="sit-dog">{dog}</span> today.
-        </h1>
+        {/* Hero — the pup you're caring for */}
+        <div className="sit-hero">
+          <div className="sit-avatar" style={{ background: avatarBg }}>
+            <DogFace avatar={avatar} size={96} />
+          </div>
+          <h1 className="sit-hello">
+            You&rsquo;re looking after
+            <br />
+            <span className="sit-dog">{dog}</span> today.
+          </h1>
+        </div>
 
         {/* Today so far */}
         <div className="sit-summary">
-          <SummaryStat label="Walks" value={String(today.walks)} />
-          <SummaryStat label="Meals" value={`${today.mealSlots}/${mealsPerDay}`} />
-          <SummaryStat label="Poops" value={String(today.poops)} />
+          <SummaryStat label="Walks" value={String(today.walks)} tone={WALK} />
+          <SummaryStat label="Meals" value={`${today.mealSlots}/${mealsPerDay}`} tone={MEAL} />
+          <SummaryStat label="Poops" value={String(today.poops)} tone={POOP} />
         </div>
 
         {/* Quick actions */}
@@ -152,18 +164,21 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
           <SitButton
             label="Log a walk"
             icon={Icons.pawPrint}
+            bg={WALK}
             busy={busy === "walk"}
             onClick={() => void logWalk()}
           />
           <SitButton
             label="Log a meal"
             icon={Icons.forkKnife}
+            bg={MEAL}
             busy={busy === "meal"}
             onClick={() => void logMeal()}
           />
           <SitButton
             label="Mark a poop"
             icon={Icons.toilet}
+            bg={POOP}
             busy={busy === "poop"}
             onClick={() => void logPoop()}
           />
@@ -183,10 +198,20 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
   );
 }
 
-function SummaryStat({ label, value }: { label: string; value: string }): React.ReactElement {
+function SummaryStat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: string;
+}): React.ReactElement {
   return (
     <div className="sit-stat">
-      <span className="sit-stat-value">{value}</span>
+      <span className="sit-stat-value" style={{ color: tone }}>
+        {value}
+      </span>
       <span className="sit-stat-label">{label}</span>
     </div>
   );
@@ -195,16 +220,18 @@ function SummaryStat({ label, value }: { label: string; value: string }): React.
 function SitButton({
   label,
   icon,
+  bg,
   busy,
   onClick,
 }: {
   label: string;
   icon: (typeof Icons)[keyof typeof Icons];
+  bg: string;
   busy: boolean;
   onClick: () => void;
 }): React.ReactElement {
   return (
-    <button type="button" className="sit-action" onClick={onClick} disabled={busy}>
+    <button type="button" className="sit-action" style={{ background: bg }} onClick={onClick} disabled={busy}>
       <span className="sit-action-icon" style={{ color: DARK }}>
         <Icon icon={icon} color="inherit" />
       </span>

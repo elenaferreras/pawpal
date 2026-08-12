@@ -528,48 +528,6 @@ select.form-input {
 .toggle input:checked + .toggle-slider:before {
   transform: translateX(18px);
 }
-.btn {
-  display: block;
-  width: calc(100% - 36px);
-  margin: 0 18px;
-  padding: 16px;
-  border-radius: var(--radius-pill);
-  border: none;
-  font-size: 16px;
-  font-weight: 700;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all 0.15s;
-  text-align: center;
-  letter-spacing: -0.2px;
-}
-.btn:active {
-  transform: scale(0.97);
-}
-.btn-primary {
-  background: var(--text);
-  color: white;
-}
-.btn-secondary {
-  background: var(--surface);
-  border: 1.5px solid var(--border-strong);
-  color: var(--text);
-}
-.btn-danger {
-  background: #ff3b30;
-  color: white;
-}
-.btn-sm {
-  width: auto;
-  padding: 9px 18px;
-  font-size: 14px;
-  display: inline-block;
-  margin: 0;
-}
-.btn-full {
-  width: 100%;
-  margin: 0;
-}
 .empty {
   text-align: center;
   padding: 48px 24px;
@@ -2329,6 +2287,7 @@ body.modal-open {
 }
 .oba-submit {
   height: 56px;
+  flex-shrink: 0;
   width: 100%;
   margin-top: 26px;
   border: none;
@@ -2367,9 +2326,197 @@ body.modal-open {
   min-height: 20px;
 }
 
-/* ── Sitter claim (reuses the .obw shell, content near the top) ──────────── */
+/* ── Onboarding dark steps (Find your pup, name, …) — new UI shells ──────── */
+.fyp,
+.obn {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  overflow-y: auto;
+  background: var(--color-pawpal-page);
+  display: flex;
+  flex-direction: column;
+  max-width: 430px;
+  margin: 0 auto;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 24px calc(24px + var(--safe-bottom));
+}
+.fyp-title {
+  margin: 18px 0 8px;
+  font-family: "FatFrank", "Abordage", sans-serif;
+  font-weight: 400;
+  font-size: 40px;
+  line-height: 1.05;
+  color: var(--color-pawpal-hero);
+}
+.fyp-sub {
+  margin: 0 0 20px;
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--color-pawpal-hero) 70%, transparent);
+}
+/* Live preview of the chosen pup on the chosen background. */
+.fyp-preview {
+  align-self: center;
+  flex-shrink: 0;
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: background 0.2s ease;
+}
+.fyp-preview-img {
+  width: 78%;
+  height: 78%;
+  object-fit: contain;
+  display: block;
+}
+/* Background colour picker row. */
+.fyp-colors {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin: 22px 0 24px;
+}
+.fyp-color {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 0.14s ease, box-shadow 0.18s ease;
+}
+.fyp-color:active {
+  transform: scale(0.92);
+}
+.fyp-color.selected {
+  box-shadow: 0 0 0 3px var(--color-pawpal-page), 0 0 0 5px var(--color-data-yellow-3);
+}
+.fyp-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.fyp-tile {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  padding: 12px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.14s ease, box-shadow 0.18s ease, background 0.2s ease;
+}
+.fyp-tile:active {
+  transform: scale(0.95);
+}
+.fyp-tile.selected {
+  box-shadow: 0 0 0 3px var(--color-data-yellow-3);
+  transform: translateY(-1px);
+}
+.fyp-tile-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+/* Dark-shell field spacing + widget overrides for the questionnaire steps.
+   These reuse the existing .obp-* widget markup but re-tint it for the dark
+   PawPal page (cream text, yellow accents). */
+.obn .oba-field,
+.obn .oba-fields {
+  margin-top: 4px;
+}
+.obn .obp-goal-readout {
+  padding: 8px 0 12px;
+}
+.obn .obp-goal-value {
+  color: var(--color-data-yellow-3);
+}
+.obn .obp-goal-unit {
+  color: color-mix(in srgb, var(--color-pawpal-hero) 70%, transparent);
+}
+/* Meals-per-day circular radios. */
+.obn .obp-circle-grid {
+  margin-top: 8px;
+}
+.obn .obp-circle {
+  border-color: color-mix(in srgb, var(--color-pawpal-hero) 26%, transparent);
+  background: transparent;
+  color: color-mix(in srgb, var(--color-pawpal-hero) 78%, transparent);
+}
+.obn .obp-circle.selected {
+  background: var(--color-data-yellow-3);
+  border-color: var(--color-data-yellow-3);
+  color: var(--color-pawpal-page);
+}
+.obn .obp-circle-tag {
+  color: var(--color-data-yellow-3);
+}
+.obn .obp-circle.selected .obp-circle-tag {
+  color: color-mix(in srgb, var(--color-pawpal-page) 70%, transparent);
+}
+/* Birthday wheel picker. */
+.obn .obp-wheel-band {
+  background: color-mix(in srgb, var(--color-pawpal-hero) 10%, transparent);
+}
+.obn .obp-wheel-item {
+  color: color-mix(in srgb, var(--color-pawpal-hero) 40%, transparent);
+}
+.obn .obp-wheel-item.sel {
+  color: var(--color-pawpal-hero);
+}
+/* Review summary card. */
+.obn .obp-review-card {
+  background: var(--color-settings-group);
+  border: none;
+  border-radius: 18px;
+  padding: 4px 18px;
+  margin-top: 8px;
+}
+.obn .obp-review-row {
+  border-bottom: 1px solid color-mix(in srgb, var(--color-pawpal-hero) 12%, transparent);
+}
+.obn .obp-review-label {
+  color: color-mix(in srgb, var(--color-pawpal-hero) 60%, transparent);
+}
+.obn .obp-review-value {
+  color: var(--color-pawpal-hero);
+}
+/* Notification reminder columns. */
+.obn .obp-notif-grid {
+  margin-top: 8px;
+}
+.obn .obp-notif-label {
+  color: var(--color-pawpal-hero);
+}
+.obn .obp-notif-caption {
+  color: color-mix(in srgb, var(--color-pawpal-hero) 60%, transparent);
+}
+/* Celebration outro — centred, no back button. */
+.obn-celebrate {
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+}
+
+/* ── Sitter claim (reuses the .obw shell, content centered) ─────────────── */
+.obw--plain {
+  justify-content: center;
+}
 .obw-ctas--top {
-  margin-top: 16vh;
+  margin-top: 0;
+  justify-content: center;
 }
 .sitclaim-input {
   width: 100%;
@@ -2416,8 +2563,11 @@ body.modal-open {
   justify-content: space-between;
   gap: 12px;
   padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px;
-  background: var(--color-data-yellow-3);
-  color: var(--color-pawpal-page);
+  background: color-mix(in srgb, var(--color-pawpal-page) 88%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(233, 228, 196, 0.1);
+  color: var(--color-pawpal-hero);
 }
 .sit-banner-text {
   display: flex;
@@ -2431,14 +2581,14 @@ body.modal-open {
 }
 .sit-banner-sub {
   font-size: 12px;
-  opacity: 0.8;
+  opacity: 0.6;
 }
 .sit-banner-end {
   flex-shrink: 0;
-  border: none;
+  border: 1px solid var(--color-data-yellow-3);
   border-radius: 100px;
   padding: 8px 18px;
-  background: var(--color-pawpal-page);
+  background: transparent;
   color: var(--color-data-yellow-3);
   font-family: var(--font-ui);
   font-weight: 700;
@@ -2449,6 +2599,24 @@ body.modal-open {
   flex-direction: column;
   gap: 24px;
   padding: 24px 16px calc(24px + var(--safe-bottom));
+}
+.sit-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+  padding: 8px 0 4px;
+}
+.sit-avatar {
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 .sit-hello {
   margin: 0;
@@ -2502,6 +2670,10 @@ body.modal-open {
   font-weight: 700;
   font-size: 18px;
   cursor: pointer;
+  transition: transform 0.12s ease;
+}
+.sit-action:active {
+  transform: scale(0.98);
 }
 .sit-action:disabled {
   opacity: 0.6;
@@ -2571,31 +2743,61 @@ body.modal-open {
   gap: 8px;
 }
 .invite-chip {
-  border: 1px solid var(--border-strong);
-  background: var(--surface);
-  color: var(--text);
+  border: 1px solid rgba(233, 228, 196, 0.25);
+  background: rgba(233, 228, 196, 0.06);
+  color: var(--color-pawpal-hero);
   border-radius: 100px;
-  padding: 8px 14px;
+  padding: 10px 16px;
   font-family: var(--font-ui);
-  font-size: 14px;
+  font-size: 15px;
   cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 .invite-chip.selected {
-  background: var(--color-pawpal-page);
-  color: var(--color-pawpal-hero);
-  border-color: var(--color-pawpal-page);
+  background: var(--color-data-yellow-1);
+  color: var(--color-pawpal-page);
+  border-color: var(--color-data-yellow-1);
+  font-weight: 700;
 }
 .invite-datetime {
   width: 100%;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-radius: 12px;
-  border: 1px solid var(--border-strong);
+  border: 1px solid rgba(233, 228, 196, 0.25);
+  background: rgba(233, 228, 196, 0.06);
+  color: var(--color-pawpal-hero);
   font-family: var(--font-ui);
   font-size: 15px;
+  color-scheme: dark;
 }
 .invite-row {
   padding: 8px 0;
   border-top: 1px solid var(--border);
+}
+.invite-row-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 4px;
+  background: none;
+  border: none;
+  border-top: 1px solid rgba(233, 228, 196, 0.1);
+  text-align: left;
+  cursor: pointer;
+}
+.invite-row-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.invite-row-caret {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--color-pawpal-muted);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────

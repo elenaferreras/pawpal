@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { HStack, VStack } from "@astryxdesign/core/Stack";
+import { Icon } from "@astryxdesign/core/Icon";
 import { Button } from "./Button";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { getCurrentUser } from "../lib/auth";
-import { Panel, PanelTitle, PanelText } from "../screens/settings/shared";
+import { Icons } from "../lib/icons";
+import { PanelTitle, PanelText } from "../screens/settings/shared";
 import {
   createInvite,
   formatCode,
@@ -13,7 +15,6 @@ import {
   listInvites,
   revokeInvite,
   sitterLink,
-  type CreatedInvite,
   type DurationPreset,
   type InviteRow,
 } from "../lib/sitter";
@@ -44,13 +45,13 @@ export function InviteSitter(): React.ReactElement {
   const [preset, setPreset] = useState<DurationPreset>("tonight");
   const [customAt, setCustomAt] = useState("");
   const [busy, setBusy] = useState(false);
-  const [created, setCreated] = useState<CreatedInvite | null>(null);
+  const [detailInvite, setDetailInvite] = useState<InviteRow | null>(null);
   const [showQr, setShowQr] = useState(false);
 
-  // Collapse the QR whenever a fresh invite is created (avoids a stale code).
+  // Collapse the QR whenever a different code's detail sheet opens.
   useEffect(() => {
     setShowQr(false);
-  }, [created?.code]);
+  }, [detailInvite?.id]);
 
   // Stay in sync with sign in / sign out (auth.ts dispatches "pawpal:auth").
   useEffect(() => {
@@ -79,9 +80,12 @@ export function InviteSitter(): React.ReactElement {
         customExpiresAt: preset === "custom" ? new Date(customAt).toISOString() : undefined,
         dogName: db.profile.name || undefined,
       });
-      setCreated(inv);
       setChoosing(false);
-      void refresh();
+      const rows = await listInvites();
+      setInvites(rows);
+      // Reveal the freshly created code in its detail sheet.
+      setShowQr(false);
+      setDetailInvite(rows.find((r) => r.id === inv.inviteId) ?? null);
     } catch (e) {
       toast(e instanceof Error ? e.message : "Could not create invite.");
     } finally {
@@ -93,7 +97,7 @@ export function InviteSitter(): React.ReactElement {
     if (!window.confirm("End this sitter's access?")) return;
     try {
       await revokeInvite(id);
-      if (created?.inviteId === id) setCreated(null);
+      setDetailInvite(null);
       void refresh();
       toast("Access ended");
     } catch (e) {
@@ -112,128 +116,42 @@ export function InviteSitter(): React.ReactElement {
 
   if (!loggedIn) {
     return (
-      <Panel>
-        <VStack gap={1}>
-          <PanelTitle>Invite a sitter</PanelTitle>
-          <PanelText>
-            Sign in to your account (above) to share {db.profile.name || "your dog"} with a sitter.
-          </PanelText>
-        </VStack>
-      </Panel>
+      <VStack gap={1}>
+        <PanelTitle>Invite a sitter</PanelTitle>
+        <PanelText>
+          Sign in to your account (above) to share {db.profile.name || "your dog"} with a sitter.
+        </PanelText>
+      </VStack>
     );
   }
 
   const active = invites.filter((i) => inviteStatus(i) === "pending" || inviteStatus(i) === "active");
 
   return (
-    <Panel>
-      <VStack gap={3}>
-        <VStack gap={0.5}>
-          <PanelTitle>Invite a sitter</PanelTitle>
+    <VStack gap={3}>
+      <VStack gap={0.5}>
+        <PanelTitle>Invite a sitter</PanelTitle>
           <PanelText>
             Share a code so a sitter can log walks, meals and poops for{" "}
             {db.profile.name || "your dog"} — without seeing or changing anything else.
           </PanelText>
         </VStack>
 
-        {/* Freshly created invite */}
-        {created && (
-          <div className="invite-code-card">
-            <PanelText style={{ opacity: 0.8 }}>
-              Share this code (expires {fmtWhen(created.expiresAt)})
-            </PanelText>
-            <div className="invite-code">{formatCode(created.code)}</div>
-            {showQr && (
-              <div className="invite-qr">
-                <QRCodeSVG
-                  value={sitterLink(created.code)}
-                  size={168}
-                  level="M"
-                  marginSize={2}
-                  fgColor="#352b25"
-                  bgColor="#ffffff"
-                />
-              </div>
-            )}
-            <HStack gap={2} style={{ width: "100%" }}>
-              <Button
-                label="Copy code"
-                variant="secondary"
-                onClick={() => void copy(formatCode(created.code), "Code")}
-                style={{ flex: 1 }}
-              />
-              <Button
-                label="Copy link"
-                variant="secondary"
-                onClick={() => void copy(sitterLink(created.code), "Link")}
-                style={{ flex: 1 }}
-              />
-            </HStack>
-            <Button
-              label={showQr ? "Hide QR code" : "Show QR code"}
-              variant="secondary"
-              onClick={() => setShowQr((v) => !v)}
-              style={{ width: "100%" }}
-            />
-          </div>
-        )}
-
-        {/* Duration chooser */}
-        {choosing ? (
-          <VStack gap={2}>
-            <div className="invite-durations">
-              {DURATIONS.map((d) => (
-                <button
-                  key={d.value}
-                  type="button"
-                  className={"invite-chip" + (preset === d.value ? " selected" : "")}
-                  onClick={() => setPreset(d.value)}
-                >
-                  {d.label}
-                </button>
-              ))}
-            </div>
-            {preset === "custom" && (
-              <input
-                type="datetime-local"
-                className="invite-datetime"
-                value={customAt}
-                onChange={(e) => setCustomAt(e.target.value)}
-                aria-label="Custom expiry"
-              />
-            )}
-            <HStack gap={2}>
-              <Button
-                label={busy ? "Creating…" : "Create invite"}
-                variant="primary"
-                onClick={() => void create()}
-                isDisabled={busy || (preset === "custom" && !customAt)}
-                style={{ flex: 1 }}
-              />
-              <Button label="Cancel" variant="ghost" onClick={() => setChoosing(false)} />
-            </HStack>
-          </VStack>
-        ) : (
-          <Button
-            label={created ? "New invite" : "Invite a sitter"}
-            variant={created ? "secondary" : "primary"}
-            onClick={() => {
-              setChoosing(true);
-              setPreset("tonight");
-            }}
-            style={{ width: "100%" }}
-          />
-        )}
-
-        {/* Active invites */}
+        {/* Active invites — tap a code to reveal its actions */}
         {active.length > 0 && (
-          <VStack gap={1.5}>
-            <PanelText style={{ opacity: 0.8 }}>
-              Active
-            </PanelText>
+          <VStack gap={0.5}>
+            <PanelText style={{ opacity: 0.8 }}>Active codes</PanelText>
             {active.map((inv) => (
-              <HStack key={inv.id} justify="between" vAlign="center" className="invite-row">
-                <VStack gap={0}>
+              <button
+                key={inv.id}
+                type="button"
+                className="invite-row-btn"
+                onClick={() => {
+                  setShowQr(false);
+                  setDetailInvite(inv);
+                }}
+              >
+                <span className="invite-row-info">
                   <PanelTitle>{formatCode(inv.code)}</PanelTitle>
                   <PanelText>
                     {inviteStatus(inv) === "active"
@@ -241,13 +159,174 @@ export function InviteSitter(): React.ReactElement {
                       : "Not used yet"}{" "}
                     · ends {fmtWhen(inv.expires_at)}
                   </PanelText>
-                </VStack>
-                <Button label="Revoke" size="sm" variant="ghost" onClick={() => void revoke(inv.id)} />
-              </HStack>
+                </span>
+                <span className="invite-row-caret" aria-hidden>
+                  <Icon icon={Icons.caretRight} color="inherit" />
+                </span>
+              </button>
             ))}
           </VStack>
         )}
+
+        {/* New invite — opens the duration chooser sheet */}
+        <Button
+          label={active.length > 0 ? "New invite" : "Invite a sitter"}
+          variant={active.length > 0 ? "secondary" : "primary"}
+          onClick={() => {
+            setPreset("tonight");
+            setChoosing(true);
+          }}
+          fullWidth
+        />
+
+      {/* Invite detail — bottom sheet with the code + actions */}
+      {detailInvite && (
+        <div className="walk-sheet-scrim" onClick={() => setDetailInvite(null)}>
+          <div
+            className="chooser-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Invite code"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span
+              aria-hidden
+              style={{
+                width: 36,
+                height: 5,
+                borderRadius: 100,
+                background: "rgba(233,228,196,0.3)",
+                alignSelf: "center",
+                marginBottom: 20,
+              }}
+            />
+            <VStack gap={2}>
+              <VStack gap={0.5}>
+                <PanelTitle>Sitter code</PanelTitle>
+                <PanelText>
+                  {inviteStatus(detailInvite) === "active"
+                    ? `In use${detailInvite.claimed_by ? ` · ${detailInvite.claimed_by}` : ""}`
+                    : "Not used yet"}{" "}
+                  · ends {fmtWhen(detailInvite.expires_at)}
+                </PanelText>
+              </VStack>
+
+              <div className="invite-code" style={{ alignSelf: "center" }}>
+                {formatCode(detailInvite.code)}
+              </div>
+
+              {showQr && (
+                <div className="invite-qr" style={{ alignSelf: "center" }}>
+                  <QRCodeSVG
+                    value={sitterLink(detailInvite.code)}
+                    size={168}
+                    level="M"
+                    marginSize={2}
+                    fgColor="#352b25"
+                    bgColor="#ffffff"
+                  />
+                </div>
+              )}
+
+              <HStack gap={2} style={{ width: "100%" }}>
+                <Button
+                  label="Copy code"
+                  variant="secondary"
+                  onClick={() => void copy(formatCode(detailInvite.code), "Code")}
+                  style={{ flex: 1, minWidth: 0 }}
+                />
+                <Button
+                  label="Copy link"
+                  variant="secondary"
+                  onClick={() => void copy(sitterLink(detailInvite.code), "Link")}
+                  style={{ flex: 1, minWidth: 0 }}
+                />
+              </HStack>
+              <Button
+                label={showQr ? "Hide QR code" : "Show QR code"}
+                variant="secondary"
+                onClick={() => setShowQr((v) => !v)}
+                fullWidth
+              />
+              <Button
+                label="Revoke access"
+                variant="destructive"
+                onClick={() => void revoke(detailInvite.id)}
+                fullWidth
+              />
+            </VStack>
+          </div>
+        </div>
+      )}
+
+      {/* Duration chooser — bottom sheet */}
+      {choosing && (
+        <div className="walk-sheet-scrim" onClick={() => setChoosing(false)}>
+          <div
+            className="chooser-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Choose invite duration"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span
+              aria-hidden
+              style={{
+                width: 36,
+                height: 5,
+                borderRadius: 100,
+                background: "rgba(233,228,196,0.3)",
+                alignSelf: "center",
+                marginBottom: 20,
+              }}
+            />
+            <VStack gap={2}>
+              <VStack gap={0.5}>
+                <PanelTitle>How long?</PanelTitle>
+                <PanelText>Pick how long the sitter's access should last.</PanelText>
+              </VStack>
+
+              <div className="invite-durations">
+                {DURATIONS.map((d) => (
+                  <button
+                    key={d.value}
+                    type="button"
+                    className={"invite-chip" + (preset === d.value ? " selected" : "")}
+                    onClick={() => setPreset(d.value)}
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+              {preset === "custom" && (
+                <input
+                  type="datetime-local"
+                  className="invite-datetime"
+                  value={customAt}
+                  onChange={(e) => setCustomAt(e.target.value)}
+                  aria-label="Custom expiry"
+                />
+              )}
+
+              <VStack gap={1.5}>
+                <Button
+                  label={busy ? "Creating…" : "Create invite"}
+                  variant="primary"
+                  onClick={() => void create()}
+                  isDisabled={busy || (preset === "custom" && !customAt)}
+                  fullWidth
+                />
+                <Button
+                  label="Cancel"
+                  variant="ghost"
+                  onClick={() => setChoosing(false)}
+                  fullWidth
+                />
+              </VStack>
+            </VStack>
+          </div>
+        </div>
+      )}
       </VStack>
-    </Panel>
   );
 }

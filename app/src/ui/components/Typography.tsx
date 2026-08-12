@@ -43,12 +43,12 @@ export function PageTitle({
   );
 }
 
-/** Small uppercase, tracked label — greetings, section eyebrows, stat captions. */
+/** Small uppercase label — greetings, section eyebrows, stat captions. */
 export function Eyebrow({
   children,
   color = "var(--color-pawpal-muted)",
-  size = 12,
-  tracking = 1,
+  size = 14,
+  tracking = 0,
   style,
 }: {
   children: ReactNode;
@@ -60,9 +60,15 @@ export function Eyebrow({
   return (
     <span
       style={{
+        display: "flex",
+        padding: "8px 16px 0 16px",
+        alignItems: "center",
+        alignSelf: "stretch",
         fontFamily: "var(--font-ui)",
         fontWeight: 700,
         fontSize: size,
+        fontStyle: "normal",
+        lineHeight: "normal",
         letterSpacing: tracking,
         color,
         textTransform: "uppercase",

@@ -18,6 +18,8 @@ export interface Avatar {
   nose: string;
   /** Background circle colour (hex) shown behind the dog. */
   bg?: string;
+  /** When set, render this hand-drawn sticker instead of the composed dog. */
+  sticker?: string;
 }
 
 export interface Profile {
