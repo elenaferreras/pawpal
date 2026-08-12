@@ -2009,10 +2009,16 @@ body.modal-open {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  overflow: hidden;
+  /* Clip the doodles that bleed off the sides, but let the page scroll
+     vertically so the CTAs are never clipped on short screens. */
+  overflow-x: hidden;
+  overflow-y: auto;
   background: var(--color-pawpal-page);
   display: flex;
   flex-direction: column;
+  /* Match the rest of the app: constrain to a phone width and centre. */
+  max-width: 430px;
+  margin: 0 auto;
   padding-top: env(safe-area-inset-top, 0px);
 }
 /* Top region that holds the hand-drawn dog doodles. */
@@ -2512,10 +2518,14 @@ body.modal-open {
 
 /* ── Sitter claim (reuses the .obw shell, content centered) ─────────────── */
 .obw--plain {
-  justify-content: center;
+  /* No justify-content: center here — that clips the top of the content on
+     short screens. Auto margins on the CTA block centre it when there's room
+     and fall back to top-aligned + scrollable when there isn't. */
+  justify-content: flex-start;
 }
 .obw-ctas--top {
-  margin-top: 0;
+  margin-top: auto;
+  margin-bottom: auto;
   justify-content: center;
 }
 .sitclaim-input {
