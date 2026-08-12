@@ -29,6 +29,15 @@
     <!-- Frosted-glass status-bar overlay for iOS home-screen (standalone) mode.
          Purely decorative; styling + display-mode gating live in global.css. -->
     <div class="ios-status-blur" aria-hidden="true"></div>
+    <!-- Portrait-only lock: shown over the app when a touch device is rotated
+         to landscape (styling + orientation gating live in global.css). -->
+    <div class="orientation-lock" role="alertdialog" aria-label="Rotate your device">
+      <div class="orientation-lock-inner">
+        <div class="orientation-lock-icon" aria-hidden="true">📱</div>
+        <p class="orientation-lock-title">Please rotate your device</p>
+        <p class="orientation-lock-text">PawPal is designed for portrait mode.</p>
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/ui/main.tsx"></script>
   </body>

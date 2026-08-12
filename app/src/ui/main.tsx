@@ -16,6 +16,18 @@ if (isStandalone) {
   document.documentElement.classList.add("pwa-standalone");
 }
 
+// PawPal is portrait-only. Ask the browser to lock orientation where supported
+// (Android/Chromium in standalone); this is best-effort and throws on engines
+// that don't allow it (e.g. iOS Safari), which is fine — the CSS
+// `.orientation-lock` overlay handles the fallback.
+const orientation = (screen as Screen & { orientation?: { lock?: (o: string) => Promise<void> } })
+  .orientation;
+if (orientation?.lock) {
+  orientation.lock("portrait").catch(() => {
+    // Unsupported or disallowed; the CSS overlay covers this case.
+  });
+}
+
 // Status-bar overlay: page-coloured at rest, transparent once scrolled so
 // content passes behind it. Toggle the `.scrolled` class on any scroll.
 const statusBar = document.querySelector<HTMLElement>(".ios-status-blur");

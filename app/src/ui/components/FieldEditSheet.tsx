@@ -87,18 +87,7 @@ export function FieldEditSheet({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Toolbar */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingBottom: 10 }}>
-          <span
-            aria-hidden
-            style={{
-              width: 36,
-              height: 5,
-              borderRadius: 100,
-              background: "rgba(53,43,37,0.3)",
-              marginTop: 5,
-              marginBottom: 11,
-            }}
-          />
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "12px 0 10px" }}>
           <div
             style={{
               display: "flex",
