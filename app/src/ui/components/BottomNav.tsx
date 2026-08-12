@@ -31,6 +31,8 @@ interface BottomNavProps {
   onAction?: () => void;
   /** When true, the tab pill slides out and the fab becomes a close (✕). */
   menuOpen?: boolean;
+  /** Hide the nav entirely (e.g. on Settings, which closes with its own ✕). */
+  hidden?: boolean;
 }
 
 export function BottomNav({
@@ -39,7 +41,10 @@ export function BottomNav({
   onNavigate,
   onAction,
   menuOpen = false,
-}: BottomNavProps): React.ReactElement {
+  hidden = false,
+}: BottomNavProps): React.ReactElement | null {
+  if (hidden) return null;
+
   // New design: a single yellow launcher. On the home screen it opens the track
   // menu (grid icon); on any other screen it becomes a Home button back to Today.
   if (variant === "trigger") {

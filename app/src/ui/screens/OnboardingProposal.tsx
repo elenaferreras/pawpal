@@ -4,7 +4,7 @@ import { Text, Heading } from "@astryxdesign/core/Text";
 import { Button } from "../components/Button";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { Slider } from "@astryxdesign/core/Slider";
-import { Switch } from "@astryxdesign/core/Switch";
+import { Toggle } from "../components/Toggle";
 import { Icon } from "@astryxdesign/core/Icon";
 import { Icons } from "../lib/icons";
 import { useDb } from "../lib/store";
@@ -783,7 +783,7 @@ function NotifOption({
       ) : (
         <span className="obp-notif-caption">{caption}</span>
       )}
-      <Switch label={`${label} reminders`} isLabelHidden value={enabled} onChange={onToggle} />
+      <Toggle label={`${label} reminders`} value={enabled} onChange={onToggle} />
     </div>
   );
 }

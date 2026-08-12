@@ -110,8 +110,82 @@ function checkReminders(db: Database): void {
     }
   }
 
+  // Per-meal-slot reminders: fire at each configured time when that slot has
+  // not been logged today.
+  if (config.mealReminders?.enabled) {
+    const mealsPerDay = db.profile.mealsPerDay || 4;
+    const times = config.mealReminders.times;
+    for (let slot = 0; slot < mealsPerDay; slot++) {
+      const t = times[slot];
+      if (!t) continue;
+      const [th, tm] = t.split(":").map(Number);
+      if (h !== th || m !== tm) continue;
+      const key = "meal_" + todayStr + "_" + slot;
+      if (fired[key]) continue;
+      const logged = db.meals.some((meal) => meal.date === todayStr && meal.mealSlot === slot);
+      if (!logged) {
+        sendNotification(
+          "Feeding time! 🍖",
+          db.profile.name
+            ? `Time for ${db.profile.name}’s meal ${slot + 1}.`
+            : "Time to feed your pup!",
+          "meal-reminder-" + slot,
+        );
+      }
+      fired[key] = true;
+      saveFired(fired);
+    }
+  }
+
+  // Medication reminders: a daily nudge (09:00) while a medication course is
+  // active (started, and not yet ended).
+  if (config.medicationReminder?.enabled && h === 9 && m < 5) {
+    const key = "med_" + todayStr;
+    if (!fired[key]) {
+      const active = db.vetRecords.medications.filter((med) => {
+        if (med.start && new Date(med.start) > now) return false;
+        if (med.end && new Date(med.end) < now) return false;
+        return true;
+      });
+      active.forEach((med) => {
+        sendNotification(
+          "Medication reminder 💊",
+          med.name + (med.dose ? " — " + med.dose : ""),
+          "med-" + med.name,
+        );
+      });
+      if (active.length > 0) {
+        fired[key] = true;
+        saveFired(fired);
+      }
+    }
+  }
+
+  // Vaccination reminders: notify one day before a vaccine's next-due date.
+  if (config.vaccinationReminder?.enabled && h === 9 && m < 5) {
+    const key = "vacc_" + todayStr;
+    if (!fired[key]) {
+      const dueSoon = db.vetRecords.vaccines.filter((v) => {
+        if (!v.nextDue) return false;
+        const diff = (new Date(v.nextDue).getTime() - now.getTime()) / 86400000;
+        return diff >= 0 && diff <= 1;
+      });
+      dueSoon.forEach((v) => {
+        sendNotification(
+          "Vaccination due 💉",
+          v.name + (v.nextDue ? " — due " + v.nextDue : ""),
+          "vacc-" + v.name,
+        );
+      });
+      if (dueSoon.length > 0) {
+        fired[key] = true;
+        saveFired(fired);
+      }
+    }
+  }
+
   const vetKey = "vet_" + todayStr;
-  if (!fired[vetKey] && h === 9 && m < 5) {
+  if (config.vetReminder?.enabled && !fired[vetKey] && h === 9 && m < 5) {
     const upcoming = db.vetRecords.reminders.filter((r) => {
       if (!r.date) return false;
       const diff = (new Date(r.date).getTime() - now.getTime()) / 86400000;

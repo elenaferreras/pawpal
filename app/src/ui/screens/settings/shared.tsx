@@ -12,9 +12,10 @@ export const MUTED = "var(--color-pawpal-muted)"; // #8C8976
 type LucideIcon = ComponentType<{ color?: string; size?: number }>;
 
 /**
- * Full-screen wrapper for a Settings page. Dark page background, dashboard-style
- * header with a back chevron and a large cream title. Leaves room for the fixed
- * bottom navigation.
+ * Full-screen wrapper for a Settings subpage (2nd-level). Dark page background,
+ * a centred navigation header with a back caret on the left and an optional
+ * trailing action on the right. The 1st-level Settings hub uses its own large
+ * title header instead.
  */
 export function SettingsPage({
   title,
@@ -32,15 +33,15 @@ export function SettingsPage({
       style={{
         minHeight: "100vh",
         background: DARK,
-        paddingBottom: "calc(96px + env(safe-area-inset-bottom, 20px))",
+        paddingBottom: "calc(32px + env(safe-area-inset-bottom, 20px))",
       }}
     >
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 10,
-          padding: "calc(16px + env(safe-area-inset-top, 0px)) 16px 12px",
+          gap: 8,
+          padding: "calc(12px + env(safe-area-inset-top, 0px)) 8px 12px",
         }}
       >
         <button
@@ -50,7 +51,6 @@ export function SettingsPage({
           style={{
             width: 44,
             height: 44,
-            marginLeft: -8,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -65,10 +65,13 @@ export function SettingsPage({
         </button>
         <span
           style={{
+            flex: 1,
+            minWidth: 0,
+            textAlign: "center",
             fontFamily: "var(--font-ui)",
-            fontWeight: 700,
-            fontSize: 26,
-            lineHeight: 1,
+            fontWeight: 600,
+            fontSize: 18,
+            lineHeight: "22px",
             color: HERO,
             overflow: "hidden",
             textOverflow: "ellipsis",
@@ -77,7 +80,18 @@ export function SettingsPage({
         >
           {title}
         </span>
-        {action && <div style={{ marginLeft: "auto", flexShrink: 0 }}>{action}</div>}
+        <div
+          style={{
+            width: 44,
+            height: 44,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          {action}
+        </div>
       </div>
       <div style={{ padding: "4px 16px 0" }}>{children}</div>
     </div>

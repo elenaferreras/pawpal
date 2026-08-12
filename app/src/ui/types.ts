@@ -157,5 +157,11 @@ export interface ReminderConfigEntry {
 export interface NotifConfig {
   walkReminder?: ReminderConfigEntry;
   feedReminder?: ReminderConfigEntry;
+  /** Per-meal-slot reminders; `times[i]` is "HH:MM" for meal slot i. */
+  mealReminders?: { enabled: boolean; times: string[] };
   vetReminder?: { enabled: boolean };
+  /** Daily reminder while a medication course is active. */
+  medicationReminder?: { enabled: boolean };
+  /** Notify one day before a vaccine's next-due date. */
+  vaccinationReminder?: { enabled: boolean };
 }

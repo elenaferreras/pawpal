@@ -5,43 +5,66 @@ interface MealsWidgetProps {
   total: number;
 }
 
-/** Pacman marker — sits at the frontier between eaten and to-eat dots. */
+/**
+ * Pixel-art pacman facing right (Figma node 58:2146). Rendered as one crisp
+ * rect per pixel row so it keeps its retro, aliased edges at any size.
+ */
 function Pacman(): React.ReactElement {
+  // [startCol, endCol] filled run per row on a 12×12 pixel grid. The right edge
+  // recedes toward the centre at the vertical middle to cut the mouth wedge.
+  const rows: [number, number][] = [
+    [4, 7],
+    [3, 9],
+    [2, 10],
+    [1, 11],
+    [1, 9],
+    [0, 7],
+    [0, 7],
+    [1, 9],
+    [1, 11],
+    [2, 10],
+    [3, 9],
+    [4, 7],
+  ];
   return (
     <svg
-      width={36}
-      height={36}
-      viewBox="0 0 36 36"
+      width={20}
+      height={22}
+      viewBox="0 0 12 12"
+      preserveAspectRatio="none"
+      shapeRendering="crispEdges"
       aria-hidden="true"
       style={{ flexShrink: 0, display: "block" }}
     >
-      {/* Circle with a wedge cut on the right for the mouth. */}
-      <path d="M18 18 L33.6 9 A18 18 0 1 0 33.6 27 Z" fill="var(--color-pawpal-fab)" />
+      {rows.map(([s, e], y) => (
+        <rect key={y} x={s} y={y} width={e - s + 1} height={1} fill="var(--color-pawpal-fab)" />
+      ))}
     </svg>
   );
 }
 
-function Dot({ eaten }: { eaten?: boolean }): React.ReactElement {
+/** Small square meal marker: hollow (white border) when eaten, solid white when still to eat. */
+function Marker({ eaten }: { eaten?: boolean }): React.ReactElement {
   return (
     <div
       style={{
-        flex: "1 0 0",
-        minWidth: 0,
-        aspectRatio: "1",
-        borderRadius: "50%",
-        background: "var(--color-meal-dot)",
-        opacity: eaten ? 0.3 : 1,
+        width: 8,
+        height: 8,
+        flexShrink: 0,
+        boxSizing: "border-box",
+        background: eaten ? "transparent" : "#fff",
+        border: eaten ? "2px solid #fff" : "none",
       }}
     />
   );
 }
 
 /**
- * Meals widget (Figma node 12:659).
+ * Meals widget (Figma node 58:2149).
  *
- * Dark rounded pill: eaten meals shown as faded dots, a pacman at the eating
- * frontier, remaining meals as bright dots, and an "N of total meals" label.
- * Colours come from theme tokens (pacman reuses --color-pawpal-fab).
+ * Dark rounded row: eaten meals shown as hollow white squares, a pacman at the
+ * eating frontier, and remaining meals as solid white squares — spread edge to
+ * edge with no label.
  */
 export function MealsWidget({ eaten, total }: MealsWidgetProps): React.ReactElement {
   const done = Math.max(0, Math.min(eaten, total));
@@ -54,33 +77,20 @@ export function MealsWidget({ eaten, total }: MealsWidgetProps): React.ReactElem
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 16,
-        padding: "8px 16px",
+        justifyContent: "space-between",
+        gap: 8,
+        padding: "16px 32px",
         borderRadius: 24,
         background: "var(--color-meal-widget-bg)",
       }}
     >
       {Array.from({ length: done }, (_, i) => (
-        <Dot key={`eaten-${i}`} eaten />
+        <Marker key={`eaten-${i}`} eaten />
       ))}
       <Pacman />
       {Array.from({ length: remaining }, (_, i) => (
-        <Dot key={`toeat-${i}`} />
+        <Marker key={`toeat-${i}`} />
       ))}
-      <p
-        aria-hidden="true"
-        style={{
-          margin: 0,
-          fontSize: 24,
-          fontWeight: 700,
-          lineHeight: "normal",
-          color: "var(--color-on-dark)",
-          whiteSpace: "nowrap",
-          textAlign: "right",
-        }}
-      >
-        {done} of {total} meals
-      </p>
     </div>
   );
 }

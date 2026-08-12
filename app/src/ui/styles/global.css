@@ -1983,7 +1983,7 @@ body.modal-open {
 
 .notif {
   position: fixed;
-  top: 24px;
+  top: calc(16px + env(safe-area-inset-top, 0px));
   left: 50%;
   transform: translateX(-50%);
   background: var(--text);
@@ -1992,7 +1992,7 @@ body.modal-open {
   border-radius: var(--radius-pill);
   font-size: 14px;
   font-weight: 600;
-  z-index: 999;
+  z-index: 1100;
   opacity: 0;
   transition: opacity 0.2s;
   pointer-events: none;

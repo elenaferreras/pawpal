@@ -329,6 +329,16 @@ export function Dashboard({
       {/* Meals progress */}
       <div style={{ padding: "8px 16px 0" }}>
         <div
+          role="button"
+          tabIndex={0}
+          aria-label="Meals"
+          onClick={() => onNavigate("food")}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onNavigate("food");
+            }
+          }}
           style={{
             background: "var(--color-dash-surface)",
             borderRadius: 32,
@@ -337,6 +347,7 @@ export function Dashboard({
             alignItems: "center",
             justifyContent: "space-between",
             gap: 12,
+            cursor: "pointer",
           }}
         >
           <CardTitle color={HERO}>Meals</CardTitle>
@@ -352,7 +363,10 @@ export function Dashboard({
                     type="button"
                     aria-pressed={done}
                     aria-label={`${ORDINALS[slot] ?? `Meal ${slot + 1}`} meal${done ? ", eaten" : ""}`}
-                    onClick={() => toggleMeal(slot)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleMeal(slot);
+                    }}
                     style={{
                       width: 32,
                       height: 32,

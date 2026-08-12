@@ -171,7 +171,9 @@ export function ProfileDetails({ onBack }: ProfileDetailsProps): React.ReactElem
           label="Edit"
           onClick={() => setAvatarOpen(true)}
           style={{
+            width: "auto",
             minWidth: 0,
+            margin: 0,
             padding: "8px 24px",
             fontSize: 16,
             fontWeight: 510,

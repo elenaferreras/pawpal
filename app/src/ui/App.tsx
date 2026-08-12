@@ -257,6 +257,7 @@ function Shell(): React.ReactElement {
             onNavigate={navigate}
             onAction={() => setTrackOpen((v) => !v)}
             menuOpen={trackOpen}
+            hidden={screen.startsWith("settings")}
           />
 
           <TrackMenu
