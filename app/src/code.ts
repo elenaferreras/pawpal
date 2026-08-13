@@ -53,6 +53,33 @@ sw.addEventListener("fetch", (event) => {
   );
 });
 
+// Web Push — show a notification pushed from the server (e.g. a sitter logged
+// activity). Fires even when the app is closed, as long as the browser's push
+// service can wake this worker.
+interface PushPayload {
+  title?: string;
+  body?: string;
+  tag?: string;
+}
+
+sw.addEventListener("push", (event) => {
+  const data: PushPayload = (() => {
+    try {
+      return event.data ? (event.data.json() as PushPayload) : {};
+    } catch {
+      return {};
+    }
+  })();
+  const title = data.title || "PawPal \u{1F43E}";
+  const options: NotificationOptions = {
+    body: data.body || "New activity from your sitter.",
+    tag: data.tag || "sitter-activity",
+    icon: "./icon-192.png",
+    badge: "./icon-192.png",
+  };
+  event.waitUntil(sw.registration.showNotification(title, options));
+});
+
 // Focus (or open) the app when a notification is clicked.
 sw.addEventListener("notificationclick", (event) => {
   event.notification.close();

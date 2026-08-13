@@ -5,6 +5,7 @@
 // POST body: { token: string, entry: { type: "walk"|"meal"|"bathroom", data: object } }
 //   → { ok: true, snapshot }   (snapshot = the owner's updated payload)
 import { json, preflight, sb } from "../_shared/util.ts";
+import { sendOwnerPush } from "../_shared/push.ts";
 
 interface SessionRow {
   owner_row_key: string;
@@ -99,6 +100,23 @@ Deno.serve(async (req) => {
     }),
   });
   if (!wRes.ok) return json({ error: "write_failed" }, 500);
+
+  // Notify the owner (best-effort) that their sitter logged something — this
+  // reaches their phone even when the PawPal app is closed.
+  const profile = (payload.profile ?? {}) as { name?: string };
+  const dog = profile.name?.trim();
+  const who = dog ? `${dog}'s sitter` : "Your sitter";
+  const what =
+    type === "walk"
+      ? "logged a walk \u{1F43E}"
+      : type === "meal"
+        ? "logged a meal \u{1F356}"
+        : "logged a bathroom break \u{1F4A9}";
+  await sendOwnerPush(session.owner_row_key, {
+    title: "Sitter update \u{1F43E}",
+    body: `${who} ${what}.`,
+    tag: "sitter-activity",
+  });
 
   return json({ ok: true, snapshot: payload });
 });

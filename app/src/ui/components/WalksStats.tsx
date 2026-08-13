@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, Fragment } from "react";
 import { useDb } from "../lib/store";
 import { Icon } from "@astryxdesign/core/Icon";
 import { Icons } from "../lib/icons";
@@ -92,12 +92,13 @@ export function WalksStats({ onBack, onAdd }: WalksStatsProps): React.ReactEleme
   const entries = useMemo(() => {
     const now = new Date();
     const todayStr = localISO(now);
+    // Newest walk first, using the walk's own date + time (falling back to the
+    // created timestamp) rather than only when the row was inserted.
+    const stamp = (w: Walk): number =>
+      new Date(`${w.date}T${w.time || "00:00"}`).getTime() || new Date(w.created || w.date).getTime();
     const sorted = db.walks
       .map((w, index) => ({ w, index }))
-      .sort(
-        (a, b) =>
-          new Date(b.w.created || b.w.date).getTime() - new Date(a.w.created || a.w.date).getTime(),
-      );
+      .sort((a, b) => stamp(b.w) - stamp(a.w));
     if (filter === "today") return sorted.filter(({ w }) => w.date === todayStr);
     if (filter === "month")
       return sorted.filter(({ w }) => {
@@ -310,44 +311,72 @@ export function WalksStats({ onBack, onAdd }: WalksStatsProps): React.ReactEleme
         )}
       </div>
 
-      {/* Filter + walk entries (Figma node 58:2161). */}
+      {/* Filter + walk entries (Figma node 262:6584). */}
       <div
         style={{
           display: "flex",
-          gap: 4,
+          alignItems: "center",
           padding: 4,
+          height: 48,
           marginTop: 24,
-          borderRadius: 20,
+          borderRadius: 100,
           background: "#221D1A",
         }}
       >
-        {WALK_FILTERS.map((f) => {
-          const active = filter === f.value;
-          return (
-            <button
-              key={f.value}
-              type="button"
-              aria-pressed={active}
-              onClick={() => setFilter(f.value)}
-              style={{
-                flex: 1,
-                minWidth: 0,
-                padding: 16,
-                borderRadius: 16,
-                border: "none",
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                fontFamily: "var(--font-ui)",
-                fontWeight: active ? 700 : 500,
-                fontSize: 16,
-                background: active ? "var(--color-dash-walk)" : "var(--color-pawpal-page)",
-                color: active ? "var(--color-pawpal-page)" : "var(--color-dash-walk)",
-              }}
-            >
-              {f.label}
-            </button>
-          );
-        })}
+        <div
+          style={{
+            display: "flex",
+            flex: 1,
+            minWidth: 0,
+            height: "100%",
+            alignItems: "center",
+            borderRadius: 64,
+            background: "var(--color-pawpal-page)",
+          }}
+        >
+          {WALK_FILTERS.map((f, i) => {
+            const active = filter === f.value;
+            const prevActive = i > 0 && filter === WALK_FILTERS[i - 1].value;
+            const showDivider = i > 0 && !active && !prevActive;
+            return (
+              <Fragment key={f.value}>
+                {showDivider && (
+                  <span
+                    aria-hidden
+                    style={{
+                      width: 1,
+                      height: 20,
+                      flexShrink: 0,
+                      background: "rgba(233, 228, 196, 0.25)",
+                    }}
+                  />
+                )}
+                <button
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setFilter(f.value)}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    height: "100%",
+                    padding: "0 12px",
+                    borderRadius: 40,
+                    border: "none",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    fontFamily: "var(--font-ui)",
+                    fontWeight: active ? 700 : 500,
+                    fontSize: 16,
+                    background: active ? "var(--color-dash-walk)" : "transparent",
+                    color: active ? "var(--color-pawpal-page)" : "var(--color-dash-walk)",
+                  }}
+                >
+                  {f.label}
+                </button>
+              </Fragment>
+            );
+          })}
+        </div>
       </div>
 
       <div

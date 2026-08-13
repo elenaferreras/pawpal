@@ -6,6 +6,7 @@ import { useDb } from "../../lib/store";
 import { useToast } from "../../lib/toast";
 import { syncFromSupabase } from "../../lib/supabase";
 import { getCurrentUser, signIn, signOut, signUp, type AuthUser } from "../../lib/auth";
+import { subscribeToPush, unsubscribeFromPush } from "../../lib/push";
 import { SettingsPage, Panel, PanelTitle, PanelText } from "./shared";
 
 /**
@@ -50,6 +51,8 @@ export function AccountScreen({ onBack }: { onBack: () => void }): React.ReactEl
         } catch {
           // Ignore pull failure; local data is untouched.
         }
+        // Register this device for sitter push notifications (best-effort).
+        void subscribeToPush();
         toast("Signed in ✓");
       }
       setEmail("");
@@ -62,6 +65,7 @@ export function AccountScreen({ onBack }: { onBack: () => void }): React.ReactEl
   };
 
   const doSignOut = async (): Promise<void> => {
+    await unsubscribeFromPush();
     await signOut();
     toast("Signed out");
   };

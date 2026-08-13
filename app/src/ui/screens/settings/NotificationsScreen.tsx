@@ -8,6 +8,7 @@ import {
   requestNotificationPermission,
   saveNotifConfig,
 } from "../../lib/notifications";
+import { subscribeToPush } from "../../lib/push";
 import type { NotifConfig, ReminderConfigEntry } from "../../types";
 import { HERO, MUTED, SURFACE, SettingsPage, SectionLabel } from "./shared";
 
@@ -53,12 +54,16 @@ export function NotificationsScreen({ onBack }: { onBack: () => void }): React.R
     if (perm === "granted" || perm === "unsupported") return;
     await requestNotificationPermission();
     setPerm("Notification" in window ? Notification.permission : "unsupported");
+    void subscribeToPush();
   };
 
   const enable = async (): Promise<void> => {
     const granted = await requestNotificationPermission();
     setPerm("Notification" in window ? Notification.permission : "unsupported");
-    if (granted) toast("Notifications enabled!");
+    if (granted) {
+      void subscribeToPush();
+      toast("Notifications enabled!");
+    }
   };
 
   const mealsPerDay = db.profile.mealsPerDay || 4;

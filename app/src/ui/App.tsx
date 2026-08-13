@@ -42,6 +42,7 @@ import {
   saveSitterSession,
   type SitterState,
 } from "./lib/sitter";
+import { subscribeToPush } from "./lib/push";
 
 export function App(): React.ReactElement {
   const isDesktop = useIsDesktop();
@@ -109,6 +110,17 @@ function Shell(): React.ReactElement {
   useEffect(() => {
     setupReminderChecks(getDb);
   }, [getDb]);
+
+  // Re-register this device for sitter push notifications when signed in and
+  // permission is already granted (no-op otherwise). Also re-runs on sign-in.
+  useEffect(() => {
+    const sync = (): void => {
+      if (isSignedIn()) void subscribeToPush();
+    };
+    sync();
+    window.addEventListener("pawpal:auth", sync);
+    return () => window.removeEventListener("pawpal:auth", sync);
+  }, []);
 
   // Live-refresh: while signed in and visible, pull in activities a sitter has
   // logged to the owner's cloud data (additive merge, ~every 12s).

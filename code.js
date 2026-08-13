@@ -34,6 +34,23 @@
       })()
     );
   });
+  sw.addEventListener("push", (event) => {
+    const data = (() => {
+      try {
+        return event.data ? event.data.json() : {};
+      } catch {
+        return {};
+      }
+    })();
+    const title = data.title || "PawPal \u{1F43E}";
+    const options = {
+      body: data.body || "New activity from your sitter.",
+      tag: data.tag || "sitter-activity",
+      icon: "./icon-192.png",
+      badge: "./icon-192.png"
+    };
+    event.waitUntil(sw.registration.showNotification(title, options));
+  });
   sw.addEventListener("notificationclick", (event) => {
     event.notification.close();
     event.waitUntil(
