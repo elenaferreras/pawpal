@@ -5,6 +5,9 @@ import { Icons } from "../lib/icons";
 import { useLiveWalk } from "./LiveWalk";
 import { RouteMap } from "./RouteMap";
 import { PageTitle, StatNumber } from "./Typography";
+import { DogFace } from "../avatar/DogAvatar";
+import { fmtDate } from "../lib/date";
+import type { Walk } from "../types";
 
 interface WalksStatsProps {
   /** Optional back affordance; omitted when shown as a tab. */
@@ -15,6 +18,20 @@ interface WalksStatsProps {
 
 const WEEKDAYS = ["M", "T", "W", "T", "F", "S", "S"];
 const WEEKS = 5;
+
+type WalkFilter = "today" | "month" | "all";
+
+const WALK_FILTERS: { value: WalkFilter; label: string }[] = [
+  { value: "today", label: "Day" },
+  { value: "month", label: "Month" },
+  { value: "all", label: "All" },
+];
+
+/** Colours for the two walk assignees, keyed off the tracker's Person A/B. */
+const ASSIGNEE_STYLE: Record<string, { bg: string; initials: string }> = {
+  "Person A": { bg: "#9CCFFF", initials: "A" },
+  "Person B": { bg: "#FFFF83", initials: "B" },
+};
 
 /** Local YYYY-MM-DD (avoids UTC off-by-one from toISOString). */
 function localISO(d: Date): string {
@@ -38,6 +55,7 @@ export function WalksStats({ onBack, onAdd }: WalksStatsProps): React.ReactEleme
   const { db } = useDb();
   const { active: walkActive, coords, openSheet } = useLiveWalk();
   const [selected, setSelected] = useState<number | null>(null);
+  const [filter, setFilter] = useState<WalkFilter>("today");
 
   const { days, maxSteps, avg } = useMemo(() => {
     const stepsByDay = new Map<string, number>();
@@ -70,6 +88,24 @@ export function WalksStats({ onBack, onAdd }: WalksStatsProps): React.ReactEleme
 
   const name = db.profile.name.trim() || "Zipi";
   const selectedDay = selected !== null ? days[selected] : null;
+
+  const entries = useMemo(() => {
+    const now = new Date();
+    const todayStr = localISO(now);
+    const sorted = db.walks
+      .map((w, index) => ({ w, index }))
+      .sort(
+        (a, b) =>
+          new Date(b.w.created || b.w.date).getTime() - new Date(a.w.created || a.w.date).getTime(),
+      );
+    if (filter === "today") return sorted.filter(({ w }) => w.date === todayStr);
+    if (filter === "month")
+      return sorted.filter(({ w }) => {
+        const d = new Date(w.date + "T12:00:00");
+        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+      });
+    return sorted;
+  }, [db.walks, filter]);
 
   return (
     <div
@@ -273,7 +309,220 @@ export function WalksStats({ onBack, onAdd }: WalksStatsProps): React.ReactEleme
           </>
         )}
       </div>
+
+      {/* Filter + walk entries (Figma node 58:2161). */}
+      <div
+        style={{
+          display: "flex",
+          gap: 4,
+          padding: 4,
+          marginTop: 24,
+          borderRadius: 20,
+          background: "#221D1A",
+        }}
+      >
+        {WALK_FILTERS.map((f) => {
+          const active = filter === f.value;
+          return (
+            <button
+              key={f.value}
+              type="button"
+              aria-pressed={active}
+              onClick={() => setFilter(f.value)}
+              style={{
+                flex: 1,
+                minWidth: 0,
+                padding: 16,
+                borderRadius: 16,
+                border: "none",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                fontFamily: "var(--font-ui)",
+                fontWeight: active ? 700 : 500,
+                fontSize: 16,
+                background: active ? "var(--color-dash-walk)" : "var(--color-pawpal-page)",
+                color: active ? "var(--color-pawpal-page)" : "var(--color-dash-walk)",
+              }}
+            >
+              {f.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div
+        style={{
+          marginTop: 8,
+          borderRadius: 16,
+          overflow: "hidden",
+          background: "var(--color-settings-group)",
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+        }}
+      >
+        {entries.length === 0 ? (
+          <p
+            style={{
+              margin: 0,
+              padding: 24,
+              textAlign: "center",
+              fontFamily: "var(--font-ui)",
+              fontWeight: 400,
+              fontSize: 16,
+              color: "var(--color-pawpal-hero)",
+              opacity: 0.6,
+            }}
+          >
+            No walks {filter === "today" ? "today" : filter === "month" ? "this month" : "yet"}.
+          </p>
+        ) : (
+          entries.map(({ w, index }) => (
+            <WalkEntry key={index} walk={w} avatar={db.profile.avatar} />
+          ))
+        )}
+      </div>
     </div>
+  );
+}
+
+function WalkEntry({
+  walk,
+  avatar,
+}: {
+  walk: Walk;
+  avatar: Parameters<typeof DogFace>[0]["avatar"];
+}): React.ReactElement {
+  const hasRoute = Array.isArray(walk.gpsRoute) && walk.gpsRoute.length > 1;
+  const stepsNum = parseInt(String(walk.steps)) || 0;
+  const assignee = walk.assignee ? ASSIGNEE_STYLE[walk.assignee] : undefined;
+
+  return (
+    <div style={{ display: "flex", gap: 16, alignItems: "center", padding: 16 }}>
+      {/* Thumbnail: route map when available, else a green paw tile. */}
+      <div
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 8,
+          overflow: "hidden",
+          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "#A9E7A7",
+          color: "var(--color-pawpal-page)",
+        }}
+      >
+        {hasRoute && walk.gpsRoute ? (
+          <RouteThumb coords={walk.gpsRoute} size={40} />
+        ) : (
+          <Icon icon={Icons.pawPrint} width={24} height={24} color="inherit" />
+        )}
+      </div>
+
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+        <span
+          style={{
+            fontFamily: "var(--font-ui)",
+            fontWeight: 600,
+            fontSize: 16,
+            color: "var(--color-pawpal-hero)",
+          }}
+        >
+          {stepsNum > 0 ? `${stepsNum.toLocaleString("de-DE")} steps` : "Walk logged"}
+        </span>
+        <span
+          style={{
+            fontFamily: "var(--font-ui)",
+            fontWeight: 400,
+            fontSize: 16,
+            color: "var(--color-pawpal-hero)",
+            opacity: 0.8,
+          }}
+        >
+          {fmtDate(walk.date)}
+          {walk.time ? ` at ${walk.time}` : ""}
+        </span>
+      </div>
+
+      {/* Walkers: the pet plus (optionally) the assignee. */}
+      <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+        <div
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: "50%",
+            overflow: "hidden",
+            background: "#EDD4FD",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 2,
+            position: "relative",
+          }}
+        >
+          <DogFace avatar={avatar} size={32} />
+        </div>
+        {assignee && (
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              marginLeft: -4,
+              borderRadius: "50%",
+              background: assignee.bg,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontFamily: "var(--font-ui)",
+              fontWeight: 600,
+              fontSize: 14,
+              color: "var(--color-pawpal-page)",
+              zIndex: 1,
+            }}
+          >
+            {assignee.initials}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Compact GPS route thumbnail: the drawn line, normalised into a square. */
+function RouteThumb({ coords, size }: { coords: Walk["gpsRoute"]; size: number }): React.ReactElement | null {
+  const pts = coords ?? [];
+  if (pts.length < 2) return null;
+  const pad = 6;
+  const span = size - pad * 2;
+  const lats = pts.map((c) => c.lat);
+  const lngs = pts.map((c) => c.lng);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+  const dLat = maxLat - minLat || 0.0001;
+  const dLng = maxLng - minLng || 0.0001;
+  const scale = Math.min(span / dLng, span / dLat);
+  // Centre the route within the square.
+  const offX = pad + (span - dLng * scale) / 2;
+  const offY = pad + (span - dLat * scale) / 2;
+  const toX = (lng: number): number => offX + (lng - minLng) * scale;
+  const toY = (lat: number): number => offY + (maxLat - lat) * scale;
+  const d = pts.map((c, i) => `${i === 0 ? "M" : "L"}${toX(c.lng).toFixed(1)} ${toY(c.lat).toFixed(1)}`).join(" ");
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden>
+      <path
+        d={d}
+        fill="none"
+        stroke="var(--color-pawpal-page)"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 

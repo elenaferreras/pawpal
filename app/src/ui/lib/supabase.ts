@@ -1,5 +1,6 @@
 import type { Database } from "../types";
 import { getCurrentUserId, getValidAccessToken } from "./auth";
+import { sendNotification } from "./notifications";
 
 // Supabase cloud sync. The anon publishable key is safe to expose — row-level
 // security scopes each device's data. Ported from the original hardcoded setup.
@@ -214,5 +215,44 @@ export async function reconcileFromCloud(
     if (addMeals.length) d.meals = [...d.meals, ...addMeals];
     if (addBath.length) d.bathroom = [...d.bathroom, ...addBath];
   });
+
+  // Notify the owner about activities a sitter just logged.
+  notifySitterActivity(local, addWalks, addMeals, addBath);
   return true;
+}
+
+/**
+ * Surface a local notification when merged cloud entries were logged by a
+ * dog-sitter (server-tagged `by: "sitter"`). Only fires while the app is open;
+ * a single collapsing tag avoids a burst of separate banners.
+ */
+function notifySitterActivity(
+  db: Database,
+  walks: Database["walks"],
+  meals: Database["meals"],
+  bathroom: Database["bathroom"],
+): void {
+  const nWalks = walks.filter((w) => w.by === "sitter").length;
+  const nMeals = meals.filter((m) => m.by === "sitter").length;
+  const nBath = bathroom.filter((b) => b.by === "sitter").length;
+  const total = nWalks + nMeals + nBath;
+  if (total === 0) return;
+
+  const dog = db.profile?.name?.trim();
+  const who = dog ? `${dog}'s sitter` : "Your sitter";
+
+  let what: string;
+  if (total === 1) {
+    if (nWalks) what = "logged a walk 🐾";
+    else if (nMeals) what = "logged a meal 🍖";
+    else what = "logged a bathroom break 💩";
+  } else {
+    const parts: string[] = [];
+    if (nWalks) parts.push(`${nWalks} walk${nWalks > 1 ? "s" : ""}`);
+    if (nMeals) parts.push(`${nMeals} meal${nMeals > 1 ? "s" : ""}`);
+    if (nBath) parts.push(`${nBath} bathroom break${nBath > 1 ? "s" : ""}`);
+    what = `logged ${parts.join(", ")}`;
+  }
+
+  sendNotification("Sitter update 🐾", `${who} ${what}.`, "sitter-activity");
 }

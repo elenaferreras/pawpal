@@ -13,7 +13,8 @@ interface TrackMenuProps {
 interface Bubble {
   key: string;
   label: string;
-  colorVar: string;
+  /** Bubble colour, matched to each destination screen. */
+  color: string;
   /** Position within the 321×254 cluster box (from Figma node 10:373). */
   x: number;
   y: number;
@@ -62,11 +63,11 @@ export function TrackMenu({ open, onClose, onWalk, onMeal, onDiary, onPoop, onVe
   if (!render) return null;
 
   const bubbles: (Bubble & { onSelect: () => void })[] = [
-    { key: "walk", label: "walks", colorVar: "--color-track-walk", x: 40, y: 0, onSelect: onWalk },
-    { key: "meal", label: "meals", colorVar: "--color-track-meal", x: 150, y: 14, onSelect: onMeal },
-    { key: "vet", label: "health", colorVar: "--color-track-vet", x: 8, y: 88, onSelect: onVet },
-    { key: "poop", label: "poop", colorVar: "--color-track-poop", x: 82, y: 136, onSelect: onPoop },
-    { key: "diary", label: "diary", colorVar: "--color-track-diary", x: 162, y: 104, onSelect: onDiary },
+    { key: "walk", label: "walks", color: "#8592E0", x: 40, y: 0, onSelect: onWalk }, // blue
+    { key: "meal", label: "meals", color: "#E96A41", x: 150, y: 14, onSelect: onMeal }, // red
+    { key: "vet", label: "health", color: "#EDD4FD", x: 8, y: 88, onSelect: onVet }, // purple
+    { key: "poop", label: "poop", color: "#EDD4FD", x: 82, y: 136, onSelect: onPoop }, // purple
+    { key: "diary", label: "diary", color: "#FFFF83", x: 162, y: 104, onSelect: onDiary }, // yellow
   ];
 
   const select = (fn: () => void): void => {
@@ -146,8 +147,8 @@ export function TrackMenu({ open, onClose, onWalk, onMeal, onDiary, onPoop, onVe
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              background: `radial-gradient(circle at 50% 45%, rgba(0,0,0,0.62) 24%, var(${b.colorVar}) 118%)`,
-              boxShadow: `0 0 34px 4px color-mix(in srgb, var(${b.colorVar}) 45%, transparent)`,
+              background: `radial-gradient(circle at 50% 45%, rgba(0,0,0,0.62) 24%, ${b.color} 118%)`,
+              boxShadow: `0 0 34px 4px color-mix(in srgb, ${b.color} 45%, transparent)`,
               animation: closing
                 ? `pawpal-bubble-pop 220ms ease reverse forwards`
                 : `pawpal-bubble-pop 380ms cubic-bezier(0.34, 1.56, 0.64, 1) both`,

@@ -145,7 +145,17 @@ export function Dashboard({
           <DogFace avatar={p.avatar} size={48} />
         </button>
         <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-          <Eyebrow color={MUTED}>Hello,</Eyebrow>
+          <span
+            style={{
+              fontFamily: "var(--font-brand)",
+              fontWeight: 900,
+              fontSize: 12,
+              lineHeight: 1,
+              color: MUTED,
+            }}
+          >
+            Hello,
+          </span>
           <span
             style={{
               fontFamily: "var(--font-brand)",

@@ -12,6 +12,7 @@ interface WalkTrackSheetProps {
 }
 
 const DARK = "var(--color-pawpal-page)"; // #352B25
+const WALK = "#8592E0"; // blue walk accent
 const DAYS_SHOWN = 5;
 
 function localISO(d: Date): string {
@@ -129,8 +130,8 @@ export function WalkTrackSheet({ open, onClose }: WalkTrackSheetProps): React.Re
                     fontWeight: 500,
                     fontSize: 14,
                     whiteSpace: "nowrap",
-                    background: active ? "var(--color-track-poop)" : "transparent",
-                    color: active ? DARK : "var(--color-track-poop)",
+                    background: active ? WALK : "transparent",
+                    color: active ? DARK : WALK,
                   }}
                 >
                   {d.toLocaleDateString(undefined, { day: "2-digit", month: "short" })}
@@ -187,7 +188,7 @@ export function WalkTrackSheet({ open, onClose }: WalkTrackSheetProps): React.Re
               border: "none",
               cursor: "pointer",
               background: DARK,
-              color: "var(--color-track-poop)",
+              color: WALK,
               fontFamily: "var(--font-ui)",
               fontWeight: 700,
               fontSize: 16,
@@ -271,7 +272,7 @@ function ChoiceButton({
         border: `1px solid ${DARK}`,
         cursor: "pointer",
         background: selected ? DARK : "transparent",
-        color: selected ? "var(--color-track-poop)" : DARK,
+        color: selected ? WALK : DARK,
         fontFamily: "var(--font-ui)",
         fontWeight: 500,
         fontSize: 16,

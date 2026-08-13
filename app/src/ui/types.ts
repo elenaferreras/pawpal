@@ -57,6 +57,8 @@ export interface Walk {
   assignee?: string;
   gpsRoute?: GpsCoord[];
   created: string;
+  /** Set when the entry was logged by a dog-sitter (server-tagged). */
+  by?: "sitter";
 }
 
 export interface Meal {
@@ -67,6 +69,8 @@ export interface Meal {
   notes: string;
   mealSlot?: number;
   created: string;
+  /** Set when the entry was logged by a dog-sitter (server-tagged). */
+  by?: "sitter";
 }
 
 export type BathroomType = "pipi" | "popo" | "both";
@@ -79,6 +83,8 @@ export interface BathroomLog {
   notes: string;
   photos: string[];
   created: string;
+  /** Set when the entry was logged by a dog-sitter (server-tagged). */
+  by?: "sitter";
 }
 
 export interface Checkup {

@@ -854,7 +854,7 @@ body.modal-open {
   max-height: 92vh;
   display: flex;
   flex-direction: column;
-  background: var(--color-track-poop);
+  background: #8592E0;
   border-radius: 40px 40px 0 0;
   overflow: hidden;
   animation: pawpal-sheet-up 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -869,8 +869,8 @@ body.modal-open {
 .walk-sheet-footer {
   flex-shrink: 0;
   padding: 12px 28px calc(20px + env(safe-area-inset-bottom, 12px));
-  background: var(--color-track-poop);
-  box-shadow: 0 -10px 20px -4px var(--color-track-poop);
+  background: #8592E0;
+  box-shadow: 0 -10px 20px -4px #8592E0;
 }
 @keyframes pawpal-sheet-up {
   from {
@@ -2100,6 +2100,98 @@ body.modal-open {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+/* ── Desktop gate: "PawPal is available on mobile" (Figma node 261:4958) ──── */
+/* All geometry mirrors the 1414×874 Figma frame. Children are placed by
+   percentage inside a fixed-aspect stage so the whole composition scales as a
+   single unit and matches the design at any desktop size. */
+.qr-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: var(--color-pawpal-page);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.qr-gate-stage {
+  position: relative;
+  /* Fit within the viewport on both axes while keeping the frame's aspect. */
+  width: min(1414px, 96vw, calc(96vh * (1414 / 874)));
+  aspect-ratio: 1414 / 874;
+}
+.qr-gate-dog {
+  position: absolute;
+  height: auto;
+  display: block;
+  pointer-events: none;
+}
+/* Positions/sizes are Figma left/top/width ÷ frame (1414×874). */
+.qr-gate-dog--blue {
+  left: 29.21%;
+  top: 16.36%;
+  width: 11.33%;
+}
+.qr-gate-dog--purple {
+  left: 68.1%;
+  top: 6.86%;
+  width: 9.94%;
+}
+.qr-gate-dog--cream {
+  left: 22.35%;
+  top: 41.53%;
+  width: 13.66%;
+}
+.qr-gate-dog--orange {
+  left: 61.24%;
+  top: 29.06%;
+  width: 12.39%;
+}
+.qr-gate-code {
+  position: absolute;
+  left: 41.3%;
+  top: 27.57%;
+  width: 17.4%;
+  aspect-ratio: 1 / 1;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #ffff83;
+  line-height: 0;
+}
+.qr-gate-code svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.qr-gate-ctas {
+  position: absolute;
+  left: 50%;
+  top: 62.13%;
+  transform: translateX(-50%);
+  width: 42%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+  color: var(--color-pawpal-hero);
+}
+.qr-gate-title {
+  margin: 0;
+  font-family: "FatFrank", "Abordage", sans-serif;
+  font-weight: 400;
+  font-size: clamp(28px, 2.83vw, 40px);
+  line-height: 1.05;
+  color: var(--color-pawpal-hero);
+}
+.qr-gate-sub {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-weight: 400;
+  font-size: clamp(16px, 1.56vw, 22px);
+  color: var(--color-pawpal-hero);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────

@@ -14,6 +14,7 @@ import { TrackMenu } from "./components/TrackMenu";
 import { WalksStats } from "./components/WalksStats";
 import { WalkTrackSheet } from "./components/WalkTrackSheet";
 import { Splash } from "./components/Splash";
+import { DesktopGate, useIsDesktop } from "./components/DesktopGate";
 import { WalkChooser } from "./components/WalkChooser";
 import { WalkChooserSheet } from "./components/WalkChooserSheet";
 import { WalkFormModal } from "./components/WalkFormModal";
@@ -43,6 +44,14 @@ import {
 } from "./lib/sitter";
 
 export function App(): React.ReactElement {
+  const isDesktop = useIsDesktop();
+  if (isDesktop) {
+    return (
+      <Theme theme={pawpalTheme}>
+        <DesktopGate />
+      </Theme>
+    );
+  }
   return (
     <Theme theme={pawpalTheme}>
       <LayerProvider>
