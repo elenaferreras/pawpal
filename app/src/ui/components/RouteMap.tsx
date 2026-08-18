@@ -49,14 +49,28 @@ interface LeafletAttributionControl {
 }
 interface LeafletLayer {
   addTo(map: LeafletMap): LeafletLayer;
+  remove(): void;
 }
 interface LeafletPolyline extends LeafletLayer {
   getBounds(): LeafletBounds;
+  setLatLngs(latlngs: [number, number][]): LeafletPolyline;
+}
+interface LeafletCircle extends LeafletLayer {
+  setLatLng(latlng: [number, number]): LeafletCircle;
+  setRadius(radius: number): LeafletCircle;
+}
+interface LeafletMarker extends LeafletLayer {
+  setLatLng(latlng: [number, number]): LeafletMarker;
+}
+interface LeafletDivIcon {
+  readonly _isDivIcon?: true;
 }
 interface LeafletMap {
   readonly attributionControl: LeafletAttributionControl;
   fitBounds(bounds: LeafletBounds, options?: { padding?: [number, number] }): void;
-  setView(center: [number, number], zoom: number): void;
+  setView(center: [number, number], zoom: number): LeafletMap;
+  panTo(center: [number, number], options?: { animate?: boolean; duration?: number }): LeafletMap;
+  getZoom(): number;
   remove(): void;
 }
 interface LeafletStatic {
@@ -76,6 +90,7 @@ interface LeafletStatic {
       opacity?: number;
       lineJoin?: string;
       lineCap?: string;
+      className?: string;
     },
   ): LeafletPolyline;
   circleMarker(
@@ -88,6 +103,33 @@ interface LeafletStatic {
       weight?: number;
     },
   ): LeafletLayer;
+  circle(
+    center: [number, number],
+    options?: {
+      radius?: number;
+      color?: string;
+      fillColor?: string;
+      fillOpacity?: number;
+      opacity?: number;
+      weight?: number;
+      className?: string;
+    },
+  ): LeafletCircle;
+  marker(
+    center: [number, number],
+    options?: {
+      icon?: LeafletDivIcon;
+      interactive?: boolean;
+      keyboard?: boolean;
+      zIndexOffset?: number;
+    },
+  ): LeafletMarker;
+  divIcon(options: {
+    html?: string;
+    className?: string;
+    iconSize?: [number, number];
+    iconAnchor?: [number, number];
+  }): LeafletDivIcon;
 }
 
 const LEAFLET_VERSION = "1.9.4";
@@ -142,9 +184,23 @@ interface RouteMapProps {
   endColor?: string;
   /** Hide the "Leaflet" wordmark (tile attribution is always kept). */
   hideWordmark?: boolean;
+  /**
+   * Live mode: the route grows as fixes arrive. Instead of a static fitBounds
+   * snapshot, the map keeps a moving "current position" marker, an accuracy
+   * ring, and (when `follow`) recentres on the latest fix without tearing the
+   * map down. Used by the in-progress walk sheet.
+   */
+  live?: boolean;
+  /** Auto-recenter on the newest fix (live mode only). */
+  follow?: boolean;
+  /** SVG/HTML for the live position marker (e.g. the dog avatar). */
+  markerHtml?: string;
+  /** GPS accuracy (metres) for the pulsing accuracy ring (live mode only). */
+  accuracyM?: number;
 }
 
-// Renders a saved walk's GPS route on an interactive OpenStreetMap (Strava-style).
+// Renders a walk's GPS route on an interactive OpenStreetMap (Strava-style).
+// In `live` mode the route updates incrementally and follows the walker.
 export function RouteMap({
   coords,
   height = 200,
@@ -153,18 +209,131 @@ export function RouteMap({
   startColor = START,
   endColor = END,
   hideWordmark = true,
+  live = false,
+  follow = false,
+  markerHtml,
+  accuracyM,
 }: RouteMapProps): React.ReactElement {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
+  const glowRef = useRef<LeafletPolyline | null>(null);
+  const lineRef = useRef<LeafletPolyline | null>(null);
+  const posMarkerRef = useRef<LeafletMarker | null>(null);
+  const accuracyRef = useRef<LeafletCircle | null>(null);
+  const startRef = useRef<LeafletLayer | null>(null);
+  const endRef = useRef<LeafletLayer | null>(null);
+  const readyRef = useRef(false);
+  const didCenterRef = useRef(false);
+  const syncRef = useRef<((L: LeafletStatic, pts: [number, number][]) => void) | null>(null);
   const [error, setError] = useState(false);
 
   const points: [number, number][] = coords
     .filter((c) => Number.isFinite(c.lat) && Number.isFinite(c.lng))
     .map((c) => [c.lat, c.lng]);
 
+  // Latest prop/derived values mirrored into refs so the one-time init effect
+  // (and the closure it captures) can read them without being a dependency.
+  const pointsRef = useRef(points);
+  const markerHtmlRef = useRef(markerHtml);
+  const accuracyMRef = useRef(accuracyM);
+  const followRef = useRef(follow);
+  pointsRef.current = points;
+  markerHtmlRef.current = markerHtml;
+  accuracyMRef.current = accuracyM;
+  followRef.current = follow;
+
+  // ---- Init effect: create the map once (rebuild only when the basemap or
+  // mode changes). Live-mode layers are (re)created here empty and populated by
+  // the update effect below, so incoming fixes never tear the map down.
   useEffect(() => {
-    if (points.length < 2) return;
     let cancelled = false;
+    readyRef.current = false;
+    didCenterRef.current = false;
+
+    // Populate/refresh the map layers for the given points. Declared inside the
+    // effect so both the init pass and the update effect share one code path.
+    const syncLayers = (L: LeafletStatic, pts: [number, number][]): void => {
+      const map = mapRef.current;
+      if (!map || !readyRef.current) return;
+
+      glowRef.current?.setLatLngs(pts);
+      lineRef.current?.setLatLngs(pts);
+
+      if (pts.length === 0) return;
+      const first = pts[0];
+      const last = pts[pts.length - 1];
+
+      if (live) {
+        if (!posMarkerRef.current) {
+          const icon = L.divIcon({
+            html: markerHtmlRef.current ?? "",
+            className: "lw-pin",
+            iconSize: [52, 52],
+            iconAnchor: [26, 26],
+          });
+          posMarkerRef.current = L.marker(last, {
+            icon,
+            interactive: false,
+            keyboard: false,
+            zIndexOffset: 1000,
+          });
+          posMarkerRef.current.addTo(map);
+        } else {
+          posMarkerRef.current.setLatLng(last);
+        }
+
+        if (!accuracyRef.current) {
+          accuracyRef.current = L.circle(last, {
+            radius: accuracyMRef.current ?? 20,
+            color: lineColor,
+            fillColor: lineColor,
+            fillOpacity: 0.1,
+            opacity: 0.35,
+            weight: 1,
+            className: "lw-accuracy",
+          });
+          accuracyRef.current.addTo(map);
+        } else {
+          accuracyRef.current.setLatLng(last).setRadius(accuracyMRef.current ?? 20);
+        }
+
+        if (!didCenterRef.current) {
+          map.setView(last, 16);
+          didCenterRef.current = true;
+        } else if (followRef.current) {
+          map.panTo(last, { animate: true, duration: 0.6 });
+        }
+        return;
+      }
+
+      // Static (saved-walk) mode: start/end dots + a one-time fitBounds.
+      if (pts.length < 2) return;
+      if (!startRef.current) {
+        startRef.current = L.circleMarker(first, {
+          radius: 6,
+          color: "#ffffff",
+          fillColor: startColor,
+          fillOpacity: 1,
+          weight: 2,
+        });
+        startRef.current.addTo(map);
+      }
+      if (!endRef.current) {
+        endRef.current = L.circleMarker(last, {
+          radius: 7,
+          color: "#ffffff",
+          fillColor: endColor,
+          fillOpacity: 1,
+          weight: 2,
+        });
+        endRef.current.addTo(map);
+      }
+      if (!didCenterRef.current && lineRef.current) {
+        map.fitBounds(lineRef.current.getBounds(), { padding: [24, 24] });
+        didCenterRef.current = true;
+      }
+    };
+    syncRef.current = syncLayers;
 
     loadLeaflet()
       .then((L) => {
@@ -175,7 +344,6 @@ export function RouteMap({
           attributionControl: true,
         });
         mapRef.current = map;
-
         if (hideWordmark) map.attributionControl.setPrefix(false);
 
         const tiles = TILE_STYLES[mapStyle];
@@ -184,33 +352,33 @@ export function RouteMap({
           attribution: tiles.attribution,
         }).addTo(map);
 
-        const line = L.polyline(points, {
+        // Give the map an initial view so tiles render before the first fix.
+        const start0 = pointsRef.current[0];
+        if (start0) map.setView(start0, live ? 16 : 15);
+        else map.setView([0, 0], 2);
+
+        // Soft glow underlay + crisp route line on top.
+        glowRef.current = L.polyline([], {
           color: lineColor,
-          weight: 4,
-          opacity: 0.9,
+          weight: 12,
+          opacity: 0.25,
+          lineJoin: "round",
+          lineCap: "round",
+          className: "lw-route-glow",
+        });
+        glowRef.current.addTo(map);
+        lineRef.current = L.polyline([], {
+          color: lineColor,
+          weight: live ? 5 : 4,
+          opacity: 0.95,
           lineJoin: "round",
           lineCap: "round",
         });
-        line.addTo(map);
+        lineRef.current.addTo(map);
 
-        const first = points[0];
-        const last = points[points.length - 1];
-        L.circleMarker(first, {
-          radius: 6,
-          color: "#ffffff",
-          fillColor: startColor,
-          fillOpacity: 1,
-          weight: 2,
-        }).addTo(map);
-        L.circleMarker(last, {
-          radius: 7,
-          color: "#ffffff",
-          fillColor: endColor,
-          fillOpacity: 1,
-          weight: 2,
-        }).addTo(map);
-
-        map.fitBounds(line.getBounds(), { padding: [24, 24] });
+        readyRef.current = true;
+        // First population pass now that the layers exist.
+        syncLayers(L, pointsRef.current);
       })
       .catch(() => {
         if (!cancelled) setError(true);
@@ -218,16 +386,33 @@ export function RouteMap({
 
     return () => {
       cancelled = true;
+      readyRef.current = false;
+      glowRef.current = null;
+      lineRef.current = null;
+      posMarkerRef.current = null;
+      accuracyRef.current = null;
+      startRef.current = null;
+      endRef.current = null;
+      syncRef.current = null;
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
       }
     };
-    // Re-run when the underlying route or styling changes.
+    // Rebuild only when basemap/mode/colour identity changes — NOT on coords.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [coords, mapStyle, lineColor, startColor, endColor, hideWordmark]);
+  }, [mapStyle, lineColor, startColor, endColor, hideWordmark, live]);
 
-  if (points.length < 2) {
+  // ---- Update effect: feed new points into the existing map (no teardown).
+  useEffect(() => {
+    if (!readyRef.current) return;
+    const L = (window as unknown as { L?: LeafletStatic }).L;
+    if (L && syncRef.current) syncRef.current(L, points);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coords, follow, accuracyM]);
+
+  // Static mode with no usable route: branded empty state.
+  if (!live && points.length < 2 && !error) {
     return (
       <div
         style={{

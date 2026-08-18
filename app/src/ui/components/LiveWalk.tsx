@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -19,9 +20,11 @@ import { Icon } from "@astryxdesign/core/Icon";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { Modal } from "./Modal";
-import { RouteCanvas } from "./RouteCanvas";
+import { MotionSheet } from "./MotionSheet";
 import { RouteMap } from "./RouteMap";
 import { Icons } from "../lib/icons";
+import { buildDogSVG, buildDogFace } from "../avatar/build";
+import { stickerUrl } from "../avatar/stickers";
 import type { GpsCoord } from "../types";
 
 type Phase = "idle" | "active" | "summary";
@@ -51,7 +54,7 @@ const WEATHERS: { value: string; icon: string }[] = [
 ];
 
 export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNode {
-  const { update } = useDb();
+  const { db, update } = useDb();
   const toast = useToast();
 
   const [phase, setPhase] = useState<Phase>("idle");
@@ -59,8 +62,9 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
   const [elapsed, setElapsed] = useState(0);
   const [steps, setSteps] = useState(0);
   const [distanceKm, setDistanceKm] = useState(0);
-  const [gpsStatus, setGpsStatus] = useState("📍 Acquiring GPS…");
+  const [gpsStatus, setGpsStatus] = useState("Acquiring GPS…");
   const [coords, setCoords] = useState<GpsCoord[]>([]);
+  const [accuracy, setAccuracy] = useState<number | null>(null);
 
   // Summary form state.
   const [weather, setWeather] = useState("");
@@ -94,6 +98,14 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
 
   useEffect(() => stopSensors, [stopSensors]);
 
+  // While the walk is minimised to the top bar, offset the page content so the
+  // bar pushes the layout down instead of overlapping the header.
+  useEffect(() => {
+    const showBar = phase !== "idle" && !open;
+    document.body.classList.toggle("has-live-bar", showBar);
+    return () => document.body.classList.remove("has-live-bar");
+  }, [phase, open]);
+
   const start = useCallback(() => {
     startTime.current = Date.now();
     coordsRef.current = [];
@@ -107,7 +119,8 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
     setSteps(0);
     setDistanceKm(0);
     setCoords([]);
-    setGpsStatus("📍 Acquiring GPS…");
+    setGpsStatus("Acquiring GPS…");
+    setAccuracy(null);
     setWeather("");
     setPipi(false);
     setPopo(false);
@@ -126,6 +139,7 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
             lng: pos.coords.longitude,
             acc: pos.coords.accuracy,
           };
+          setAccuracy(coord.acc ?? null);
           if ((coord.acc ?? 999) < 50) {
             const prev = coordsRef.current[coordsRef.current.length - 1];
             if (prev) {
@@ -134,14 +148,17 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
             }
             coordsRef.current = [...coordsRef.current, coord];
             setCoords(coordsRef.current);
-            setGpsStatus("📍 GPS active · accuracy " + Math.round(coord.acc ?? 0) + "m");
+            setGpsStatus("GPS active · accuracy " + Math.round(coord.acc ?? 0) + "m");
           }
         },
-        () => setGpsStatus("⚠️ GPS unavailable — distance won’t be tracked"),
+        () => {
+          setAccuracy(null);
+          setGpsStatus("GPS unavailable — distance won’t be tracked");
+        },
         { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 },
       );
     } else {
-      setGpsStatus("⚠️ GPS not supported on this device");
+      setGpsStatus("GPS not supported on this device");
     }
 
     const handleMotion = (e: DeviceMotionEvent): void => {
@@ -212,6 +229,22 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
         })()
       : "—";
 
+  // The live map's "you are here" pin uses the dog's own avatar so the walk
+  // feels personal. Mirrors <DogAvatar>: a chosen sticker wins, otherwise the
+  // full standing dog. The inner art is kept smaller than the circle (~the same
+  // 112/136 ratio as the avatar editor) so the round mask never clips it.
+  const markerHtml = useMemo(() => {
+    const av = db.profile.avatar;
+    const bg = av?.bg ?? "var(--color-data-yellow-3)";
+    const sticker = stickerUrl(av?.sticker);
+    const inner = sticker
+      ? `<img src="${sticker}" alt="" width="40" height="40" style="display:block" />`
+      : av
+        ? buildDogSVG(av, 34)
+        : buildDogFace(undefined, 30);
+    return `<div class="lw-pin-inner" style="background:${bg}">${inner}</div>`;
+  }, [db.profile.avatar]);
+
   return (
     <LiveWalkContext.Provider value={{ active: phase !== "idle", start, openSheet: () => setOpen(true), coords, elapsed }}>
       {children}
@@ -220,61 +253,78 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
         <div className="live-walk-bar" onClick={() => setOpen(true)}>
           <span className="lw-label">
             <span className="live-dot" />
-            On a walk — {mm}:{ss}
+            <span className="lw-bar-title">On a walk</span>
+            <span className="lw-bar-time">{mm}:{ss}</span>
+            {distanceKm > 0 && <span className="lw-bar-dist">{distanceKm.toFixed(2)} km</span>}
           </span>
-          <span style={{ fontSize: 13, fontWeight: 700 }}>Tap to open</span>
+          <span className="lw-bar-open">Tap to open</span>
         </div>
       )}
 
-      {open && phase === "active" && (
-        <div className="lws-scrim" onClick={() => setOpen(false)}>
-          <div
-            className="lws"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Walk in progress"
-            onClick={(e) => e.stopPropagation()}
+      <MotionSheet
+        open={open && phase === "active"}
+        onClose={() => setOpen(false)}
+        ariaLabel="Walk in progress"
+        scrimClassName="lws-scrim"
+        sheetClassName="lws"
+      >
+        <div className="lws-grip" aria-hidden />
+        <div className="lws-head">
+          <span className="lws-title">
+            <span className="live-dot" />
+            Walk in progress
+          </span>
+          <button
+            type="button"
+            className="lws-min"
+            aria-label="Minimise"
+            onClick={() => setOpen(false)}
           >
-            <div className="lws-grip" aria-hidden />
-            <div className="lws-head">
-              <span className="lws-title">
-                <span className="live-dot" />
-                Walk in progress
-              </span>
-              <button
-                type="button"
-                className="lws-min"
-                aria-label="Minimise"
-                onClick={() => setOpen(false)}
-              >
-                <Icon icon={Icons.chevronDown} color="inherit" />
-              </button>
-            </div>
-
-            <div className="lws-stats">
-              <SheetStat value={`${mm}:${ss}`} label="Time" />
-              <SheetStat value={String(steps)} label="Steps" />
-              <SheetStat value={distanceKm.toFixed(2)} label="km" />
-              <SheetStat value={paceStr} label="min/km" />
-            </div>
-
-            <div className="lws-route">
-              <RouteCanvas coords={coords} />
-            </div>
-
-            <div className="lws-gps">{gpsStatus}</div>
-
-            <div className="lws-actions">
-              <button type="button" className="lws-btn lws-btn--primary" onClick={finish}>
-                Finish walk
-              </button>
-              <button type="button" className="lws-btn lws-btn--cancel" onClick={cancel}>
-                Cancel walk
-              </button>
-            </div>
-          </div>
+            <Icon icon={Icons.chevronDown} color="inherit" />
+          </button>
         </div>
-      )}
+
+        <div className="lws-stats">
+          <SheetStat value={`${mm}:${ss}`} label="Time" />
+          <SheetStat value={String(steps)} label="Steps" />
+          <SheetStat value={distanceKm.toFixed(2)} label="km" />
+          <SheetStat value={paceStr} label="min/km" />
+        </div>
+
+        <div className="lws-route">
+          {coords.length >= 1 ? (
+            <RouteMap
+              coords={coords}
+              live
+              follow
+              markerHtml={markerHtml}
+              accuracyM={accuracy ?? undefined}
+              mapStyle="voyager"
+              height={220}
+              lineColor="#8592E0"
+            />
+          ) : (
+            <div className="lws-map-loading" style={{ height: 220 }}>
+              <span className="lws-map-spinner" aria-hidden />
+              <span>Finding your location…</span>
+            </div>
+          )}
+        </div>
+
+        <div className="lws-gps">
+          <GpsSignal accuracy={accuracy} />
+          <span className="lws-gps-text">{gpsStatus}</span>
+        </div>
+
+        <div className="lws-actions">
+          <button type="button" className="lws-btn lws-btn--primary" onClick={finish}>
+            Finish walk
+          </button>
+          <button type="button" className="lws-btn lws-btn--cancel" onClick={cancel}>
+            Cancel walk
+          </button>
+        </div>
+      </MotionSheet>
 
       <Modal
         open={open && phase === "summary"}
@@ -343,12 +393,46 @@ function StatChip({ value, label }: { value: string; label: string }): React.Rea
 
 // Dark-surface stat used on the "Walk in progress" bottom sheet. Flexes to an
 // equal share of the row so the four stats always fit without horizontal scroll.
+// The value briefly "pops" when it changes to make the live feed feel alive.
 function SheetStat({ value, label }: { value: string; label: string }): React.ReactElement {
   return (
     <div className="lws-stat">
-      <span className="lws-stat-value">{value}</span>
+      <span key={value} className="lws-stat-value">
+        {value}
+      </span>
       <span className="lws-stat-label">{label}</span>
     </div>
+  );
+}
+
+// Signal-strength meter (four bars) derived from the raw GPS accuracy in metres.
+// Fewer metres = tighter fix = more bars. `null` means we have no fix yet.
+function GpsSignal({ accuracy }: { accuracy: number | null }): React.ReactElement {
+  const level =
+    accuracy === null
+      ? 0
+      : accuracy <= 10
+        ? 4
+        : accuracy <= 25
+          ? 3
+          : accuracy <= 50
+            ? 2
+            : 1;
+  const searching = level === 0;
+  return (
+    <span
+      className={"lws-signal" + (searching ? " is-searching" : "")}
+      role="img"
+      aria-label={searching ? "Searching for GPS" : `GPS signal ${level} of 4`}
+    >
+      {[1, 2, 3, 4].map((bar) => (
+        <span
+          key={bar}
+          className={"lws-signal-bar" + (bar <= level ? " is-on" : "")}
+          style={{ animationDelay: `${bar * 0.12}s` }}
+        />
+      ))}
+    </span>
   );
 }
 

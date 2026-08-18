@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { AnimatePresence } from "motion/react";
 import { Button } from "../components/Button";
 import { Slider } from "@astryxdesign/core/Slider";
 import { Toggle } from "../components/Toggle";
@@ -9,6 +10,7 @@ import { useToast } from "../lib/toast";
 import { AVATAR_STICKERS } from "../avatar/stickers";
 import { AVATAR_BG_COLORS, DEFAULT_AVATAR_BG } from "../avatar/presets";
 import { TimeField } from "../components/fields";
+import { ScreenTransition } from "../components/ScreenTransition";
 import { requestNotificationPermission, saveNotifConfig } from "../lib/notifications";
 import { requestPasswordReset, signIn, signUp } from "../lib/auth";
 import { syncFromSupabase } from "../lib/supabase";
@@ -68,6 +70,8 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
   const [phase, setPhase] = useState<"auth" | "flow">("auth");
   // The flow now opens on "Find your pup" — the old hero/intro steps are gone.
   const [step, setStep] = useState(FIRST_INPUT_STEP);
+  // Slide direction for the step transition: 1 = forward, -1 = back.
+  const [direction, setDirection] = useState(1);
 
   const avatar = DEFAULT_AVATAR;
   const [sticker, setSticker] = useState<string>(AVATAR_STICKERS[0].id);
@@ -89,10 +93,21 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
   const [vetNotif, setVetNotif] = useState(true);
 
   const go = (target: number): void => {
+    setDirection(target >= step ? 1 : -1);
     setStep(target);
   };
   const next = (): void => go(step + 1);
   const back = (): void => go(step - 1);
+
+  // Phase changes (auth <-> flow) drive the slide direction too.
+  const goToFlow = (): void => {
+    setDirection(1);
+    setPhase("flow");
+  };
+  const backToAuth = (): void => {
+    setDirection(-1);
+    setPhase("auth");
+  };
 
   const nextFromName = (): void => {
     if (!name.trim()) {
@@ -146,7 +161,7 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
     } catch {
       // Cloud unreachable — fall through into the local flow.
     }
-    setPhase("flow");
+    goToFlow();
   };
 
   // Persist reminder preferences and trigger the native permission prompt.
@@ -162,35 +177,33 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
     celebrate();
   };
 
-  if (phase === "auth") {
-    return (
-      <AuthGate
-        onLoggedIn={handleLoggedIn}
-        onSignedUp={() => setPhase("flow")}
-        onDogSit={onDogSit}
-      />
-    );
-  }
+  let stepKey: string;
+  let stepNode: React.ReactElement;
 
-  // First flow step — the redesigned "Find your pup" avatar picker. It runs in
-  // its own full-screen dark shell (matching the auth screens) rather than the
-  // light questionnaire overlay used by the remaining steps.
-  if (step === FIRST_INPUT_STEP) {
-    return (
+  if (phase === "auth") {
+    stepKey = "auth";
+    stepNode = (
+      <AuthGate onLoggedIn={handleLoggedIn} onSignedUp={goToFlow} onDogSit={onDogSit} />
+    );
+  } else if (step === FIRST_INPUT_STEP) {
+    // First flow step — the redesigned "Find your pup" avatar picker. It runs in
+    // its own full-screen dark shell (matching the auth screens) rather than the
+    // light questionnaire overlay used by the remaining steps.
+    stepKey = "pup";
+    stepNode = (
       <FindYourPup
         sticker={sticker}
         onSticker={setSticker}
         bg={bg}
         onBg={setBg}
-        onBack={() => setPhase("auth")}
+        onBack={backToAuth}
         onNext={next}
       />
     );
-  }
-
-  // Name step — same full-screen dark shell, with an autofocused text input.
-  if (step === 3) {
-    return (
+  } else if (step === 3) {
+    // Name step — same full-screen dark shell, with an autofocused text input.
+    stepKey = "name";
+    stepNode = (
       <NameStep
         value={name}
         error={nameError}
@@ -202,23 +215,15 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
         onNext={nextFromName}
       />
     );
-  }
-
-  // Breed step — same full-screen dark shell with an autofocused input.
-  if (step === 4) {
-    return (
-      <BreedStep
-        value={breed}
-        dogName={dogName}
-        onChange={setBreed}
-        onBack={back}
-        onNext={next}
-      />
+  } else if (step === 4) {
+    // Breed step — same full-screen dark shell with an autofocused input.
+    stepKey = "breed";
+    stepNode = (
+      <BreedStep value={breed} dogName={dogName} onChange={setBreed} onBack={back} onNext={next} />
     );
-  }
-
-  if (step === 5) {
-    return (
+  } else if (step === 5) {
+    stepKey = "birthday";
+    stepNode = (
       <BirthdayStep
         dogName={dogName}
         value={birthday}
@@ -227,10 +232,9 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
         onNext={next}
       />
     );
-  }
-
-  if (step === 6) {
-    return (
+  } else if (step === 6) {
+    stepKey = "weight";
+    stepNode = (
       <WeightStep
         dogName={dogName}
         value={weight}
@@ -239,10 +243,9 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
         onNext={next}
       />
     );
-  }
-
-  if (step === 7) {
-    return (
+  } else if (step === 7) {
+    stepKey = "food-goal";
+    stepNode = (
       <FoodGoalStep
         dogName={dogName}
         value={foodGoal}
@@ -251,10 +254,9 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
         onNext={next}
       />
     );
-  }
-
-  if (step === 8) {
-    return (
+  } else if (step === 8) {
+    stepKey = "meals";
+    stepNode = (
       <MealsStep
         dogName={dogName}
         value={mealsPerDay}
@@ -263,10 +265,9 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
         onNext={next}
       />
     );
-  }
-
-  if (step === 9) {
-    return (
+  } else if (step === 9) {
+    stepKey = "vet";
+    stepNode = (
       <VetStep
         dogName={dogName}
         vet={vet}
@@ -277,10 +278,9 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
         onNext={next}
       />
     );
-  }
-
-  if (step === REVIEW_STEP) {
-    return (
+  } else if (step === REVIEW_STEP) {
+    stepKey = "review";
+    stepNode = (
       <ReviewStep
         dogName={dogName}
         name={name}
@@ -293,10 +293,9 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
         onNext={() => go(NOTIF_STEP)}
       />
     );
-  }
-
-  if (step === NOTIF_STEP) {
-    return (
+  } else if (step === NOTIF_STEP) {
+    stepKey = "notif";
+    stepNode = (
       <NotifStep
         dogName={dogName}
         walkNotif={walkNotif}
@@ -314,9 +313,20 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
         onSkip={celebrate}
       />
     );
+  } else {
+    stepKey = "celebration";
+    stepNode = <Celebration dogName={dogName} onDone={finish} />;
   }
 
-  return <Celebration dogName={dogName} onDone={finish} />;
+  return (
+    <div style={{ background: "var(--color-pawpal-page)", minHeight: "100vh" }}>
+      <AnimatePresence mode="wait" custom={direction} initial={false}>
+        <ScreenTransition key={stepKey} direction={direction} style={{ minHeight: "100vh" }}>
+          {stepNode}
+        </ScreenTransition>
+      </AnimatePresence>
+    </div>
+  );
 }
 
 type AuthMode = "choose" | "signup" | "login";

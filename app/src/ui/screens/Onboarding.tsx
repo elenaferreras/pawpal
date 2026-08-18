@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AnimatePresence } from "motion/react";
 import { HStack, VStack } from "@astryxdesign/core/Stack";
 import { Text, Heading } from "@astryxdesign/core/Text";
 import { Button } from "../components/Button";
@@ -9,6 +10,7 @@ import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { AvatarEditor } from "../avatar/AvatarEditor";
 import { DateField } from "../components/fields";
+import { ScreenTransition } from "../components/ScreenTransition";
 import type { Avatar, Profile } from "../types";
 
 const DEFAULT_AVATAR: Avatar = {
@@ -30,6 +32,8 @@ export function Onboarding({ onDone }: OnboardingProps): React.ReactElement {
   const { update } = useDb();
   const toast = useToast();
   const [step, setStep] = useState(0);
+  // Slide direction for the step transition: 1 = forward, -1 = back.
+  const [direction, setDirection] = useState(1);
 
   const [avatar, setAvatar] = useState<Avatar>(DEFAULT_AVATAR);
   const [name, setName] = useState("");
@@ -42,8 +46,14 @@ export function Onboarding({ onDone }: OnboardingProps): React.ReactElement {
   const [vet, setVet] = useState("");
   const [vetPhone, setVetPhone] = useState("");
 
-  const next = (): void => setStep((s) => Math.min(OB_STEPS - 1, s + 1));
-  const back = (): void => setStep((s) => Math.max(0, s - 1));
+  const next = (): void => {
+    setDirection(1);
+    setStep((s) => Math.min(OB_STEPS - 1, s + 1));
+  };
+  const back = (): void => {
+    setDirection(-1);
+    setStep((s) => Math.max(0, s - 1));
+  };
 
   const nextFromName = (): void => {
     if (!name.trim()) {
@@ -84,7 +94,9 @@ export function Onboarding({ onDone }: OnboardingProps): React.ReactElement {
       </div>
 
       <div className="ob-slide">
-        {step === 0 && (
+        <AnimatePresence mode="wait" custom={direction} initial={false}>
+          <ScreenTransition key={step} direction={direction}>
+            {step === 0 && (
           <VStack gap={3} hAlign="center">
             <div style={{ fontSize: 64 }}>🐾</div>
             <Heading level={1}>Welcome to PawPal</Heading>
@@ -166,6 +178,8 @@ export function Onboarding({ onDone }: OnboardingProps): React.ReactElement {
             </HStack>
           </VStack>
         )}
+          </ScreenTransition>
+        </AnimatePresence>
       </div>
     </div>
   );

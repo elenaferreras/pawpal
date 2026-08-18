@@ -20,6 +20,7 @@ import { DesktopGate, useIsDesktop } from "./components/DesktopGate";
 import { WalkChooser } from "./components/WalkChooser";
 import { WalkChooserSheet } from "./components/WalkChooserSheet";
 import { CircleReveal } from "./components/CircleReveal";
+import { ScreenTransition } from "./components/ScreenTransition";
 import { WalkFormModal } from "./components/WalkFormModal";
 import { FoodFormModal } from "./components/FoodFormModal";
 import { PoopFormModal } from "./components/PoopFormModal";
@@ -209,6 +210,55 @@ function Shell(): React.ReactElement {
     );
   }
 
+  // The four main tabs share one animated slot so switching between them fades
+  // instead of cutting. Settings maps to the "home" key so opening the Settings
+  // circle-reveal doesn't remount/re-animate the Dashboard behind it.
+  const tabKey: ScreenId | null =
+    screen === "home" || screen === "settings"
+      ? "home"
+      : screen === "walks" || screen === "food" || screen === "vet"
+        ? screen
+        : null;
+
+  const tabNode: React.ReactElement | null =
+    tabKey === "home" ? (
+      design === "new" ? (
+        <Dashboard
+          onNavigate={navigate}
+          onOpenSettings={openSettings}
+          onLogWalk={logWalk}
+          onLogFood={() => setModal("food")}
+          onLogBathroom={() => setModal("poop")}
+        />
+      ) : (
+        <Home
+          onNavigate={navigate}
+          onLogWalk={logWalk}
+          onLogFood={() => setModal("food")}
+          onLogBathroom={() => setModal("poop")}
+        />
+      )
+    ) : tabKey === "walks" ? (
+      design === "new" ? (
+        <WalksStats onAdd={() => setModal("walk-choose")} onEdit={(i) => openTrackWalk(i)} />
+      ) : (
+        <Walks onAdd={() => setModal("walk-choose")} onEdit={(i) => openManualWalk(i)} />
+      )
+    ) : tabKey === "food" ? (
+      <Food onAdd={() => setModal("food")} />
+    ) : tabKey === "vet" ? (
+      <Vet
+        onAdd={() => {
+          setEditReminderIndex(null);
+          setModal("vet");
+        }}
+        onEditReminder={(i) => {
+          setEditReminderIndex(i);
+          setModal("vet");
+        }}
+      />
+    ) : null;
+
   return (
     <>
       {showSplash && <Splash onDone={() => setShowSplash(false)} />}
@@ -241,41 +291,14 @@ function Shell(): React.ReactElement {
         </>
       ) : (
         <>
-          {(screen === "home" || screen === "settings") &&
-            (design === "new" ? (
-              <Dashboard
-                onNavigate={navigate}
-                onOpenSettings={openSettings}
-                onLogWalk={logWalk}
-                onLogFood={() => setModal("food")}
-                onLogBathroom={() => setModal("poop")}
-              />
-            ) : (
-              <Home
-                onNavigate={navigate}
-                onLogWalk={logWalk}
-                onLogFood={() => setModal("food")}
-                onLogBathroom={() => setModal("poop")}
-              />
-            ))}
-          {screen === "walks" &&
-            (design === "new" ? (
-              <WalksStats onAdd={() => setModal("walk-choose")} onEdit={(i) => openTrackWalk(i)} />
-            ) : (
-              <Walks onAdd={() => setModal("walk-choose")} onEdit={(i) => openManualWalk(i)} />
-            ))}
-          {screen === "food" && <Food onAdd={() => setModal("food")} />}
-          {screen === "vet" && (
-            <Vet
-              onAdd={() => {
-                setEditReminderIndex(null);
-                setModal("vet");
-              }}
-              onEditReminder={(i) => {
-                setEditReminderIndex(i);
-                setModal("vet");
-              }}
-            />
+          {tabNode && (
+            <div style={{ background: "var(--color-pawpal-page)", minHeight: "100vh" }}>
+              <AnimatePresence mode="wait" initial={false}>
+                <ScreenTransition key={tabKey ?? "tab"} style={{ minHeight: "100vh" }}>
+                  {tabNode}
+                </ScreenTransition>
+              </AnimatePresence>
+            </div>
           )}
           <AnimatePresence>
             {screen === "settings" && (

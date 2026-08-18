@@ -187,7 +187,8 @@ export function GooeyFab({
     // Dragged → leave the bubble where it was dropped.
   };
 
-  const spring = "left 0.42s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.42s cubic-bezier(0.34, 1.56, 0.64, 1)";
+  const spring = "transform 0.42s cubic-bezier(0.34, 1.56, 0.64, 1)";
+  const tf = (p: Pt): string => `translate3d(${p.x}px, ${p.y}px, 0)`;
 
   return (
     <div
@@ -200,8 +201,8 @@ export function GooeyFab({
         inset: 0,
         zIndex: 300,
         background: "rgba(0,0,0,0.28)",
-        backdropFilter: "blur(6px)",
-        WebkitBackdropFilter: "blur(6px)",
+        backdropFilter: "blur(4px)",
+        WebkitBackdropFilter: "blur(4px)",
         opacity: visible ? 1 : 0,
         transition: "opacity 0.24s ease",
         touchAction: "none",
@@ -211,7 +212,7 @@ export function GooeyFab({
       <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden>
         <defs>
           <filter id="pawpal-goo">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="13" result="blur" />
+            <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
             <feColorMatrix
               in="blur"
               mode="matrix"
@@ -236,13 +237,14 @@ export function GooeyFab({
         <span
           style={{
             position: "absolute",
-            left: anchor.x,
-            top: anchor.y,
+            left: 0,
+            top: 0,
             width: 260,
             height: 260,
             marginLeft: -130,
             marginTop: -130,
             borderRadius: "50%",
+            transform: tf(anchor),
             background:
               "radial-gradient(circle, color-mix(in srgb, var(--color-pawpal-fab) 72%, transparent) 0%, transparent 62%)",
           }}
@@ -254,13 +256,15 @@ export function GooeyFab({
               key={it.key}
               style={{
                 position: "absolute",
-                left: p.x,
-                top: p.y,
+                left: 0,
+                top: 0,
                 width: 220,
                 height: 220,
                 marginLeft: -110,
                 marginTop: -110,
                 borderRadius: "50%",
+                transform: tf(p),
+                willChange: "transform",
                 background:
                   "radial-gradient(circle, color-mix(in srgb, var(--color-pawpal-fab) 72%, transparent) 0%, transparent 62%)",
                 transition: dragKey === it.key ? "none" : spring,
@@ -287,13 +291,14 @@ export function GooeyFab({
         <span
           style={{
             position: "absolute",
-            left: anchor.x,
-            top: anchor.y,
+            left: 0,
+            top: 0,
             width: GOO_D,
             height: GOO_D,
             marginLeft: -GOO_D / 2,
             marginTop: -GOO_D / 2,
             borderRadius: "50%",
+            transform: tf(anchor),
             background: "var(--color-pawpal-fab)",
             mixBlendMode: "multiply",
           }}
@@ -305,13 +310,15 @@ export function GooeyFab({
               key={it.key}
               style={{
                 position: "absolute",
-                left: p.x,
-                top: p.y,
+                left: 0,
+                top: 0,
                 width: GOO_D,
                 height: GOO_D,
                 marginLeft: -GOO_D / 2,
                 marginTop: -GOO_D / 2,
                 borderRadius: "50%",
+                transform: tf(p),
+                willChange: "transform",
                 background: it.color,
                 mixBlendMode: "multiply",
                 transition: dragKey === it.key ? "none" : spring,
@@ -336,8 +343,8 @@ export function GooeyFab({
             onPointerCancel={endDrag(it)}
             style={{
               position: "absolute",
-              left: p.x,
-              top: p.y,
+              left: 0,
+              top: 0,
               width: BUBBLE,
               height: BUBBLE,
               marginLeft: -BUBBLE / 2,
@@ -353,6 +360,8 @@ export function GooeyFab({
               fontSize: 26,
               cursor: "grab",
               touchAction: "none",
+              transform: tf(p),
+              willChange: "transform",
               background: `radial-gradient(circle at 50% 45%, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.32) 38%, transparent 70%)`,
               opacity: visible ? 1 : 0,
               transition: dragKey === it.key ? "opacity 0.2s ease" : `opacity 0.2s ease, ${spring}`,
