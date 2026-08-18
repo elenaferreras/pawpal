@@ -189,6 +189,10 @@ export function GooeyFab({
 
   const spring = "transform 0.42s cubic-bezier(0.34, 1.56, 0.64, 1)";
   const tf = (p: Pt): string => `translate3d(${p.x}px, ${p.y}px, 0)`;
+  // iOS/Safari resolves `url(#id)` against the document base URL and often
+  // fails to apply the filter in a standalone PWA WebView. Referencing the
+  // filter by absolute URL fixes the goo effect on the deployed app.
+  const gooRef = `url(${typeof window !== "undefined" ? window.location.href.split("#")[0] : ""}#pawpal-goo)`;
 
   return (
     <div
@@ -208,8 +212,14 @@ export function GooeyFab({
         touchAction: "none",
       }}
     >
-      {/* Goo filter definition (hidden). */}
-      <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden>
+      {/* Goo filter definition. Kept in layout (1×1, hidden) rather than
+          display:none so WebKit/iOS still applies the referenced filter. */}
+      <svg
+        width="1"
+        height="1"
+        aria-hidden
+        style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", pointerEvents: "none" }}
+      >
         <defs>
           <filter id="pawpal-goo">
             <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
@@ -282,8 +292,8 @@ export function GooeyFab({
           position: "absolute",
           inset: 0,
           pointerEvents: "none",
-          filter: "url(#pawpal-goo)",
-          WebkitFilter: "url(#pawpal-goo)",
+          filter: gooRef,
+          WebkitFilter: gooRef,
           opacity: 1,
         }}
       >
