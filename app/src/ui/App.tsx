@@ -101,7 +101,7 @@ function Shell(): React.ReactElement {
   const [obVariant, setObVariant] = useState<ObVariant>(initialObVariant);
   const [modal, setModal] = useState<QuickModal>("none");
   const [trackOpen, setTrackOpen] = useState(false);
-  const [design, setDesign] = useState<DesignMode>(initialDesign);
+  const [design] = useState<DesignMode>(initialDesign);
   const [editWalkIndex, setEditWalkIndex] = useState<number | null>(null);
   const [editReminderIndex, setEditReminderIndex] = useState<number | null>(null);
   // Origin of the circular Settings reveal (set from the tapped avatar).
@@ -176,17 +176,7 @@ function Shell(): React.ReactElement {
     setModal(design === "new" ? "walk-track" : "walk-choose");
   };
 
-  const toggleDesign = (): void => {
-    setDesign((d) => {
-      const next = d === "new" ? "old" : "new";
-      try {
-        localStorage.setItem("pawpal-design", next);
-      } catch {
-        // ignore storage failures
-      }
-      return next;
-    });
-  };
+  // Design toggle button is hidden; design defaults to "new".
 
   // Sitter mode takes over the whole screen (ephemeral guest session).
   if (sitter) {
@@ -306,10 +296,6 @@ function Shell(): React.ReactElement {
           )}
           {screen === "settings-sync" && <CloudSyncScreen onBack={() => navigate("settings")} />}
           {screen === "settings-data" && <DataScreen onBack={() => navigate("settings")} />}
-
-          <button type="button" className="design-toggle" onClick={toggleDesign}>
-            {design === "new" ? "New · tap for Old" : "Old · tap for New"}
-          </button>
 
           <BottomNav
             variant={design === "new" ? "trigger" : "full"}
