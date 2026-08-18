@@ -189,6 +189,12 @@ export function GooeyFab({
 
   const spring = "transform 0.42s cubic-bezier(0.34, 1.56, 0.64, 1)";
   const tf = (p: Pt): string => `translate3d(${p.x}px, ${p.y}px, 0)`;
+  // The goo blobs live inside an SVG-filtered container. On iOS/WebKit,
+  // promoting them to their own compositing layer (translate3d / will-change)
+  // makes the browser skip the parent filter — the melt disappears. So the
+  // filtered blobs must stay on plain left/top with no layer promotion.
+  const springLT =
+    "left 0.42s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.42s cubic-bezier(0.34, 1.56, 0.64, 1)";
   // iOS/Safari resolves `url(#id)` against the document base URL and often
   // fails to apply the filter in a standalone PWA WebView. Referencing the
   // filter by absolute URL fixes the goo effect on the deployed app.
@@ -301,14 +307,13 @@ export function GooeyFab({
         <span
           style={{
             position: "absolute",
-            left: 0,
-            top: 0,
+            left: anchor.x,
+            top: anchor.y,
             width: GOO_D,
             height: GOO_D,
             marginLeft: -GOO_D / 2,
             marginTop: -GOO_D / 2,
             borderRadius: "50%",
-            transform: tf(anchor),
             background: "var(--color-pawpal-fab)",
             mixBlendMode: "multiply",
           }}
@@ -320,18 +325,16 @@ export function GooeyFab({
               key={it.key}
               style={{
                 position: "absolute",
-                left: 0,
-                top: 0,
+                left: p.x,
+                top: p.y,
                 width: GOO_D,
                 height: GOO_D,
                 marginLeft: -GOO_D / 2,
                 marginTop: -GOO_D / 2,
                 borderRadius: "50%",
-                transform: tf(p),
-                willChange: "transform",
                 background: it.color,
                 mixBlendMode: "multiply",
-                transition: dragKey === it.key ? "none" : spring,
+                transition: dragKey === it.key ? "none" : springLT,
               }}
             />
           );
