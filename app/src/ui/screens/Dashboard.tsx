@@ -118,13 +118,17 @@ export function Dashboard({
   };
 
   const vetNoteItems = db.vetRecords.noteItems;
-  const vetNotes =
+  // Checklist preview matching the Vet (health) tab. Falls back to splitting any
+  // legacy free-text notes into rows so both screens look identical.
+  const vetNoteList: { text: string; done: boolean }[] =
     vetNoteItems !== undefined
       ? vetNoteItems
-          .filter((n) => !n.done)
-          .map((n) => n.text)
-          .join(" • ")
-      : (db.vetRecords.notes ?? "").trim();
+      : (db.vetRecords.notes ?? "")
+          .split("\n")
+          .map((line) => line.replace(/^[-•✅☑️✔️\s]+/, "").trim())
+          .filter(Boolean)
+          .map((text) => ({ text, done: false }));
+  const openVetCount = vetNoteList.filter((n) => !n.done).length;
 
   return (
     <div
@@ -452,26 +456,91 @@ export function Dashboard({
         >
           <div
             style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
               background: "var(--color-dash-pooped)",
               padding: "16px 24px",
-              fontFamily: "var(--font-brand)",
-              fontWeight: 700,
-              fontSize: 18,
-              color: DARK,
             }}
           >
-            Notes for the vet
+            <span
+              style={{
+                fontFamily: "var(--font-brand)",
+                fontWeight: 700,
+                fontSize: 18,
+                color: DARK,
+              }}
+            >
+              Notes for the vet
+            </span>
+            {openVetCount > 0 && (
+              <span
+                style={{
+                  fontFamily: "var(--font-ui)",
+                  fontWeight: 700,
+                  fontSize: 12,
+                  color: DARK,
+                  opacity: 0.7,
+                }}
+              >
+                {openVetCount} open
+              </span>
+            )}
           </div>
-          <div
-            style={{
-              padding: "16px 24px 20px",
-              whiteSpace: "pre-wrap",
-              opacity: vetNotes ? 1 : 0.5,
-            }}
-          >
-            <Callout color={DARK}>
-              {vetNotes || "Tap to add notes for your next vet visit."}
-            </Callout>
+          <div style={{ padding: "12px 16px 16px", display: "flex", flexDirection: "column", gap: 6 }}>
+            {vetNoteList.length === 0 ? (
+              <Callout color={DARK} style={{ opacity: 0.5, padding: "4px 8px" }}>
+                Tap to add notes for your next vet visit.
+              </Callout>
+            ) : (
+              vetNoteList.map((item, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 10,
+                    padding: "8px 10px",
+                  }}
+                >
+                  <span
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: DARK,
+                      height: 21,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {item.done ? (
+                      <Icon icon={Icons.checkCircle} color="inherit" />
+                    ) : (
+                      <span
+                        style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: "50%",
+                          border: `2px solid ${DARK}`,
+                          opacity: 0.5,
+                        }}
+                      />
+                    )}
+                  </span>
+                  <Callout
+                    color={DARK}
+                    style={{
+                      whiteSpace: "pre-wrap",
+                      textDecoration: item.done ? "line-through" : "none",
+                      opacity: item.done ? 0.5 : 1,
+                    }}
+                  >
+                    {item.text}
+                  </Callout>
+                </div>
+              ))
+            )}
           </div>
         </button>
       </div>
