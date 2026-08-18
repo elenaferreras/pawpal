@@ -10,6 +10,8 @@ import { Badge } from "@astryxdesign/core/Badge";
 import { SegmentedControl, SegmentedControlItem } from "@astryxdesign/core/SegmentedControl";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
+import { useConfirm } from "../components/ConfirmDialog";
+import { SwipeableRow } from "../components/SwipeableRow";
 import { Header } from "../components/Header";
 import { RouteMap } from "../components/RouteMap";
 import { Icons } from "../lib/icons";
@@ -26,6 +28,7 @@ interface WalksProps {
 export function Walks({ onAdd, onEdit }: WalksProps): React.ReactElement {
   const { db, update } = useDb();
   const toast = useToast();
+  const confirm = useConfirm();
   const [filter, setFilter] = useState<Filter>("all");
 
   const todayStr = new Date().toISOString().split("T")[0];
@@ -43,8 +46,13 @@ export function Walks({ onAdd, onEdit }: WalksProps): React.ReactElement {
     ? Math.round(db.walks.reduce((a, w) => a + (parseInt(String(w.steps)) || 0), 0) / db.walks.length)
     : 0;
 
-  const del = (index: number): void => {
-    if (!window.confirm("Delete this walk?")) return;
+  const del = async (index: number): Promise<void> => {
+    const ok = await confirm({
+      title: "Delete this walk?",
+      message: "This walk will be permanently removed.",
+      confirmLabel: "Delete Walk",
+    });
+    if (!ok) return;
     update((d) => {
       d.walks.splice(index, 1);
     });
@@ -137,6 +145,23 @@ function WalkRow({
       gap={0}
       style={{ borderTop: isFirst ? undefined : "1px solid var(--color-border, #eee)" }}
     >
+    <SwipeableRow
+      background="var(--color-surface, #fff)"
+      actions={[
+        {
+          label: "Edit",
+          color: "#8592E0",
+          icon: <Icon icon={Icons.pencilSimple} color="inherit" />,
+          onAction: onEdit,
+        },
+        {
+          label: "Delete",
+          color: "#ff3b30",
+          icon: <Icon icon={Icons.trash} color="inherit" />,
+          onAction: onDelete,
+        },
+      ]}
+    >
     <HStack
       gap={3}
       vAlign="start"
@@ -186,11 +211,8 @@ function WalkRow({
           />
         )}
       </VStack>
-      <VStack gap={1} hAlign="end" style={{ flexShrink: 0 }}>
-        <Button label="Edit" size="sm" variant="secondary" onClick={onEdit} />
-        <IconButton label="Delete walk" size="sm" variant="ghost" icon={<Icon icon={Icons.x} />} onClick={onDelete} />
-      </VStack>
     </HStack>
+    </SwipeableRow>
     {hasRoute && showMap && walk.gpsRoute && (
       <div style={{ padding: "0 12px 12px" }}>
         <RouteMap coords={walk.gpsRoute} height={200} mapStyle="dark" />

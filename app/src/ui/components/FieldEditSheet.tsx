@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@astryxdesign/core/Icon";
 import { Icons } from "../lib/icons";
+import { MotionSheet } from "./MotionSheet";
 
 const DARK = "var(--color-pawpal-page)"; // #352B25
 const SHEET = "var(--color-pawpal-hero)"; // cream sheet surface
@@ -38,7 +39,7 @@ export function FieldEditSheet({
   placeholder,
   onSave,
   onClose,
-}: FieldEditSheetProps): React.ReactElement | null {
+}: FieldEditSheetProps): React.ReactElement {
   const [draft, setDraft] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -62,8 +63,6 @@ export function FieldEditSheet({
     return () => cancelAnimationFrame(raf);
   }, [open, value, type]);
 
-  if (!open) return null;
-
   const confirm = (): void => onSave(draft);
 
   // Map each field to the right input control + on-screen keyboard.
@@ -78,14 +77,13 @@ export function FieldEditSheet({
           : undefined;
 
   return (
-    <div className="walk-sheet-scrim" onClick={onClose}>
-      <div
-        className="field-sheet"
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <MotionSheet
+      open={open}
+      onClose={onClose}
+      ariaLabel={title}
+      scrimClassName="walk-sheet-scrim"
+      sheetClassName="field-sheet"
+    >
         {/* Toolbar */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "12px 0 10px" }}>
           <div
@@ -211,7 +209,6 @@ export function FieldEditSheet({
             </span>
           </label>
         </div>
-      </div>
-    </div>
+    </MotionSheet>
   );
 }

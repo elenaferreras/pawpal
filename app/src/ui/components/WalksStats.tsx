@@ -1,9 +1,13 @@
 import { useMemo, useState, Fragment } from "react";
 import { useDb } from "../lib/store";
+import { useToast } from "../lib/toast";
+import { useConfirm } from "./ConfirmDialog";
 import { Icon } from "@astryxdesign/core/Icon";
 import { Icons } from "../lib/icons";
 import { useLiveWalk } from "./LiveWalk";
 import { RouteMap } from "./RouteMap";
+import { RevealItem } from "./Reveal";
+import { SwipeableRow } from "./SwipeableRow";
 import { PageTitle, StatNumber } from "./Typography";
 import { DogFace } from "../avatar/DogAvatar";
 import { fmtDate } from "../lib/date";
@@ -14,6 +18,8 @@ interface WalksStatsProps {
   onBack?: () => void;
   /** Opens the add-walk flow from the header plus button. */
   onAdd?: () => void;
+  /** Opens the edit-walk flow for a given walk index (swipe → Edit). */
+  onEdit?: (index: number) => void;
 }
 
 const WEEKDAYS = ["M", "T", "W", "T", "F", "S", "S"];
@@ -51,11 +57,26 @@ interface DayInfo {
  * (Mon-aligned) as a grid: active days are light-blue cells with an orange dot
  * sized by step count; empty/future days are muted cells with a small dot.
  */
-export function WalksStats({ onBack, onAdd }: WalksStatsProps): React.ReactElement {
-  const { db } = useDb();
+export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.ReactElement {
+  const { db, update } = useDb();
+  const toast = useToast();
+  const confirm = useConfirm();
   const { active: walkActive, coords, openSheet } = useLiveWalk();
   const [selected, setSelected] = useState<number | null>(null);
   const [filter, setFilter] = useState<WalkFilter>("today");
+
+  const delWalk = async (index: number): Promise<void> => {
+    const ok = await confirm({
+      title: "Delete this walk?",
+      message: "This walk will be permanently removed.",
+      confirmLabel: "Delete Walk",
+    });
+    if (!ok) return;
+    update((d) => {
+      d.walks.splice(index, 1);
+    });
+    toast("Walk deleted");
+  };
 
   const { days, maxSteps, avg } = useMemo(() => {
     const stepsByDay = new Map<string, number>();
@@ -89,6 +110,14 @@ export function WalksStats({ onBack, onAdd }: WalksStatsProps): React.ReactEleme
   const name = db.profile.name.trim() || "Zipi";
   const selectedDay = selected !== null ? days[selected] : null;
 
+  // Tapping a calendar day selects it and focuses the "Day" segment on that
+  // date; tapping the same day again clears the selection (back to today).
+  const selectDay = (i: number): void => {
+    const next = selected === i ? null : i;
+    setSelected(next);
+    if (next !== null) setFilter("today");
+  };
+
   const entries = useMemo(() => {
     const now = new Date();
     const todayStr = localISO(now);
@@ -99,14 +128,18 @@ export function WalksStats({ onBack, onAdd }: WalksStatsProps): React.ReactEleme
     const sorted = db.walks
       .map((w, index) => ({ w, index }))
       .sort((a, b) => stamp(b.w) - stamp(a.w));
-    if (filter === "today") return sorted.filter(({ w }) => w.date === todayStr);
+    if (filter === "today") {
+      // "Day" shows the selected calendar day when one is tapped, else today.
+      const dayStr = selected !== null ? localISO(days[selected].date) : todayStr;
+      return sorted.filter(({ w }) => w.date === dayStr);
+    }
     if (filter === "month")
       return sorted.filter(({ w }) => {
         const d = new Date(w.date + "T12:00:00");
         return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
       });
     return sorted;
-  }, [db.walks, filter]);
+  }, [db.walks, filter, selected, days]);
 
   return (
     <div
@@ -255,7 +288,7 @@ export function WalksStats({ onBack, onAdd }: WalksStatsProps): React.ReactEleme
               max={maxSteps}
               future={day.future}
               selected={selected === i}
-              onSelect={() => setSelected((cur) => (cur === i ? null : i))}
+              onSelect={() => selectDay(i)}
             />
           ))}
         </div>
@@ -280,7 +313,12 @@ export function WalksStats({ onBack, onAdd }: WalksStatsProps): React.ReactEleme
               })}
             </p>
             <p style={{ margin: 0 }}>
-              <StatNumber size={32} weight={700} color="var(--color-pawpal-hero)">
+              <StatNumber
+                size={32}
+                weight={700}
+                color="var(--color-pawpal-hero)"
+                style={{ fontSize: "clamp(24px, 7vw, 32px)" }}
+              >
                 {selectedDay.future
                   ? "Not yet"
                   : selectedDay.steps > 0
@@ -303,7 +341,12 @@ export function WalksStats({ onBack, onAdd }: WalksStatsProps): React.ReactEleme
               Average of
             </p>
             <p style={{ margin: 0 }}>
-              <StatNumber size={32} weight={700} color="var(--color-pawpal-hero)">
+              <StatNumber
+                size={32}
+                weight={700}
+                color="var(--color-pawpal-hero)"
+                style={{ fontSize: "clamp(24px, 7vw, 32px)" }}
+              >
                 {avg.toLocaleString("de-DE")} steps
               </StatNumber>
             </p>
@@ -403,11 +446,43 @@ export function WalksStats({ onBack, onAdd }: WalksStatsProps): React.ReactEleme
               opacity: 0.6,
             }}
           >
-            No walks {filter === "today" ? "today" : filter === "month" ? "this month" : "yet"}.
+            No walks{" "}
+            {filter === "today"
+              ? selectedDay
+                ? "on this day"
+                : "today"
+              : filter === "month"
+                ? "this month"
+                : "yet"}
+            .
           </p>
         ) : (
-          entries.map(({ w, index }) => (
-            <WalkEntry key={index} walk={w} avatar={db.profile.avatar} />
+          entries.map(({ w, index }, i) => (
+            <RevealItem key={index} index={i}>
+              <SwipeableRow
+                background="var(--color-settings-group)"
+                actions={[
+                  ...(onEdit
+                    ? [
+                        {
+                          label: "Edit",
+                          color: "#8592E0",
+                          icon: <Icon icon={Icons.pencilSimple} color="inherit" />,
+                          onAction: () => onEdit(index),
+                        },
+                      ]
+                    : []),
+                  {
+                    label: "Delete",
+                    color: "#ff3b30",
+                    icon: <Icon icon={Icons.trash} color="inherit" />,
+                    onAction: () => delWalk(index),
+                  },
+                ]}
+              >
+                <WalkEntry walk={w} avatar={db.profile.avatar} />
+              </SwipeableRow>
+            </RevealItem>
           ))
         )}
       </div>

@@ -15,14 +15,19 @@ interface DashboardProps {
   onLogWalk: () => void;
   onLogFood: () => void;
   onLogBathroom: () => void;
+  /** Opens Settings with a circular reveal from the tapped avatar. */
+  onOpenSettings?: (origin: { x: number; y: number }) => void;
 }
 
 const HERO = "var(--color-pawpal-hero)"; // cream
 const DARK = "var(--color-pawpal-page)"; // #352B25
 const BAR_COLOR = "var(--color-data-yellow-3)"; // #FFFF83
+// Future days render as a circle filled with the brown token at 40% opacity.
+const FUTURE_COLOR = "color-mix(in srgb, var(--brown) 40%, transparent)";
 const MUTED = "var(--color-pawpal-muted)"; // #8C8976
 
-const WEEKDAY_LETTERS = ["S", "M", "T", "W", "T", "F", "S"];
+// Monday → Sunday letters for the hero week chart.
+const WEEK_LETTERS = ["M", "T", "W", "T", "F", "S", "S"];
 const ORDINALS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th"];
 
 /** Local YYYY-MM-DD (avoids UTC off-by-one from toISOString). */
@@ -43,6 +48,7 @@ export function Dashboard({
   onLogWalk,
   onLogFood,
   onLogBathroom,
+  onOpenSettings,
 }: DashboardProps): React.ReactElement {
   const { db, update } = useDb();
   const toast = useToast();
@@ -51,26 +57,33 @@ export function Dashboard({
   const p = db.profile;
   const todayISO = localISO(new Date());
 
-  // Last five days (oldest → today) of walk steps for the hero chart.
+  // Full current week (Monday → Sunday) of walk steps for the hero chart.
   const { bars, average } = useMemo(() => {
-    const days: { iso: string; letter: string; steps: number }[] = [];
-    for (let i = 4; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dow = (today.getDay() + 6) % 7; // 0 = Monday
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - dow);
+
+    const days: { iso: string; letter: string; steps: number; future: boolean }[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
       const iso = localISO(d);
       const steps = db.walks
         .filter((w) => w.date === iso)
         .reduce((a, w) => a + (parseInt(String(w.steps)) || 0), 0);
-      days.push({ iso, letter: WEEKDAY_LETTERS[d.getDay()], steps });
+      days.push({ iso, letter: WEEK_LETTERS[i], steps, future: d > today });
     }
     const max = Math.max(1, ...days.map((d) => d.steps));
     const chart: (WalksBar & { letter: string })[] = days.map((d) => ({
-      label: `${d.letter}: ${d.steps} steps`,
-      fraction: d.steps / max,
-      color: BAR_COLOR,
+      label: d.future ? `${d.letter}: upcoming` : `${d.letter}: ${d.steps} steps`,
+      // Future days render as a circle (fraction 0 → min height = width).
+      fraction: d.future ? 0 : d.steps / max,
+      color: d.future ? FUTURE_COLOR : BAR_COLOR,
       letter: d.letter,
     }));
-    const withSteps = days.filter((d) => d.steps > 0);
+    const withSteps = days.filter((d) => !d.future && d.steps > 0);
     const avg = withSteps.length
       ? Math.round(withSteps.reduce((a, d) => a + d.steps, 0) / withSteps.length)
       : 0;
@@ -104,7 +117,14 @@ export function Dashboard({
     });
   };
 
-  const vetNotes = (db.vetRecords.notes ?? "").trim();
+  const vetNoteItems = db.vetRecords.noteItems;
+  const vetNotes =
+    vetNoteItems !== undefined
+      ? vetNoteItems
+          .filter((n) => !n.done)
+          .map((n) => n.text)
+          .join(" • ")
+      : (db.vetRecords.notes ?? "").trim();
 
   return (
     <div
@@ -126,7 +146,14 @@ export function Dashboard({
         <button
           type="button"
           aria-label="Settings"
-          onClick={() => onNavigate("settings")}
+          onClick={(e) => {
+            if (onOpenSettings) {
+              const r = e.currentTarget.getBoundingClientRect();
+              onOpenSettings({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+            } else {
+              onNavigate("settings");
+            }
+          }}
           style={{
             width: 48,
             height: 48,
@@ -197,7 +224,7 @@ export function Dashboard({
       <div style={{ padding: "0 16px" }}>
         <div style={{ background: HERO, borderRadius: 32, padding: 24 }}>
           {/* Weekday labels */}
-          <div style={{ display: "flex", marginBottom: 12 }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
             {bars.map((b, i) => (
               <span
                 key={i}
@@ -215,7 +242,7 @@ export function Dashboard({
             ))}
           </div>
 
-          <WalksBarChart data={bars} height={131} gap={16} />
+          <WalksBarChart data={bars} height={131} gap={8} />
 
           <button
             type="button"
@@ -232,12 +259,14 @@ export function Dashboard({
               cursor: "pointer",
             }}
           >
-            <Eyebrow color={MUTED} size={13} tracking={0.6}>
+            <Eyebrow color={MUTED} size={13} tracking={0.6} style={{ paddingLeft: 0 }}>
               This week&rsquo;s average
             </Eyebrow>
             <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-              <StatNumber color={DARK}>{average.toLocaleString("de-DE")}</StatNumber>
-              <StatNumber color={MUTED} style={{ opacity: 0.6 }}>
+              <StatNumber color={DARK} style={{ fontSize: "clamp(30px, 9.5vw, 44px)" }}>
+                {average.toLocaleString("de-DE")}
+              </StatNumber>
+              <StatNumber color={MUTED} style={{ opacity: 0.6, fontSize: "clamp(30px, 9.5vw, 44px)" }}>
                 steps
               </StatNumber>
             </div>

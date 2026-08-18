@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
+import { MotionSheet } from "./MotionSheet";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { Icon } from "@astryxdesign/core/Icon";
 import { Icons } from "../lib/icons";
 import { nowTime } from "../lib/date";
-import type { Walk } from "../types";
+import type { Database, Walk } from "../types";
 
 interface WalkTrackSheetProps {
   open: boolean;
   onClose: () => void;
+  /** When set, the sheet edits this existing walk instead of adding a new one. */
+  editIndex?: number | null;
 }
 
 const DARK = "var(--color-pawpal-page)"; // #352B25
@@ -25,19 +28,27 @@ function localISO(d: Date): string {
  * Orange sheet that slides up when logging a walk in the new design. Dark fields
  * on the orange surface; selected toggles invert to a dark fill with a check.
  */
-export function WalkTrackSheet({ open, onClose }: WalkTrackSheetProps): React.ReactElement | null {
-  const { update } = useDb();
+export function WalkTrackSheet({ open, onClose, editIndex }: WalkTrackSheetProps): React.ReactElement {
+  const { db, update } = useDb();
   const toast = useToast();
+
+  const editWalk =
+    editIndex != null && editIndex >= 0 && editIndex < db.walks.length ? db.walks[editIndex] : null;
 
   const days = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return Array.from({ length: DAYS_SHOWN }, (_, i) => {
+    const base = Array.from({ length: DAYS_SHOWN }, (_, i) => {
       const d = new Date(today);
       d.setDate(today.getDate() - (DAYS_SHOWN - 1 - i));
       return d;
     });
-  }, []);
+    // When editing an older walk, make sure its date is selectable.
+    if (editWalk?.date && !base.some((d) => localISO(d) === editWalk.date)) {
+      base.unshift(new Date(editWalk.date + "T12:00:00"));
+    }
+    return base;
+  }, [editWalk?.date]);
 
   const [dateISO, setDateISO] = useState(localISO(new Date()));
   const [duration, setDuration] = useState("");
@@ -46,21 +57,77 @@ export function WalkTrackSheet({ open, onClose }: WalkTrackSheetProps): React.Re
   const [pooped, setPooped] = useState(false);
   const [socialised, setSocialised] = useState(false);
   const [assignee, setAssignee] = useState<string | null>(null);
+  const [notes, setNotes] = useState("");
+  const [sendToVet, setSendToVet] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setDateISO(localISO(new Date()));
-    setDuration("");
-    setSteps("");
-    setDistance("");
-    setPooped(false);
-    setSocialised(false);
-    setAssignee(null);
-  }, [open]);
-
-  if (!open) return null;
+    if (editWalk) {
+      setDateISO(editWalk.date || localISO(new Date()));
+      setDuration(String(editWalk.duration ?? ""));
+      setSteps(String(editWalk.steps ?? ""));
+      setDistance(String(editWalk.distance ?? ""));
+      setPooped(!!editWalk.popo);
+      setSocialised(!!editWalk.friends);
+      setAssignee(editWalk.assignee ?? null);
+      setNotes(editWalk.notes ?? "");
+      setSendToVet(!!editWalk.sentToVet);
+    } else {
+      setDateISO(localISO(new Date()));
+      setDuration("");
+      setSteps("");
+      setDistance("");
+      setPooped(false);
+      setSocialised(false);
+      setAssignee(null);
+      setNotes("");
+      setSendToVet(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editIndex]);
 
   const save = (): void => {
+    const trimmedNotes = notes.trim();
+    // Keep a linked "Notes for the vet" checklist item in sync with this walk's
+    // note: create it when the toggle is on, update its text when the note
+    // changes, and remove it when the toggle is turned off or the note cleared.
+    const syncVetNote = (d: Database, walkCreated: string): void => {
+      const items = (d.vetRecords.noteItems ??= []);
+      const idx = items.findIndex((n) => n.source === walkCreated);
+      if (sendToVet && trimmedNotes) {
+        const stamp = new Date(dateISO + "T12:00:00").toLocaleDateString(undefined, {
+          day: "numeric",
+          month: "short",
+        });
+        const text = `${stamp} (walk): ${trimmedNotes}`;
+        if (idx >= 0) items[idx].text = text;
+        else items.push({ text, done: false, source: walkCreated });
+      } else if (idx >= 0) {
+        items.splice(idx, 1);
+      }
+    };
+    if (editWalk && editIndex != null) {
+      update((d) => {
+        const existing = d.walks[editIndex];
+        if (!existing) return;
+        d.walks[editIndex] = {
+          ...existing,
+          date: dateISO,
+          duration: duration.trim(),
+          steps: steps.trim(),
+          distance: distance.trim(),
+          popo: pooped,
+          friends: socialised,
+          assignee: assignee ?? undefined,
+          notes: notes.trim(),
+          sentToVet: sendToVet && trimmedNotes !== "",
+        };
+        syncVetNote(d, existing.created);
+      });
+      toast("Walk updated! 🦮");
+      onClose();
+      return;
+    }
     const walk: Walk = {
       date: dateISO,
       time: nowTime(),
@@ -71,21 +138,28 @@ export function WalkTrackSheet({ open, onClose }: WalkTrackSheetProps): React.Re
       popo: pooped,
       friends: socialised,
       weather: "",
-      notes: "",
+      notes: notes.trim(),
       assignee: assignee ?? undefined,
+      sentToVet: sendToVet && trimmedNotes !== "",
       created: new Date().toISOString(),
     };
     update((d) => {
       d.walks.push(walk);
+      syncVetNote(d, walk.created);
     });
     toast("Walk saved! 🦮");
     onClose();
   };
 
   return (
-    <div className="walk-sheet-scrim" onClick={onClose}>
-      <div className="walk-sheet" role="dialog" aria-modal="true" aria-label="Track walk" onClick={(e) => e.stopPropagation()}>
-        <div className="walk-sheet-body">
+    <MotionSheet
+      open={open}
+      onClose={onClose}
+      ariaLabel="Track walk"
+      scrimClassName="walk-sheet-scrim"
+      sheetClassName="walk-sheet"
+    >
+      <div className="walk-sheet-body">
         <p
           style={{
             margin: 0,
@@ -95,7 +169,7 @@ export function WalkTrackSheet({ open, onClose }: WalkTrackSheetProps): React.Re
             color: DARK,
           }}
         >
-          Track walk
+          {editWalk ? "Edit walk" : "Track walk"}
         </p>
 
         {/* Date picker */}
@@ -175,6 +249,17 @@ export function WalkTrackSheet({ open, onClose }: WalkTrackSheetProps): React.Re
           </div>
         </Field>
 
+        <Field label="Notes">
+          <SheetTextarea value={notes} onChange={setNotes} placeholder="Anything worth remembering?" />
+          {notes.trim() !== "" && (
+            <ChoiceButton
+              label="Send note to vet"
+              selected={sendToVet}
+              onClick={() => setSendToVet((v) => !v)}
+            />
+          )}
+        </Field>
+
         </div>
 
         <div className="walk-sheet-footer">
@@ -194,11 +279,10 @@ export function WalkTrackSheet({ open, onClose }: WalkTrackSheetProps): React.Re
               fontSize: 16,
             }}
           >
-            Save walk
+            {editWalk ? "Save changes" : "Save walk"}
           </button>
         </div>
-      </div>
-    </div>
+    </MotionSheet>
   );
 }
 
@@ -242,6 +326,39 @@ function SheetInput({
         fontWeight: 500,
         fontSize: 16,
         outline: "none",
+      }}
+    />
+  );
+}
+
+function SheetTextarea({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}): React.ReactElement {
+  return (
+    <textarea
+      className="wts-field"
+      value={value}
+      placeholder={placeholder}
+      rows={3}
+      onChange={(e) => onChange(e.target.value)}
+      style={{
+        width: "100%",
+        padding: 16,
+        borderRadius: 16,
+        border: `1px solid ${DARK}`,
+        background: "transparent",
+        color: DARK,
+        fontFamily: "var(--font-ui)",
+        fontWeight: 500,
+        fontSize: 16,
+        outline: "none",
+        resize: "vertical",
       }}
     />
   );

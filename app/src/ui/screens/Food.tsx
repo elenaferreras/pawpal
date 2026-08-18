@@ -1,8 +1,11 @@
 import { Icon } from "@astryxdesign/core/Icon";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
+import { useConfirm } from "../components/ConfirmDialog";
+import { SwipeableRow } from "../components/SwipeableRow";
 import { MealsWidget } from "../components/MealsWidget";
 import { PageTitle, CardTitle } from "../components/Typography";
+import { RevealItem } from "../components/Reveal";
 import { Icons } from "../lib/icons";
 import { fmtDate } from "../lib/date";
 import type { Meal } from "../types";
@@ -64,6 +67,7 @@ function PlanField({ children }: { children: React.ReactNode }): React.ReactElem
 export function Food({ onAdd }: FoodProps): React.ReactElement {
   const { db, update } = useDb();
   const toast = useToast();
+  const confirm = useConfirm();
   const p = db.profile;
   const name = p.name.trim() || "Zipi";
   const n = p.mealsPerDay || 4;
@@ -98,8 +102,13 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
     });
   };
 
-  const delMeal = (index: number): void => {
-    if (!window.confirm("Delete this meal?")) return;
+  const delMeal = async (index: number): Promise<void> => {
+    const ok = await confirm({
+      title: "Delete this meal?",
+      message: "This meal will be permanently removed.",
+      confirmLabel: "Delete Meal",
+    });
+    if (!ok) return;
     update((d) => {
       d.meals.splice(index, 1);
     });
@@ -259,16 +268,32 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
             }}
           >
             {history.map(({ m, index }, i) => (
-              <div
+              <RevealItem
                 key={index}
+                index={i}
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: 12,
                   borderTop: i === 0 ? undefined : "1px solid rgba(233,228,196,0.12)",
                 }}
               >
+                <SwipeableRow
+                  background="var(--color-dash-surface)"
+                  actions={[
+                    {
+                      label: "Delete",
+                      color: "#ff3b30",
+                      icon: <Icon icon={Icons.trash} color="inherit" />,
+                      onAction: () => delMeal(index),
+                    },
+                  ]}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      padding: 12,
+                    }}
+                  >
                 <span
                   style={{
                     display: "flex",
@@ -316,27 +341,9 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
                 >
                   {m.amount}g
                 </span>
-                <button
-                  type="button"
-                  aria-label="Delete meal"
-                  onClick={() => delMeal(index)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 32,
-                    height: 32,
-                    borderRadius: "50%",
-                    border: "none",
-                    background: "transparent",
-                    color: "var(--color-pawpal-muted)",
-                    cursor: "pointer",
-                    flexShrink: 0,
-                  }}
-                >
-                  <Icon icon={Icons.x} color="inherit" size="sm" />
-                </button>
-              </div>
+                  </div>
+                </SwipeableRow>
+              </RevealItem>
             ))}
           </div>
         </>

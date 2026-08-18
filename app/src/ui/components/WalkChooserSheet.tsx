@@ -1,5 +1,6 @@
 import { Icon } from "@astryxdesign/core/Icon";
 import { Icons } from "../lib/icons";
+import { MotionSheet } from "./MotionSheet";
 import { useLiveWalk } from "./LiveWalk";
 
 const DARK = "var(--color-pawpal-page)"; // #352B25
@@ -22,19 +23,17 @@ export function WalkChooserSheet({
   open,
   onClose,
   onManual,
-}: WalkChooserSheetProps): React.ReactElement | null {
+}: WalkChooserSheetProps): React.ReactElement {
   const { start } = useLiveWalk();
-  if (!open) return null;
 
   return (
-    <div className="walk-sheet-scrim" onClick={onClose}>
-      <div
-        className="chooser-sheet"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Log a walk"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <MotionSheet
+      open={open}
+      onClose={onClose}
+      ariaLabel="Log a walk"
+      scrimClassName="walk-sheet-scrim"
+      sheetClassName="chooser-sheet"
+    >
         <span
           aria-hidden
           style={{
@@ -80,8 +79,7 @@ export function WalkChooserSheet({
             }}
           />
         </div>
-      </div>
-    </div>
+    </MotionSheet>
   );
 }
 

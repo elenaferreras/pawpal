@@ -1,41 +1,107 @@
-import type { ReactNode } from "react";
-import { HStack, VStack } from "@astryxdesign/core/Stack";
-import { Text } from "@astryxdesign/core/Text";
-import { Card } from "@astryxdesign/core/Card";
-import { IconButton } from "@astryxdesign/core/IconButton";
+import type { CSSProperties, ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Icon } from "@astryxdesign/core/Icon";
-import { Badge } from "@astryxdesign/core/Badge";
-import { ProgressBar } from "@astryxdesign/core/ProgressBar";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
-import { PageTitle, Eyebrow } from "../components/Typography";
+import { useConfirm } from "../components/ConfirmDialog";
+import { SwipeableRow } from "../components/SwipeableRow";
+import { RevealItem } from "../components/Reveal";
+import { PageTitle, Eyebrow, Headline, Footnote } from "../components/Typography";
 import { Icons } from "../lib/icons";
 import { fmtDate } from "../lib/date";
-import type { Priority } from "../types";
+import type { Priority, VetNote } from "../types";
 
 type IconComponent = (typeof Icons)[keyof typeof Icons];
-type Accent = "success" | "warning" | "error" | "secondary";
+
+// Dashboard design tokens (mirrors screens/Dashboard.tsx & settings/shared.tsx).
+const DARK = "var(--color-pawpal-page)"; // #352B25 page background
+const HERO = "var(--color-pawpal-hero)"; // cream
+const SURFACE = "var(--color-dash-surface)"; // #3E332C dark card
+const MUTED = "var(--color-pawpal-muted)"; // muted label text
+
+// Icon-chip accent colours per section (pastel chips, dark glyphs).
+const ACCENT = {
+  reminder: "var(--color-track-vet)", // blue
+  medication: "var(--color-track-meds)", // green
+  vaccine: "var(--color-track-notes)", // light blue
+  checkup: "var(--color-dash-trained)", // yellow
+} as const;
+
+const PRIORITY_COLOR: Record<Priority, string> = {
+  High: "#E96A41",
+  Medium: "#F2B84B",
+  Low: "#9DBA9C",
+};
 
 interface VetProps {
   onAdd: () => void;
+  onEditReminder: (index: number) => void;
 }
-
-const PRIORITY_VARIANT: Record<Priority, "error" | "warning" | "success"> = {
-  High: "error",
-  Medium: "warning",
-  Low: "success",
-};
 
 type Collection = "checkups" | "vaccines" | "reminders" | "medications";
 
-export function Vet({ onAdd }: VetProps): React.ReactElement {
+export function Vet({ onAdd, onEditReminder }: VetProps): React.ReactElement {
   const { db, update } = useDb();
   const toast = useToast();
+  const confirm = useConfirm();
   const { checkups, vaccines, reminders, medications } = db.vetRecords;
   const name = db.profile.name.trim() || "Zipi";
 
-  const del = (collection: Collection, index: number): void => {
-    if (!window.confirm("Delete this record?")) return;
+  const noteItems = db.vetRecords.noteItems ?? [];
+  const [draft, setDraft] = useState("");
+
+  // One-time migration: seed the checklist from any legacy free-text notes.
+  useEffect(() => {
+    if (db.vetRecords.noteItems !== undefined) return;
+    update((d) => {
+      const legacy = (d.vetRecords.notes ?? "").trim();
+      d.vetRecords.noteItems = legacy
+        ? legacy
+            .split("\n")
+            .map((line) => line.replace(/^[-•✅☑️✔️\s]+/, "").trim())
+            .filter(Boolean)
+            .map((text) => ({ text, done: false }))
+        : [];
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const addNote = (): void => {
+    const text = draft.trim();
+    if (!text) return;
+    update((d) => {
+      (d.vetRecords.noteItems ??= []).push({ text, done: false });
+    });
+    setDraft("");
+  };
+
+  const toggleNote = (index: number): void => {
+    update((d) => {
+      const item = d.vetRecords.noteItems?.[index];
+      if (item) item.done = !item.done;
+    });
+  };
+
+  const editNote = (index: number, text: string): void => {
+    update((d) => {
+      const item = d.vetRecords.noteItems?.[index];
+      if (item) item.text = text;
+    });
+  };
+
+  const deleteNote = (index: number): void => {
+    update((d) => {
+      d.vetRecords.noteItems?.splice(index, 1);
+    });
+  };
+
+  const del = async (collection: Collection, index: number): Promise<void> => {
+    const ok = await confirm({
+      title: "Delete this record?",
+      message: "This record will be permanently removed.",
+      confirmLabel: "Delete Record",
+    });
+    if (!ok) return;
     update((d) => {
       d.vetRecords[collection].splice(index, 1);
     });
@@ -56,211 +122,513 @@ export function Vet({ onAdd }: VetProps): React.ReactElement {
     <div
       style={{
         minHeight: "100vh",
-        background: "var(--color-pawpal-page)",
+        background: DARK,
         padding:
           "calc(16px + env(safe-area-inset-top, 0px)) 16px calc(96px + env(safe-area-inset-bottom, 20px))",
       }}
     >
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        <IconButton label="Add record" variant="primary" icon={<Icon icon={Icons.plus} />} onClick={onAdd} />
-      </div>
-      <PageTitle style={{ margin: "8px 0 4px" }}>{name}&rsquo;s Health</PageTitle>
-      <Eyebrow style={{ display: "block", margin: "0 0 20px" }}>Checkups, vaccines &amp; meds</Eyebrow>
-
-      <SectionLabel>Notes for the vet</SectionLabel>
-      <Card padding={0}>
-        <textarea
-          value={db.vetRecords.notes ?? ""}
-          onChange={(e) =>
-            update((d) => {
-              d.vetRecords.notes = e.target.value;
-            })
-          }
-          placeholder="Anything to mention at the next visit…"
-          rows={4}
+      {/* Header — title + add button */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <PageTitle style={{ margin: "4px 0 0" }}>{name}&rsquo;s Health</PageTitle>
+          <Eyebrow style={{ padding: "6px 0 0", color: MUTED }}>Checkups, vaccines &amp; meds</Eyebrow>
+        </div>
+        <button
+          type="button"
+          aria-label="Add record"
+          onClick={onAdd}
           style={{
-            width: "100%",
-            boxSizing: "border-box",
-            resize: "vertical",
+            width: 56,
+            height: 56,
+            borderRadius: "50%",
+            flexShrink: 0,
             border: "none",
-            outline: "none",
-            background: "transparent",
-            padding: 16,
-            font: "inherit",
-            color: "inherit",
-            lineHeight: 1.5,
+            cursor: "pointer",
+            background: SURFACE,
+            color: HERO,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
           }}
-        />
-      </Card>
+        >
+          <Icon icon={Icons.plusCircle} color="inherit" />
+        </button>
+      </div>
 
+      {/* Notes for the vet — a checklist of topics to discuss, matching the home card */}
+      <div style={{ marginTop: 20, borderRadius: 32, overflow: "hidden", background: HERO }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            background: "var(--color-dash-pooped)",
+            padding: "16px 24px",
+          }}
+        >
+          <span
+            style={{
+              fontFamily: "var(--font-brand)",
+              fontWeight: 700,
+              fontSize: 18,
+              color: DARK,
+            }}
+          >
+            Notes for the vet
+          </span>
+          {noteItems.length > 0 && (
+            <span
+              style={{
+                fontFamily: "var(--font-ui)",
+                fontWeight: 700,
+                fontSize: 12,
+                color: DARK,
+                opacity: 0.7,
+              }}
+            >
+              {noteItems.filter((n) => !n.done).length} open
+            </span>
+          )}
+        </div>
+
+        <div style={{ padding: "12px 16px 16px", display: "flex", flexDirection: "column", gap: 6 }}>
+          {noteItems.length === 0 && (
+            <Footnote color={DARK} style={{ opacity: 0.55, padding: "4px 8px" }}>
+              Add topics to raise at your next visit, then tick them off as you discuss them.
+            </Footnote>
+          )}
+
+          {noteItems.map((item, index) => (
+            <NoteRow
+              key={index}
+              item={item}
+              onToggle={() => toggleNote(index)}
+              onEdit={(text) => editNote(index, text)}
+              onDelete={() => deleteNote(index)}
+            />
+          ))}
+
+          {/* Add a new topic */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "8px 10px",
+              borderRadius: 16,
+              color: DARK,
+              border: "1.5px dashed rgba(53, 43, 37, 0.35)",
+            }}
+          >
+            <Icon icon={Icons.plusCircle} color="inherit" />
+            <input
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addNote();
+                }
+              }}
+              placeholder="Add a topic…"
+              style={{
+                flex: 1,
+                minWidth: 0,
+                border: "none",
+                outline: "none",
+                background: "transparent",
+                fontFamily: "var(--font-ui)",
+                fontSize: 16,
+                color: DARK,
+              }}
+            />
+            {draft.trim() && (
+              <button
+                type="button"
+                aria-label="Add topic"
+                onClick={addNote}
+                style={{
+                  border: "none",
+                  cursor: "pointer",
+                  background: DARK,
+                  color: HERO,
+                  borderRadius: 100,
+                  padding: "6px 14px",
+                  fontFamily: "var(--font-ui)",
+                  fontWeight: 600,
+                  fontSize: 14,
+                  flexShrink: 0,
+                }}
+              >
+                Add
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Reminders */}
       <SectionLabel>Reminders</SectionLabel>
-      <Card padding={0}>
+      <GroupCard>
         {sortedReminders.length === 0 ? (
           <Empty icon={Icons.bell} text="No upcoming reminders." />
         ) : (
-          <VStack gap={0}>
-            {sortedReminders.map(({ r, index }, i) => (
-              <RecordRow
-                key={index}
-                icon={Icons.bell}
-                accent="secondary"
-                isFirst={i === 0}
-                title={r.title}
-                meta={`${r.date ? fmtDate(r.date) : "No date set"}`}
-                extra={<Badge variant={PRIORITY_VARIANT[r.priority]} label={`${r.priority} priority`} />}
-                onDelete={() => del("reminders", index)}
-              />
-            ))}
-          </VStack>
+          sortedReminders.map(({ r, index }, i) => (
+            <RecordRow
+              key={index}
+              index={i}
+              icon={Icons.bell}
+              accent={ACCENT.reminder}
+              isFirst={i === 0}
+              title={r.title}
+              meta={r.date ? fmtDate(r.date) : "No date set"}
+              extra={<PriorityPill priority={r.priority} />}
+              onEdit={() => onEditReminder(index)}
+              onDelete={() => del("reminders", index)}
+            />
+          ))
         )}
-      </Card>
+      </GroupCard>
 
+      {/* Medications */}
       <SectionLabel>Medications</SectionLabel>
-      <Card padding={0}>
+      <GroupCard>
         {medications.length === 0 ? (
           <Empty icon={Icons.pill} text="No medications logged." />
         ) : (
-          <VStack gap={0}>
-            {medications.map((m, index) => {
-              const daysLeft = m.end
-                ? Math.ceil((new Date(m.end + "T12:00:00").getTime() - Date.now()) / 86400000)
-                : null;
-              const progress =
-                m.days && m.start
-                  ? Math.min(
-                      100,
-                      Math.round(
-                        ((Date.now() - new Date(m.start + "T12:00:00").getTime()) / 86400000 / m.days) * 100,
-                      ),
-                    )
-                  : 0;
-              const urgent = daysLeft !== null && daysLeft <= 2;
-              return (
-                <VStack
-                  key={index}
-                  gap={2}
-                  padding={3}
-                  style={{ borderTop: index === 0 ? undefined : "1px solid var(--color-border, #eee)" }}
+          medications.map((m, index) => {
+            const daysLeft = m.end
+              ? Math.ceil((new Date(m.end + "T12:00:00").getTime() - Date.now()) / 86400000)
+              : null;
+            const progress =
+              m.days && m.start
+                ? Math.min(
+                    100,
+                    Math.round(
+                      ((Date.now() - new Date(m.start + "T12:00:00").getTime()) / 86400000 / m.days) * 100,
+                    ),
+                  )
+                : 0;
+            const urgent = daysLeft !== null && daysLeft <= 2;
+            return (
+              <RevealItem
+                key={index}
+                index={index}
+                style={{ borderTop: index === 0 ? undefined : "1px solid rgba(255,255,255,0.07)" }}
+              >
+                <SwipeableRow
+                  background={SURFACE}
+                  actions={[
+                    {
+                      label: "Delete",
+                      color: "#ff3b30",
+                      icon: <Icon icon={Icons.trash} color="inherit" />,
+                      onAction: () => del("medications", index),
+                    },
+                  ]}
                 >
-                  <HStack gap={3} vAlign="start">
-                    <IconDot icon={Icons.pill} accent="error" />
-                    <VStack gap={0.5} style={{ flex: 1 }}>
-                      <Text weight="medium">{m.name}</Text>
-                      <Text type="supporting">
-                        {m.dose} {m.freq ? `· ${m.freq}` : ""}
-                      </Text>
-                      {m.notes && <Text type="supporting">{m.notes}</Text>}
-                    </VStack>
-                    <IconButton
-                      label="Delete medication"
-                      size="sm"
-                      variant="ghost"
-                      icon={<Icon icon={Icons.x} />}
-                      onClick={() => del("medications", index)}
-                    />
-                  </HStack>
-                  {m.days > 0 ? (
-                    <VStack gap={1}>
-                      <HStack justify="between" vAlign="center">
-                        <Text type="supporting">
-                          {m.start ? fmtDate(m.start) : ""} → {m.end ? fmtDate(m.end) : ""}
-                        </Text>
-                        <Text type="supporting" color={urgent ? "accent" : "secondary"} weight="semibold">
-                          {daysLeft !== null
-                            ? daysLeft <= 0
-                              ? "Completed"
-                              : `${daysLeft} day${daysLeft !== 1 ? "s" : ""} left`
-                            : "Ongoing"}
-                        </Text>
-                      </HStack>
-                      <ProgressBar
-                        label="Medication progress"
-                        isLabelHidden
-                        value={progress}
-                        variant={urgent ? "error" : "warning"}
-                      />
-                    </VStack>
-                  ) : (
-                    <Text type="supporting">Ongoing — no end date</Text>
-                  )}
-                </VStack>
-              );
-            })}
-          </VStack>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14 }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+                      <IconChip icon={Icons.pill} accent={ACCENT.medication} />
+                      <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0 }}>
+                        <Headline color={HERO}>{m.name}</Headline>
+                        <Footnote color={MUTED}>
+                          {m.dose} {m.freq ? `· ${m.freq}` : ""}
+                        </Footnote>
+                        {m.notes && <Footnote color={MUTED}>{m.notes}</Footnote>}
+                      </div>
+                    </div>
+                    {m.days > 0 ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                          }}
+                        >
+                          <Footnote color={MUTED}>
+                            {m.start ? fmtDate(m.start) : ""} → {m.end ? fmtDate(m.end) : ""}
+                          </Footnote>
+                          <Footnote color={urgent ? "#E96A41" : HERO} weight={600}>
+                            {daysLeft !== null
+                              ? daysLeft <= 0
+                                ? "Completed"
+                                : `${daysLeft} day${daysLeft !== 1 ? "s" : ""} left`
+                              : "Ongoing"}
+                          </Footnote>
+                        </div>
+                        <ProgressTrack value={progress} color={urgent ? "#E96A41" : "#F2B84B"} />
+                      </div>
+                    ) : (
+                      <Footnote color={MUTED}>Ongoing — no end date</Footnote>
+                    )}
+                  </div>
+                </SwipeableRow>
+              </RevealItem>
+            );
+          })
         )}
-      </Card>
+      </GroupCard>
 
+      {/* Vaccinations */}
       <SectionLabel>Vaccinations</SectionLabel>
-      <Card padding={0}>
+      <GroupCard>
         {sortedVaccines.length === 0 ? (
           <Empty icon={Icons.syringe} text="No vaccinations recorded." />
         ) : (
-          <VStack gap={0}>
-            {sortedVaccines.map(({ v, index }, i) => (
-              <RecordRow
-                key={index}
-                icon={Icons.syringe}
-                accent="secondary"
-                isFirst={i === 0}
-                title={v.name}
-                meta={`${v.date ? `Given ${fmtDate(v.date)}` : ""}${v.nextDue ? ` · Next: ${fmtDate(v.nextDue)}` : ""}`}
-                onDelete={() => del("vaccines", index)}
-              />
-            ))}
-          </VStack>
+          sortedVaccines.map(({ v, index }, i) => (
+            <RecordRow
+              key={index}
+              index={i}
+              icon={Icons.syringe}
+              accent={ACCENT.vaccine}
+              isFirst={i === 0}
+              title={v.name}
+              meta={`${v.date ? `Given ${fmtDate(v.date)}` : ""}${
+                v.nextDue ? ` · Next: ${fmtDate(v.nextDue)}` : ""
+              }`}
+              onDelete={() => del("vaccines", index)}
+            />
+          ))
         )}
-      </Card>
+      </GroupCard>
 
+      {/* Checkups */}
       <SectionLabel>Checkups</SectionLabel>
-      <Card padding={0}>
+      <GroupCard>
         {sortedCheckups.length === 0 ? (
           <Empty icon={Icons.clipboardText} text="No checkups recorded." />
         ) : (
-          <VStack gap={0}>
-            {sortedCheckups.map(({ c, index }, i) => (
-              <RecordRow
-                key={index}
-                icon={Icons.clipboardText}
-                accent="warning"
-                isFirst={i === 0}
-                title={c.reason}
-                meta={`${c.date ? fmtDate(c.date) : ""}${c.clinic ? ` · ${c.clinic}` : ""}`}
-                extra={
-                  <>
-                    {c.notes && <Text type="supporting">{c.notes}</Text>}
-                    {c.hasFile && <Text type="supporting" color="accent">📎 {c.fileName}</Text>}
-                  </>
-                }
-                onDelete={() => del("checkups", index)}
-              />
-            ))}
-          </VStack>
+          sortedCheckups.map(({ c, index }, i) => (
+            <RecordRow
+              key={index}
+              index={i}
+              icon={Icons.clipboardText}
+              accent={ACCENT.checkup}
+              isFirst={i === 0}
+              title={c.reason}
+              meta={`${c.date ? fmtDate(c.date) : ""}${c.clinic ? ` · ${c.clinic}` : ""}`}
+              extra={
+                <>
+                  {c.notes && <Footnote color={MUTED}>{c.notes}</Footnote>}
+                  {c.hasFile && <Footnote color={HERO}>📎 {c.fileName}</Footnote>}
+                </>
+              }
+              onDelete={() => del("checkups", index)}
+            />
+          ))
         )}
-      </Card>
+      </GroupCard>
     </div>
   );
 }
 
+/** Uppercase muted section label — matches settings/dashboard eyebrows. */
 function SectionLabel({ children }: { children: ReactNode }): React.ReactElement {
-  return <Eyebrow style={{ display: "block", margin: "20px 0 8px" }}>{children}</Eyebrow>;
+  return <Eyebrow style={{ display: "block", margin: "24px 4px 8px" }}>{children}</Eyebrow>;
 }
 
-function IconDot({ icon, accent }: { icon: IconComponent; accent: Accent }): React.ReactElement {
+/** Rounded dark surface that groups a set of record rows. */
+function GroupCard({ children }: { children: ReactNode }): React.ReactElement {
+  return <div style={{ background: SURFACE, borderRadius: 24, overflow: "hidden" }}>{children}</div>;
+}
+
+/** A single vet-notes checklist row: tap circle to toggle discussed, tap text to edit, swipe to remove. */
+function NoteRow({
+  item,
+  onToggle,
+  onEdit,
+  onDelete,
+}: {
+  item: VetNote;
+  onToggle: () => void;
+  onEdit: (text: string) => void;
+  onDelete: () => void;
+}): React.ReactElement {
+  return (
+    <SwipeableRow
+      background={HERO}
+      style={{ borderRadius: 16 }}
+      actions={[
+        {
+          label: "Delete",
+          color: "#ff3b30",
+          icon: <Icon icon={Icons.trash} color="inherit" />,
+          onAction: onDelete,
+        },
+      ]}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 10,
+          padding: "8px 10px",
+          background: HERO,
+        }}
+      >
+        <button
+          type="button"
+          aria-pressed={item.done}
+          aria-label={item.done ? `Mark "${item.text}" as open` : `Mark "${item.text}" as discussed`}
+          onClick={onToggle}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            border: "none",
+            background: "transparent",
+            cursor: "pointer",
+            color: DARK,
+            padding: 0,
+            height: 21,
+            flexShrink: 0,
+          }}
+        >
+          {item.done ? (
+            <Icon icon={Icons.checkCircle} color="inherit" />
+          ) : (
+            <span
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: "50%",
+                border: `2px solid ${DARK}`,
+                opacity: 0.5,
+              }}
+            />
+          )}
+        </button>
+        <NoteTextarea item={item} onEdit={onEdit} onDelete={onDelete} />
+      </div>
+    </SwipeableRow>
+  );
+}
+
+/** Auto-growing, multi-line note field (no horizontal scroll). */
+function NoteTextarea({
+  item,
+  onEdit,
+  onDelete,
+}: {
+  item: VetNote;
+  onEdit: (text: string) => void;
+  onDelete: () => void;
+}): React.ReactElement {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [item.text]);
+
+  return (
+    <textarea
+      ref={ref}
+      value={item.text}
+      rows={1}
+      aria-label={`Edit topic "${item.text}"`}
+      onChange={(e) => onEdit(e.target.value)}
+      onBlur={(e) => {
+        if (!e.target.value.trim()) onDelete();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.currentTarget.blur();
+        }
+      }}
+      style={{
+        flex: 1,
+        minWidth: 0,
+        border: "none",
+        outline: "none",
+        background: "transparent",
+        padding: 0,
+        margin: 0,
+        resize: "none",
+        overflow: "hidden",
+        fontFamily: "var(--font-ui)",
+        fontWeight: 500,
+        fontSize: 16,
+        lineHeight: "21px",
+        color: DARK,
+        whiteSpace: "pre-wrap",
+        wordBreak: "break-word",
+        textDecoration: item.done ? "line-through" : "none",
+        opacity: item.done ? 0.55 : 1,
+      }}
+    />
+  );
+}
+
+/** Pastel icon chip with a dark glyph. */
+function IconChip({ icon, accent }: { icon: IconComponent; accent: string }): React.ReactElement {
   return (
     <span
       style={{
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        width: 36,
-        height: 36,
-        borderRadius: 10,
-        background: "var(--color-background-section, #f4f4f4)",
+        width: 38,
+        height: 38,
+        borderRadius: 12,
+        background: accent,
+        color: DARK,
         flexShrink: 0,
       }}
     >
-      <Icon icon={icon} color={accent} />
+      <Icon icon={icon} color="inherit" />
     </span>
+  );
+}
+
+function PriorityPill({ priority }: { priority: Priority }): React.ReactElement {
+  return (
+    <span
+      style={{
+        alignSelf: "flex-start",
+        fontFamily: "var(--font-ui)",
+        fontWeight: 700,
+        fontSize: 11,
+        letterSpacing: 0.4,
+        textTransform: "uppercase",
+        color: DARK,
+        background: PRIORITY_COLOR[priority],
+        borderRadius: 100,
+        padding: "3px 10px",
+        marginTop: 2,
+      }}
+    >
+      {priority} priority
+    </span>
+  );
+}
+
+function ProgressTrack({ value, color }: { value: number; color: string }): React.ReactElement {
+  return (
+    <div
+      style={{
+        height: 6,
+        borderRadius: 100,
+        background: "rgba(255,255,255,0.12)",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          width: `${Math.max(0, Math.min(100, value))}%`,
+          height: "100%",
+          borderRadius: 100,
+          background: color,
+          transition: "width 0.3s ease",
+        }}
+      />
+    </div>
   );
 }
 
@@ -271,39 +639,72 @@ function RecordRow({
   meta,
   extra,
   isFirst,
+  index,
+  onEdit,
   onDelete,
 }: {
   icon: IconComponent;
-  accent: Accent;
+  accent: string;
   title: string;
   meta?: string;
   extra?: ReactNode;
   isFirst: boolean;
+  index: number;
+  onEdit?: () => void;
   onDelete: () => void;
 }): React.ReactElement {
+  const style: CSSProperties = {
+    borderTop: isFirst ? undefined : "1px solid rgba(255,255,255,0.07)",
+  };
   return (
-    <HStack
-      gap={3}
-      vAlign="start"
-      padding={3}
-      style={{ borderTop: isFirst ? undefined : "1px solid var(--color-border, #eee)" }}
-    >
-      <IconDot icon={icon} accent={accent} />
-      <VStack gap={0.5} style={{ flex: 1 }}>
-        <Text weight="medium">{title}</Text>
-        {meta && <Text type="supporting">{meta}</Text>}
-        {extra}
-      </VStack>
-      <IconButton label="Delete record" size="sm" variant="ghost" icon={<Icon icon={Icons.x} />} onClick={onDelete} />
-    </HStack>
+    <RevealItem index={index} style={style}>
+      <SwipeableRow
+        background={SURFACE}
+        actions={[
+          ...(onEdit
+            ? [
+                {
+                  label: "Edit",
+                  color: "#5B6EE1",
+                  icon: <Icon icon={Icons.pencilSimple} color="inherit" />,
+                  onAction: onEdit,
+                },
+              ]
+            : []),
+          {
+            label: "Delete",
+            color: "#ff3b30",
+            icon: <Icon icon={Icons.trash} color="inherit" />,
+            onAction: onDelete,
+          },
+        ]}
+      >
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: 14 }}>
+          <IconChip icon={icon} accent={accent} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0 }}>
+            <Headline color={HERO}>{title}</Headline>
+            {meta && <Footnote color={MUTED}>{meta}</Footnote>}
+            {extra}
+          </div>
+        </div>
+      </SwipeableRow>
+    </RevealItem>
   );
 }
 
 function Empty({ icon, text }: { icon: IconComponent; text: string }): React.ReactElement {
   return (
-    <VStack gap={2} hAlign="center" padding={6}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 10,
+        padding: 32,
+      }}
+    >
       <Icon icon={icon} size="lg" color="disabled" />
-      <Text type="supporting">{text}</Text>
-    </VStack>
+      <Footnote color={MUTED}>{text}</Footnote>
+    </div>
   );
 }

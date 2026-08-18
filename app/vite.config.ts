@@ -8,6 +8,9 @@ import { viteSingleFile } from "vite-plugin-singlefile";
 export default defineConfig({
   root: ".",
   plugins: [react(), viteSingleFile()],
+  resolve: {
+    dedupe: ["react", "react-dom"],
+  },
   build: {
     outDir: "dist",
     emptyOutDir: true,

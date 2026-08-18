@@ -1,22 +1,25 @@
 import { useEffect, useState } from "react";
 import { Theme } from "@astryxdesign/core/theme";
 import { LayerProvider } from "@astryxdesign/core/Layer";
+import { AnimatePresence } from "motion/react";
 import { pawpalTheme } from "./lib/theme";
 import type { ScreenId } from "./types";
 import { DbProvider, useDb } from "./lib/store";
 import { ToastProvider, useToast } from "./lib/toast";
+import { ConfirmProvider } from "./components/ConfirmDialog";
 import { setupReminderChecks } from "./lib/notifications";
 import { isSignedIn } from "./lib/auth";
 import { reconcileFromCloud } from "./lib/supabase";
 import { LiveWalkProvider } from "./components/LiveWalk";
 import { BottomNav } from "./components/BottomNav";
-import { TrackMenu } from "./components/TrackMenu";
+import { GooeyFab } from "./components/GooeyFab";
 import { WalksStats } from "./components/WalksStats";
 import { WalkTrackSheet } from "./components/WalkTrackSheet";
 import { Splash } from "./components/Splash";
 import { DesktopGate, useIsDesktop } from "./components/DesktopGate";
 import { WalkChooser } from "./components/WalkChooser";
 import { WalkChooserSheet } from "./components/WalkChooserSheet";
+import { CircleReveal } from "./components/CircleReveal";
 import { WalkFormModal } from "./components/WalkFormModal";
 import { FoodFormModal } from "./components/FoodFormModal";
 import { PoopFormModal } from "./components/PoopFormModal";
@@ -58,9 +61,11 @@ export function App(): React.ReactElement {
       <LayerProvider>
         <DbProvider>
           <ToastProvider>
-            <LiveWalkProvider>
-              <Shell />
-            </LiveWalkProvider>
+            <ConfirmProvider>
+              <LiveWalkProvider>
+                <Shell />
+              </LiveWalkProvider>
+            </ConfirmProvider>
           </ToastProvider>
         </DbProvider>
       </LayerProvider>
@@ -98,6 +103,9 @@ function Shell(): React.ReactElement {
   const [trackOpen, setTrackOpen] = useState(false);
   const [design, setDesign] = useState<DesignMode>(initialDesign);
   const [editWalkIndex, setEditWalkIndex] = useState<number | null>(null);
+  const [editReminderIndex, setEditReminderIndex] = useState<number | null>(null);
+  // Origin of the circular Settings reveal (set from the tapped avatar).
+  const [settingsOrigin, setSettingsOrigin] = useState<{ x: number; y: number } | null>(null);
 
   // Dog-sitter (guest) mode runs independently of the owner's own app/onboarding.
   const [sitter, setSitter] = useState<SitterState | null>(() => loadSitterSession());
@@ -145,13 +153,28 @@ function Shell(): React.ReactElement {
     window.scrollTo(0, 0);
   };
 
+  // Opens Settings with a circular reveal growing from the tapped avatar.
+  const openSettings = (origin: { x: number; y: number }): void => {
+    setSettingsOrigin(origin);
+    navigate("settings");
+  };
+
   const openManualWalk = (index: number | null): void => {
     setEditWalkIndex(index);
     setModal("walk-manual");
   };
 
+  // New-design edit opens the Track-walk sheet pre-filled with the walk.
+  const openTrackWalk = (index: number | null): void => {
+    setEditWalkIndex(index);
+    setModal("walk-track");
+  };
+
   // "Log walk" opens the new Track-walk sheet in new design, else the chooser.
-  const logWalk = (): void => setModal(design === "new" ? "walk-track" : "walk-choose");
+  const logWalk = (): void => {
+    setEditWalkIndex(null);
+    setModal(design === "new" ? "walk-track" : "walk-choose");
+  };
 
   const toggleDesign = (): void => {
     setDesign((d) => {
@@ -228,10 +251,11 @@ function Shell(): React.ReactElement {
         </>
       ) : (
         <>
-          {screen === "home" &&
+          {(screen === "home" || screen === "settings") &&
             (design === "new" ? (
               <Dashboard
                 onNavigate={navigate}
+                onOpenSettings={openSettings}
                 onLogWalk={logWalk}
                 onLogFood={() => setModal("food")}
                 onLogBathroom={() => setModal("poop")}
@@ -246,15 +270,30 @@ function Shell(): React.ReactElement {
             ))}
           {screen === "walks" &&
             (design === "new" ? (
-              <WalksStats onAdd={() => setModal("walk-choose")} />
+              <WalksStats onAdd={() => setModal("walk-choose")} onEdit={(i) => openTrackWalk(i)} />
             ) : (
               <Walks onAdd={() => setModal("walk-choose")} onEdit={(i) => openManualWalk(i)} />
             ))}
           {screen === "food" && <Food onAdd={() => setModal("food")} />}
-          {screen === "vet" && <Vet onAdd={() => setModal("vet")} />}
-          {screen === "settings" && (
-            <Settings onNavigate={navigate} onBack={() => navigate("home")} />
+          {screen === "vet" && (
+            <Vet
+              onAdd={() => {
+                setEditReminderIndex(null);
+                setModal("vet");
+              }}
+              onEditReminder={(i) => {
+                setEditReminderIndex(i);
+                setModal("vet");
+              }}
+            />
           )}
+          <AnimatePresence>
+            {screen === "settings" && (
+              <CircleReveal origin={settingsOrigin}>
+                <Settings onNavigate={navigate} onBack={() => navigate("home")} />
+              </CircleReveal>
+            )}
+          </AnimatePresence>
           {screen === "settings-profile" && (
             <ProfileDetails onBack={() => navigate("settings")} />
           )}
@@ -274,14 +313,14 @@ function Shell(): React.ReactElement {
 
           <BottomNav
             variant={design === "new" ? "trigger" : "full"}
-            current={screen.startsWith("settings") ? "settings" : screen}
+            current={screen === "settings" ? "home" : screen.startsWith("settings") ? "settings" : screen}
             onNavigate={navigate}
             onAction={() => setTrackOpen((v) => !v)}
             menuOpen={trackOpen}
-            hidden={screen.startsWith("settings")}
+            hidden={screen.startsWith("settings-")}
           />
 
-          <TrackMenu
+          <GooeyFab
             open={trackOpen}
             onClose={() => setTrackOpen(false)}
             onWalk={design === "new" ? () => navigate("walks") : logWalk}
@@ -295,7 +334,10 @@ function Shell(): React.ReactElement {
             <WalkChooserSheet
               open={modal === "walk-choose"}
               onClose={() => setModal("none")}
-              onManual={() => setModal("walk-track")}
+              onManual={() => {
+                setEditWalkIndex(null);
+                setModal("walk-track");
+              }}
             />
           ) : (
             <WalkChooser
@@ -314,8 +356,22 @@ function Shell(): React.ReactElement {
           />
           <FoodFormModal open={modal === "food"} onClose={() => setModal("none")} />
           <PoopFormModal open={modal === "poop"} onClose={() => setModal("none")} />
-          <VetAddModal open={modal === "vet"} onClose={() => setModal("none")} />
-          <WalkTrackSheet open={modal === "walk-track"} onClose={() => setModal("none")} />
+          <VetAddModal
+            open={modal === "vet"}
+            editReminderIndex={editReminderIndex}
+            onClose={() => {
+              setModal("none");
+              setEditReminderIndex(null);
+            }}
+          />
+          <WalkTrackSheet
+            open={modal === "walk-track"}
+            editIndex={editWalkIndex}
+            onClose={() => {
+              setModal("none");
+              setEditWalkIndex(null);
+            }}
+          />
         </>
       )}
     </>

@@ -57,6 +57,8 @@ export interface Walk {
   assignee?: string;
   gpsRoute?: GpsCoord[];
   created: string;
+  /** True once this walk's note has been forwarded to the vet notes. */
+  sentToVet?: boolean;
   /** Set when the entry was logged by a dog-sitter (server-tagged). */
   by?: "sitter";
 }
@@ -125,13 +127,24 @@ export interface Medication {
   created: string;
 }
 
+export interface VetNote {
+  /** The topic to raise at the next visit. */
+  text: string;
+  /** Whether it has already been discussed with the vet. */
+  done: boolean;
+  /** When set, this item was forwarded from a walk (the walk's `created` id) and stays in sync with it. */
+  source?: string;
+}
+
 export interface VetRecords {
   checkups: Checkup[];
   vaccines: Vaccine[];
   reminders: Reminder[];
   medications: Medication[];
-  /** Free-form notes to bring to the next vet visit (shown on the dashboard). */
+  /** Free-form notes to bring to the next vet visit (legacy; migrated to noteItems). */
   notes?: string;
+  /** Checklist of topics to discuss with the vet. */
+  noteItems?: VetNote[];
 }
 
 export interface Database {
