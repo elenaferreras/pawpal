@@ -66,7 +66,7 @@ export function TrackMenu({ open, onClose, onWalk, onMeal, onDiary, onPoop, onVe
     { key: "walk", label: "walks", color: "#8592E0", x: 40, y: 0, onSelect: onWalk }, // blue
     { key: "meal", label: "meals", color: "#E96A41", x: 150, y: 14, onSelect: onMeal }, // red
     { key: "vet", label: "health", color: "#EDD4FD", x: 8, y: 88, onSelect: onVet }, // purple
-    { key: "poop", label: "poop", color: "#EDD4FD", x: 82, y: 136, onSelect: onPoop }, // purple
+    { key: "poop", label: "bathroom", color: "#3D8B6E", x: 82, y: 136, onSelect: onPoop }, // green
     { key: "diary", label: "diary", color: "#FFFF83", x: 162, y: 104, onSelect: onDiary }, // yellow
   ];
 
@@ -142,7 +142,7 @@ export function TrackMenu({ open, onClose, onWalk, onMeal, onDiary, onPoop, onVe
               cursor: "pointer",
               color: "#fff",
               fontWeight: 700,
-              fontSize: 26,
+              fontSize: 16,
               padding: 0,
               display: "flex",
               alignItems: "center",

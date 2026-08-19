@@ -29,6 +29,7 @@ import { Home } from "./screens/Home";
 import { Dashboard } from "./screens/Dashboard";
 import { Walks } from "./screens/Walks";
 import { Food } from "./screens/Food";
+import { Bathroom } from "./screens/Bathroom";
 import { Vet } from "./screens/Vet";
 import { Settings } from "./screens/settings/Settings";
 import { ProfileDetails } from "./screens/settings/ProfileDetails";
@@ -105,6 +106,7 @@ function Shell(): React.ReactElement {
   const [design] = useState<DesignMode>(initialDesign);
   const [editWalkIndex, setEditWalkIndex] = useState<number | null>(null);
   const [editReminderIndex, setEditReminderIndex] = useState<number | null>(null);
+  const [editBathroomIndex, setEditBathroomIndex] = useState<number | null>(null);
   // Origin of the circular Settings reveal (set from the tapped avatar).
   const [settingsOrigin, setSettingsOrigin] = useState<{ x: number; y: number } | null>(null);
 
@@ -216,7 +218,7 @@ function Shell(): React.ReactElement {
   const tabKey: ScreenId | null =
     screen === "home" || screen === "settings"
       ? "home"
-      : screen === "walks" || screen === "food" || screen === "vet"
+      : screen === "walks" || screen === "food" || screen === "bathroom" || screen === "vet"
         ? screen
         : null;
 
@@ -246,6 +248,17 @@ function Shell(): React.ReactElement {
       )
     ) : tabKey === "food" ? (
       <Food onAdd={() => setModal("food")} />
+    ) : tabKey === "bathroom" ? (
+      <Bathroom
+        onAdd={() => {
+          setEditBathroomIndex(null);
+          setModal("poop");
+        }}
+        onEdit={(i) => {
+          setEditBathroomIndex(i);
+          setModal("poop");
+        }}
+      />
     ) : tabKey === "vet" ? (
       <Vet
         onAdd={() => {
@@ -335,7 +348,7 @@ function Shell(): React.ReactElement {
             onWalk={design === "new" ? () => navigate("walks") : logWalk}
             onMeal={design === "new" ? () => navigate("food") : () => setModal("food")}
             onDiary={() => toast("Diary coming soon \u{1F43E}")}
-            onPoop={() => setModal("poop")}
+            onPoop={design === "new" ? () => navigate("bathroom") : () => setModal("poop")}
             onVet={design === "new" ? () => navigate("vet") : () => setModal("vet")}
           />
 
@@ -364,7 +377,14 @@ function Shell(): React.ReactElement {
             }}
           />
           <FoodFormModal open={modal === "food"} onClose={() => setModal("none")} />
-          <PoopFormModal open={modal === "poop"} onClose={() => setModal("none")} />
+          <PoopFormModal
+            open={modal === "poop"}
+            editIndex={editBathroomIndex}
+            onClose={() => {
+              setModal("none");
+              setEditBathroomIndex(null);
+            }}
+          />
           <VetAddModal
             open={modal === "vet"}
             editReminderIndex={editReminderIndex}

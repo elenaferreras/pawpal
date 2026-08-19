@@ -41,15 +41,14 @@ function PlanField({ children }: { children: React.ReactNode }): React.ReactElem
       style={{
         display: "flex",
         alignItems: "center",
-        minHeight: 54,
-        padding: "8px 20px",
+        padding: "8px 12px",
         borderRadius: 46,
         background: DARK,
         width: "100%",
         boxSizing: "border-box",
       }}
     >
-      <span style={{ fontFamily: "var(--font-ui)", fontWeight: 400, fontSize: 20, color: CREAM }}>
+      <span style={{ fontFamily: "var(--font-ui)", fontWeight: 400, fontSize: 16, color: CREAM }}>
         {children}
       </span>
     </div>
@@ -168,13 +167,13 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
           gap: 8,
         }}
       >
-        <CardTitle color={DARK} size={24} weight={400} style={{ padding: "0 8px" }}>
+        <CardTitle color={DARK} size={20} weight={400} style={{ padding: "0 8px" }}>
           Current meal plan
         </CardTitle>
         <PlanField>
           {fGoal}g of kibble in {n} servings
         </PlanField>
-        <PlanField>{portion}g per meal</PlanField>
+        <PlanField>{portion}g per serving</PlanField>
       </div>
 
       {/* Meal schedule — orange list over a dark surface with the pacman widget */}
@@ -183,7 +182,7 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
           marginTop: 8,
           background: WIDGET_DARK,
           borderRadius: 40,
-          padding: 8,
+          padding: 0,
           display: "flex",
           flexDirection: "column",
           gap: 4,
@@ -193,7 +192,7 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
           style={{
             background: FOOD,
             borderRadius: 34,
-            padding: "20px 16px",
+            padding: "12px 12px",
             display: "flex",
             flexDirection: "column",
             gap: 8,
@@ -213,7 +212,7 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
                   alignItems: "center",
                   gap: 8,
                   width: "100%",
-                  padding: "8px 12px",
+                  padding: "4px 12px",
                   borderRadius: 46,
                   cursor: "pointer",
                   textAlign: "left",
@@ -230,7 +229,7 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
                   <span
                     style={{
                       fontFamily: "var(--font-ui)",
-                      fontSize: 16,
+                      fontSize: 12,
                       fontWeight: 400,
                       opacity: 0.6,
                     }}
@@ -244,7 +243,7 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
         </div>
 
         {/* Today's progress — the pacman widget, blended into the dark surface */}
-        <div style={{ padding: "8px 8px 4px" }}>
+        <div style={{ padding: "0px 8px 4px" }}>
           <MealsWidget eaten={doneSlots.size} total={n} />
         </div>
       </div>

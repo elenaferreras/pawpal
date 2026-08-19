@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { MotionSheet } from "./MotionSheet";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { Icon } from "@astryxdesign/core/Icon";
-import { Icons } from "../lib/icons";
+import { Icons, type AppIconName } from "../lib/icons";
 import { nowTime } from "../lib/date";
-import type { Database, Walk } from "../types";
+import type { BathroomLog, Database, Walk } from "../types";
 
 interface WalkTrackSheetProps {
   open: boolean;
@@ -15,8 +15,18 @@ interface WalkTrackSheetProps {
 }
 
 const DARK = "var(--color-pawpal-page)"; // #352B25
-const WALK = "#8592E0"; // blue walk accent
-const DAYS_SHOWN = 5;
+const WALK = "var(--color-dash-walk)"; // #9CCFFF walk accent token
+
+const WEATHERS: { value: string; icon: AppIconName; label: string }[] = [
+  { value: "sunny", icon: "sun", label: "Sunny" },
+  { value: "cloudy", icon: "cloud", label: "Cloudy" },
+  { value: "rainy", icon: "cloudRain", label: "Rainy" },
+  { value: "windy", icon: "wind", label: "Windy" },
+  { value: "snowy", icon: "snowflake", label: "Snowy" },
+  { value: "hot", icon: "thermometer", label: "Hot" },
+  { value: "foggy", icon: "cloudFog", label: "Foggy" },
+  { value: "stormy", icon: "cloudLightning", label: "Stormy" },
+];
 
 function localISO(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -35,21 +45,6 @@ export function WalkTrackSheet({ open, onClose, editIndex }: WalkTrackSheetProps
   const editWalk =
     editIndex != null && editIndex >= 0 && editIndex < db.walks.length ? db.walks[editIndex] : null;
 
-  const days = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const base = Array.from({ length: DAYS_SHOWN }, (_, i) => {
-      const d = new Date(today);
-      d.setDate(today.getDate() - (DAYS_SHOWN - 1 - i));
-      return d;
-    });
-    // When editing an older walk, make sure its date is selectable.
-    if (editWalk?.date && !base.some((d) => localISO(d) === editWalk.date)) {
-      base.unshift(new Date(editWalk.date + "T12:00:00"));
-    }
-    return base;
-  }, [editWalk?.date]);
-
   const [dateISO, setDateISO] = useState(localISO(new Date()));
   const [duration, setDuration] = useState("");
   const [steps, setSteps] = useState("");
@@ -57,6 +52,7 @@ export function WalkTrackSheet({ open, onClose, editIndex }: WalkTrackSheetProps
   const [pooped, setPooped] = useState(false);
   const [socialised, setSocialised] = useState(false);
   const [assignee, setAssignee] = useState<string | null>(null);
+  const [weather, setWeather] = useState("");
   const [notes, setNotes] = useState("");
   const [sendToVet, setSendToVet] = useState(false);
 
@@ -70,6 +66,7 @@ export function WalkTrackSheet({ open, onClose, editIndex }: WalkTrackSheetProps
       setPooped(!!editWalk.popo);
       setSocialised(!!editWalk.friends);
       setAssignee(editWalk.assignee ?? null);
+      setWeather(editWalk.weather ?? "");
       setNotes(editWalk.notes ?? "");
       setSendToVet(!!editWalk.sentToVet);
     } else {
@@ -80,6 +77,7 @@ export function WalkTrackSheet({ open, onClose, editIndex }: WalkTrackSheetProps
       setPooped(false);
       setSocialised(false);
       setAssignee(null);
+      setWeather("");
       setNotes("");
       setSendToVet(false);
     }
@@ -88,6 +86,30 @@ export function WalkTrackSheet({ open, onClose, editIndex }: WalkTrackSheetProps
 
   const save = (): void => {
     const trimmedNotes = notes.trim();
+    // Keep a linked bathroom entry in sync with the walk's "Pooped" toggle:
+    // create a popo entry when it's turned on, remove it when turned off. An
+    // existing linked entry is left untouched so edits made in the Bathroom tab
+    // (time, consistency, photos…) survive re-saving the walk.
+    const syncBathroom = (d: Database, walkCreated: string, time: string): void => {
+      const idx = d.bathroom.findIndex((b) => b.source === walkCreated);
+      if (pooped) {
+        if (idx < 0) {
+          const entry: BathroomLog = {
+            date: dateISO,
+            time,
+            type: "popo",
+            consistency: "",
+            notes: "",
+            photos: [],
+            created: new Date().toISOString(),
+            source: walkCreated,
+          };
+          d.bathroom.push(entry);
+        }
+      } else if (idx >= 0) {
+        d.bathroom.splice(idx, 1);
+      }
+    };
     // Keep a linked "Notes for the vet" checklist item in sync with this walk's
     // note: create it when the toggle is on, update its text when the note
     // changes, and remove it when the toggle is turned off or the note cleared.
@@ -119,11 +141,11 @@ export function WalkTrackSheet({ open, onClose, editIndex }: WalkTrackSheetProps
           popo: pooped,
           friends: socialised,
           assignee: assignee ?? undefined,
+          weather,
           notes: notes.trim(),
           sentToVet: sendToVet && trimmedNotes !== "",
         };
-        syncVetNote(d, existing.created);
-      });
+        syncVetNote(d, existing.created);        syncBathroom(d, existing.created, existing.time);      });
       toast("Walk updated! 🦮");
       onClose();
       return;
@@ -137,7 +159,7 @@ export function WalkTrackSheet({ open, onClose, editIndex }: WalkTrackSheetProps
       pipi: false,
       popo: pooped,
       friends: socialised,
-      weather: "",
+      weather,
       notes: notes.trim(),
       assignee: assignee ?? undefined,
       sentToVet: sendToVet && trimmedNotes !== "",
@@ -146,6 +168,7 @@ export function WalkTrackSheet({ open, onClose, editIndex }: WalkTrackSheetProps
     update((d) => {
       d.walks.push(walk);
       syncVetNote(d, walk.created);
+      syncBathroom(d, walk.created, walk.time);
     });
     toast("Walk saved! 🦮");
     onClose();
@@ -172,11 +195,36 @@ export function WalkTrackSheet({ open, onClose, editIndex }: WalkTrackSheetProps
           {editWalk ? "Edit walk" : "Track walk"}
         </p>
 
-        {/* Date picker */}
+        {/* Date picker — native date input */}
         <Field label="Date">
+          <input
+            className="wts-field"
+            type="date"
+            value={dateISO}
+            max={localISO(new Date())}
+            onChange={(e) => setDateISO(e.target.value)}
+            style={{
+              width: "100%",
+              padding: 16,
+              borderRadius: 16,
+              border: `1px solid ${DARK}`,
+              background: "transparent",
+              color: DARK,
+              colorScheme: "light",
+              fontFamily: "var(--font-ui)",
+              fontWeight: 500,
+              fontSize: 16,
+              outline: "none",
+            }}
+          />
+        </Field>
+
+        {/* Weather picker — same segmented style as the date selector */}
+        <Field label="Weather">
           <div
             style={{
-              display: "flex",
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
               gap: 6,
               padding: 6,
               borderRadius: 16,
@@ -184,31 +232,43 @@ export function WalkTrackSheet({ open, onClose, editIndex }: WalkTrackSheetProps
               overflow: "hidden",
             }}
           >
-            {days.map((d) => {
-              const iso = localISO(d);
-              const active = iso === dateISO;
+            {WEATHERS.map((w) => {
+              const active = weather === w.value;
               return (
                 <button
-                  key={iso}
+                  key={w.value}
                   type="button"
-                  onClick={() => setDateISO(iso)}
+                  onClick={() => setWeather(active ? "" : w.value)}
                   aria-pressed={active}
+                  aria-label={w.label}
+                  title={w.label}
                   style={{
-                    flex: 1,
                     minWidth: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 4,
                     padding: "8px 2px",
                     borderRadius: 12,
                     border: "none",
                     cursor: "pointer",
-                    fontFamily: "var(--font-ui)",
-                    fontWeight: 500,
-                    fontSize: 14,
-                    whiteSpace: "nowrap",
-                    background: active ? WALK : "transparent",
+                    lineHeight: 1,
                     color: active ? DARK : WALK,
+                    background: active ? WALK : "transparent",
                   }}
                 >
-                  {d.toLocaleDateString(undefined, { day: "2-digit", month: "short" })}
+                  <Icon icon={Icons[w.icon]} color="inherit" />
+                  <span
+                    style={{
+                      fontFamily: "var(--font-ui)",
+                      fontWeight: 500,
+                      fontSize: 10,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {w.label}
+                  </span>
                 </button>
               );
             })}

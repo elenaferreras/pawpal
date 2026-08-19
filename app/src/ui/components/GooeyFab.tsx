@@ -66,7 +66,7 @@ export function GooeyFab({
     { key: "walk", label: "walks", color: "#8592E0", bx: 40, by: 0, onSelect: onWalk }, // blue
     { key: "meal", label: "meals", color: "#E96A41", bx: 150, by: 14, onSelect: onMeal }, // red
     { key: "vet", label: "health", color: "#EDD4FD", bx: 8, by: 88, onSelect: onVet }, // purple
-    { key: "poop", label: "poop", color: "#EDD4FD", bx: 82, by: 136, onSelect: onPoop }, // purple
+    { key: "poop", label: "bathroom", color: "#A9E7A7", bx: 82, by: 136, onSelect: onPoop }, // green
     { key: "diary", label: "diary", color: "#FFFF83", bx: 162, by: 104, onSelect: onDiary }, // yellow
   ];
 

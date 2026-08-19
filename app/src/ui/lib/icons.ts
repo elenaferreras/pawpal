@@ -39,6 +39,14 @@ import {
   Lock,
   Eye,
   EyeOff,
+  Sun,
+  Cloud,
+  CloudRain,
+  Wind,
+  Snowflake,
+  Thermometer,
+  CloudFog,
+  CloudLightning,
 } from "lucide-react";
 
 export const Icons = {
@@ -79,6 +87,14 @@ export const Icons = {
   lock: Lock,
   eye: Eye,
   eyeOff: EyeOff,
+  sun: Sun,
+  cloud: Cloud,
+  cloudRain: CloudRain,
+  wind: Wind,
+  snowflake: Snowflake,
+  thermometer: Thermometer,
+  cloudFog: CloudFog,
+  cloudLightning: CloudLightning,
 } as const;
 
 export type AppIconName = keyof typeof Icons;

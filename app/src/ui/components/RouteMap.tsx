@@ -319,17 +319,34 @@ export function RouteMap({
         startRef.current.addTo(map);
       }
       if (!endRef.current) {
-        endRef.current = L.circleMarker(last, {
-          radius: 7,
-          color: "#ffffff",
-          fillColor: endColor,
-          fillOpacity: 1,
-          weight: 2,
-        });
+        // Use the dog-avatar pin at the finish when provided (matches the live
+        // walk), otherwise the default end dot.
+        if (markerHtmlRef.current) {
+          const icon = L.divIcon({
+            html: markerHtmlRef.current,
+            className: "lw-pin",
+            iconSize: [52, 52],
+            iconAnchor: [26, 26],
+          });
+          endRef.current = L.marker(last, {
+            icon,
+            interactive: false,
+            keyboard: false,
+            zIndexOffset: 1000,
+          });
+        } else {
+          endRef.current = L.circleMarker(last, {
+            radius: 7,
+            color: "#ffffff",
+            fillColor: endColor,
+            fillOpacity: 1,
+            weight: 2,
+          });
+        }
         endRef.current.addTo(map);
       }
       if (!didCenterRef.current && lineRef.current) {
-        map.fitBounds(lineRef.current.getBounds(), { padding: [24, 24] });
+        map.fitBounds(lineRef.current.getBounds(), { padding: [34, 34] });
         didCenterRef.current = true;
       }
     };

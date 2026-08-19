@@ -853,7 +853,7 @@ body.modal-open {
   max-height: 92vh;
   display: flex;
   flex-direction: column;
-  background: #8592E0;
+  background: var(--color-dash-walk);
   border-radius: 40px 40px 0 0;
   overflow: hidden;
 }
@@ -867,8 +867,40 @@ body.modal-open {
 .walk-sheet-footer {
   flex-shrink: 0;
   padding: 12px 28px calc(20px + env(safe-area-inset-bottom, 12px));
-  background: #8592E0;
-  box-shadow: 0 -10px 20px -4px #8592E0;
+  background: var(--color-dash-walk);
+  box-shadow: 0 -10px 20px -4px var(--color-dash-walk);
+}
+/* "Log a meal" bottom sheet — meals accent surface (#E96A41). */
+.meal-sheet {
+  width: min(560px, 100%);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-food);
+  border-radius: 40px 40px 0 0;
+  overflow: hidden;
+}
+.meal-sheet-footer {
+  flex-shrink: 0;
+  padding: 12px 28px calc(20px + env(safe-area-inset-bottom, 12px));
+  background: var(--color-food);
+  box-shadow: 0 -10px 20px -4px var(--color-food);
+}
+/* "Bathroom log" bottom sheet — green surface (#A9E7A7). */
+.bathroom-sheet {
+  width: min(560px, 100%);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  background: #A9E7A7;
+  border-radius: 40px 40px 0 0;
+  overflow: hidden;
+}
+.bathroom-sheet-footer {
+  flex-shrink: 0;
+  padding: 12px 28px calc(20px + env(safe-area-inset-bottom, 12px));
+  background: #A9E7A7;
+  box-shadow: 0 -10px 20px -4px #A9E7A7;
 }
 @keyframes pawpal-sheet-up {
   from {
@@ -2016,6 +2048,15 @@ body.modal-open {
     0 3px 10px rgba(0, 0, 0, 0.3),
     0 0 0 6px rgba(133, 146, 224, 0.25);
   animation: lw-pin-pulse 2s ease-in-out infinite;
+}
+/* Keep the avatar art fully inside the circular pin (never edge-clipped),
+   matching the header avatar's margin. The extra `.leaflet-container` specificity
+   + !important is required to beat Leaflet's `.leaflet-container img { max-width:
+   none !important }` base rule. */
+.leaflet-container .lw-pin-inner > img {
+  max-width: 82% !important;
+  max-height: 82% !important;
+  object-fit: contain;
 }
 @keyframes lw-pin-pulse {
   0%,

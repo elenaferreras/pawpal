@@ -47,7 +47,6 @@ export function Dashboard({
   onNavigate,
   onLogWalk,
   onLogFood,
-  onLogBathroom,
   onOpenSettings,
 }: DashboardProps): React.ReactElement {
   const { db, update } = useDb();
@@ -279,7 +278,7 @@ export function Dashboard({
       </div>
 
       {/* Quick actions row */}
-      <div style={{ display: "flex", gap: 8, padding: "16px 16px 0", alignItems: "stretch" }}>
+      <div style={{ display: "flex", gap: 12, padding: "16px 16px 8px", alignItems: "stretch" }}>
         {/* Ready for a walk? */}
         <div
           style={{
@@ -359,10 +358,10 @@ export function Dashboard({
         </div>
 
         {/* Pooped + Trained */}
-        <div style={{ flex: "1 1 0", minWidth: 0, display: "flex", flexDirection: "column", gap: 8 }}>
-          <QuickCard label="Pooped" bg="var(--color-dash-pooped)" onClick={onLogBathroom} />
+        <div style={{ flex: "1 1 0", minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+          <QuickCard label="Bathroom" bg="#A9E7A7" onClick={() => onNavigate("bathroom")} />
           <QuickCard
-            label="Trained"
+            label="Training"
             bg="var(--color-dash-trained)"
             onClick={() => toast("Training coming soon \u{1F43E}")}
           />

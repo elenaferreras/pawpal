@@ -6,6 +6,7 @@ import { Icon } from "@astryxdesign/core/Icon";
 import { Icons } from "../lib/icons";
 import { useLiveWalk } from "./LiveWalk";
 import { RouteMap } from "./RouteMap";
+import { Modal } from "./Modal";
 import { RevealItem } from "./Reveal";
 import { SwipeableRow } from "./SwipeableRow";
 import { PageTitle, StatNumber } from "./Typography";
@@ -61,9 +62,10 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
   const { db, update } = useDb();
   const toast = useToast();
   const confirm = useConfirm();
-  const { active: walkActive, coords, openSheet } = useLiveWalk();
+  const { active: walkActive, coords, openSheet, markerHtml, accuracy } = useLiveWalk();
   const [selected, setSelected] = useState<number | null>(null);
   const [filter, setFilter] = useState<WalkFilter>("today");
+  const [mapWalk, setMapWalk] = useState<Walk | null>(null);
 
   const delWalk = async (index: number): Promise<void> => {
     const ok = await confirm({
@@ -73,7 +75,12 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
     });
     if (!ok) return;
     update((d) => {
+      const walkCreated = d.walks[index]?.created;
       d.walks.splice(index, 1);
+      if (walkCreated) {
+        const bIdx = d.bathroom.findIndex((b) => b.source === walkCreated);
+        if (bIdx >= 0) d.bathroom.splice(bIdx, 1);
+      }
     });
     toast("Walk deleted");
   };
@@ -220,7 +227,7 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
               margin: 0,
               fontFamily: "var(--font-brand)",
               fontWeight: 400,
-              fontSize: 32,
+              fontSize: 24,
               lineHeight: 1,
               color: "var(--color-pawpal-page)",
             }}
@@ -239,8 +246,17 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
               justifyContent: "center",
             }}
           >
-            {coords.length > 1 ? (
-              <RouteMap coords={coords} height={134} mapStyle="voyager" />
+            {coords.length >= 1 ? (
+              <RouteMap
+                coords={coords}
+                height={134}
+                mapStyle="voyager"
+                live
+                follow
+                markerHtml={markerHtml}
+                accuracyM={accuracy ?? undefined}
+                lineColor="#8592E0"
+              />
             ) : (
               <span
                 style={{
@@ -480,12 +496,31 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
                   },
                 ]}
               >
-                <WalkEntry walk={w} avatar={db.profile.avatar} />
+                <WalkEntry walk={w} avatar={db.profile.avatar} onOpenMap={setMapWalk} />
               </SwipeableRow>
             </RevealItem>
           ))
         )}
       </div>
+
+      <Modal
+        open={mapWalk !== null}
+        title={mapWalk ? `Walk · ${fmtDate(mapWalk.date)}` : undefined}
+        onClose={() => setMapWalk(null)}
+      >
+        {mapWalk && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <RouteMap
+              coords={mapWalk.gpsRoute ?? []}
+              height={340}
+              mapStyle="voyager"
+              lineColor="#8592E0"
+              markerHtml={markerHtml}
+            />
+            <RouteMapCaption walk={mapWalk} />
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
@@ -493,37 +528,49 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
 function WalkEntry({
   walk,
   avatar,
+  onOpenMap,
 }: {
   walk: Walk;
   avatar: Parameters<typeof DogFace>[0]["avatar"];
+  onOpenMap?: (walk: Walk) => void;
 }): React.ReactElement {
   const hasRoute = Array.isArray(walk.gpsRoute) && walk.gpsRoute.length > 1;
   const stepsNum = parseInt(String(walk.steps)) || 0;
   const assignee = walk.assignee ? ASSIGNEE_STYLE[walk.assignee] : undefined;
 
+  const thumbStyle: React.CSSProperties = {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    overflow: "hidden",
+    flexShrink: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "#A9E7A7",
+    color: "var(--color-pawpal-page)",
+  };
+
   return (
     <div style={{ display: "flex", gap: 16, alignItems: "center", padding: 16 }}>
-      {/* Thumbnail: route map when available, else a green paw tile. */}
-      <div
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: 8,
-          overflow: "hidden",
-          flexShrink: 0,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "#A9E7A7",
-          color: "var(--color-pawpal-page)",
-        }}
-      >
-        {hasRoute && walk.gpsRoute ? (
+      {/* Thumbnail: tap the route map to view it full-size; else a green paw tile. */}
+      {hasRoute && walk.gpsRoute ? (
+        <button
+          type="button"
+          aria-label="View walk route on map"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenMap?.(walk);
+          }}
+          style={{ ...thumbStyle, border: "none", padding: 0, cursor: "pointer" }}
+        >
           <RouteThumb coords={walk.gpsRoute} size={40} />
-        ) : (
+        </button>
+      ) : (
+        <div style={thumbStyle}>
           <Icon icon={Icons.pawPrint} width={24} height={24} color="inherit" />
-        )}
-      </div>
+        </div>
+      )}
 
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
         <span
@@ -590,6 +637,32 @@ function WalkEntry({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Summary line shown under the full route map. */
+function RouteMapCaption({ walk }: { walk: Walk }): React.ReactElement {
+  const steps = parseInt(String(walk.steps)) || 0;
+  const dist = parseFloat(String(walk.distance)) || 0;
+  const dur = parseInt(String(walk.duration)) || 0;
+  const parts: string[] = [];
+  if (dur) parts.push(`${dur} min`);
+  if (dist) parts.push(`${dist.toFixed(2)} km`);
+  if (steps) parts.push(`${steps.toLocaleString("de-DE")} steps`);
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 8,
+        flexWrap: "wrap",
+        fontFamily: "var(--font-ui)",
+        fontWeight: 500,
+        fontSize: 14,
+        color: "var(--color-pawpal-muted)",
+      }}
+    >
+      {parts.length ? parts.join(" · ") : "Route recorded"}
     </div>
   );
 }

@@ -54,7 +54,12 @@ export function Walks({ onAdd, onEdit }: WalksProps): React.ReactElement {
     });
     if (!ok) return;
     update((d) => {
+      const walkCreated = d.walks[index]?.created;
       d.walks.splice(index, 1);
+      if (walkCreated) {
+        const bIdx = d.bathroom.findIndex((b) => b.source === walkCreated);
+        if (bIdx >= 0) d.bathroom.splice(bIdx, 1);
+      }
     });
     toast("Walk deleted");
   };

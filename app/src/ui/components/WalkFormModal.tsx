@@ -10,7 +10,7 @@ import { DateField, TimeField } from "./fields";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { nowTime } from "../lib/date";
-import type { Walk } from "../types";
+import type { BathroomLog, Walk } from "../types";
 
 const WEATHERS: { value: string; icon: string }[] = [
   { value: "sunny", icon: "☀️" },
@@ -79,6 +79,27 @@ export function WalkFormModal({ open, onClose, editIndex }: WalkFormModalProps):
     update((d) => {
       if (editIndex != null) d.walks[editIndex] = walk;
       else d.walks.push(walk);
+      // Keep a linked bathroom entry in sync with the "Popo" toggle: create a
+      // popo entry when on, remove it when off. Existing linked entries are left
+      // untouched so edits in the Bathroom tab survive re-saving the walk.
+      const idx = d.bathroom.findIndex((b) => b.source === walk.created);
+      if (popo) {
+        if (idx < 0) {
+          const entry: BathroomLog = {
+            date: walk.date,
+            time: walk.time,
+            type: "popo",
+            consistency: "",
+            notes: "",
+            photos: [],
+            created: new Date().toISOString(),
+            source: walk.created,
+          };
+          d.bathroom.push(entry);
+        }
+      } else if (idx >= 0) {
+        d.bathroom.splice(idx, 1);
+      }
     });
     toast(editIndex != null ? "Walk updated! ✓" : "Walk saved! 🦮");
     onClose();

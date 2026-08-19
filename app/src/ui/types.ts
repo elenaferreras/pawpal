@@ -71,6 +71,8 @@ export interface Meal {
   notes: string;
   mealSlot?: number;
   created: string;
+  /** True once this meal's note has been forwarded to the vet notes. */
+  sentToVet?: boolean;
   /** Set when the entry was logged by a dog-sitter (server-tagged). */
   by?: "sitter";
 }
@@ -85,6 +87,10 @@ export interface BathroomLog {
   notes: string;
   photos: string[];
   created: string;
+  /** When set, this entry was auto-created from a walk (the walk's `created` id) and is removed when that walk drops the toggle or is deleted. */
+  source?: string;
+  /** True once this entry's note has been forwarded to the vet notes. */
+  sentToVet?: boolean;
   /** Set when the entry was logged by a dog-sitter (server-tagged). */
   by?: "sitter";
 }
@@ -160,6 +166,7 @@ export type ScreenId =
   | "dashboard"
   | "walks"
   | "food"
+  | "bathroom"
   | "vet"
   | "settings"
   | "settings-profile"
