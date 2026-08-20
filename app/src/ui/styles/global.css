@@ -455,14 +455,6 @@ input[type="time"].form-input {
 .form-input:focus {
   border-color: var(--amber);
 }
-/* astryx DateInput/TimeInput hard-code a 180px min-width on their wrapper, so
-   two side-by-side in a flex row (e.g. the walk form's Date + Time) overflow a
-   narrow phone. Let them shrink and share the row evenly instead. */
-.astryx-date-input,
-.astryx-time-input {
-  flex: 1 1 0;
-  min-width: 0 !important;
-}
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
