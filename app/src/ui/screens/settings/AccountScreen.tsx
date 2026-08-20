@@ -65,7 +65,10 @@ export function AccountScreen({ onBack, onSignedOut }: { onBack: () => void; onS
   };
 
   const doSignOut = async (): Promise<void> => {
-    await unsubscribeFromPush();
+    // Best-effort push cleanup — never awaited, since navigator.serviceWorker
+    // .ready can hang when no service worker is active (e.g. the dev server),
+    // which would otherwise block sign-out entirely.
+    void unsubscribeFromPush();
     await signOut();
     toast("Signed out");
     onSignedOut?.();
