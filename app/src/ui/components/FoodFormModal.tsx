@@ -109,20 +109,9 @@ export function FoodFormModal({ open, onClose }: FoodFormModalProps): React.Reac
       ariaLabel="Log a meal"
       scrimClassName="walk-sheet-scrim"
       sheetClassName="meal-sheet"
-    >
-      <div className="walk-sheet-body">
-        <p
-          style={{
-            margin: 0,
-            fontFamily: "var(--font-ui)",
-            fontWeight: 700,
-            fontSize: 32,
-            color: DARK,
-          }}
-        >
-          Log a meal
-        </p>
-
+      title="Log a meal"
+      body={
+        <>
         <Field label="Date">
           <input
             className="wts-field"
@@ -180,9 +169,9 @@ export function FoodFormModal({ open, onClose }: FoodFormModalProps): React.Reac
             />
           )}
         </Field>
-      </div>
-
-      <div className="meal-sheet-footer">
+        </>
+      }
+      footer={
         <button
           type="button"
           onClick={save}
@@ -201,8 +190,8 @@ export function FoodFormModal({ open, onClose }: FoodFormModalProps): React.Reac
         >
           Save meal
         </button>
-      </div>
-    </MotionSheet>
+      }
+    />
   );
 }
 

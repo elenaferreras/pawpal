@@ -31,6 +31,7 @@ import { Walks } from "./screens/Walks";
 import { Food } from "./screens/Food";
 import { Bathroom } from "./screens/Bathroom";
 import { Vet } from "./screens/Vet";
+import { Notifications } from "./screens/Notifications";
 import { Settings } from "./screens/settings/Settings";
 import { ProfileDetails } from "./screens/settings/ProfileDetails";
 import { NotificationsScreen } from "./screens/settings/NotificationsScreen";
@@ -109,6 +110,8 @@ function Shell(): React.ReactElement {
   const [editBathroomIndex, setEditBathroomIndex] = useState<number | null>(null);
   // Origin of the circular Settings reveal (set from the tapped avatar).
   const [settingsOrigin, setSettingsOrigin] = useState<{ x: number; y: number } | null>(null);
+  // Origin of the circular Notifications reveal (set from the tapped bell).
+  const [notifOrigin, setNotifOrigin] = useState<{ x: number; y: number } | null>(null);
 
   // Dog-sitter (guest) mode runs independently of the owner's own app/onboarding.
   const [sitter, setSitter] = useState<SitterState | null>(() => loadSitterSession());
@@ -160,6 +163,12 @@ function Shell(): React.ReactElement {
   const openSettings = (origin: { x: number; y: number }): void => {
     setSettingsOrigin(origin);
     navigate("settings");
+  };
+
+  // Opens Notifications with a circular reveal growing from the tapped bell.
+  const openNotifications = (origin: { x: number; y: number }): void => {
+    setNotifOrigin(origin);
+    navigate("notifications");
   };
 
   const openManualWalk = (index: number | null): void => {
@@ -216,7 +225,7 @@ function Shell(): React.ReactElement {
   // instead of cutting. Settings maps to the "home" key so opening the Settings
   // circle-reveal doesn't remount/re-animate the Dashboard behind it.
   const tabKey: ScreenId | null =
-    screen === "home" || screen === "settings"
+    screen === "home" || screen === "settings" || screen === "notifications"
       ? "home"
       : screen === "walks" || screen === "food" || screen === "bathroom" || screen === "vet"
         ? screen
@@ -228,8 +237,8 @@ function Shell(): React.ReactElement {
         <Dashboard
           onNavigate={navigate}
           onOpenSettings={openSettings}
+          onOpenNotifications={openNotifications}
           onLogWalk={logWalk}
-          onLogFood={() => setModal("food")}
           onLogBathroom={() => setModal("poop")}
         />
       ) : (
@@ -313,25 +322,45 @@ function Shell(): React.ReactElement {
               </AnimatePresence>
             </div>
           )}
+          {/* Notifications: full page in the new UI, revealed from the bell. */}
           <AnimatePresence>
-            {screen === "settings" && (
-              <CircleReveal origin={settingsOrigin}>
-                <Settings onNavigate={navigate} onBack={() => navigate("home")} />
+            {screen === "notifications" && (
+              <CircleReveal origin={notifOrigin}>
+                <Notifications
+                  onClose={() => navigate("home")}
+                  onLogWalk={logWalk}
+                  onLogFood={() => setModal("food")}
+                  onNavigate={navigate}
+                />
               </CircleReveal>
             )}
           </AnimatePresence>
-          {screen === "settings-profile" && (
-            <ProfileDetails onBack={() => navigate("settings")} />
-          )}
-          {screen === "settings-notifications" && (
-            <NotificationsScreen onBack={() => navigate("settings")} />
-          )}
-          {screen === "settings-account" && <AccountScreen onBack={() => navigate("settings")} />}
-          {screen === "settings-sitting" && (
-            <DogSittingScreen onBack={() => navigate("settings")} />
-          )}
-          {screen === "settings-sync" && <CloudSyncScreen onBack={() => navigate("settings")} />}
-          {screen === "settings-data" && <DataScreen onBack={() => navigate("settings")} />}
+
+          {/* Settings section: the circular reveal plays only when entering/leaving
+              the whole section (home ↔ settings). Navigating between the hub and
+              its sub-levels swaps the content inside the same persistent layer, so
+              no reveal animation replays. */}
+          <AnimatePresence>
+            {screen.startsWith("settings") && (
+              <CircleReveal origin={settingsOrigin}>
+                {screen === "settings-profile" ? (
+                  <ProfileDetails onBack={() => navigate("settings")} />
+                ) : screen === "settings-notifications" ? (
+                  <NotificationsScreen onBack={() => navigate("settings")} />
+                ) : screen === "settings-account" ? (
+                  <AccountScreen onBack={() => navigate("settings")} />
+                ) : screen === "settings-sitting" ? (
+                  <DogSittingScreen onBack={() => navigate("settings")} />
+                ) : screen === "settings-sync" ? (
+                  <CloudSyncScreen onBack={() => navigate("settings")} />
+                ) : screen === "settings-data" ? (
+                  <DataScreen onBack={() => navigate("settings")} />
+                ) : (
+                  <Settings onNavigate={navigate} onBack={() => navigate("home")} />
+                )}
+              </CircleReveal>
+            )}
+          </AnimatePresence>
 
           <BottomNav
             variant={design === "new" ? "trigger" : "full"}

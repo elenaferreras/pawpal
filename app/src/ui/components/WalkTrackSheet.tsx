@@ -181,20 +181,9 @@ export function WalkTrackSheet({ open, onClose, editIndex }: WalkTrackSheetProps
       ariaLabel="Track walk"
       scrimClassName="walk-sheet-scrim"
       sheetClassName="walk-sheet"
-    >
-      <div className="walk-sheet-body">
-        <p
-          style={{
-            margin: 0,
-            fontFamily: "var(--font-ui)",
-            fontWeight: 700,
-            fontSize: 32,
-            color: DARK,
-          }}
-        >
-          {editWalk ? "Edit walk" : "Track walk"}
-        </p>
-
+      title={editWalk ? "Edit walk" : "Track walk"}
+      body={
+        <>
         {/* Date picker — native date input */}
         <Field label="Date">
           <input
@@ -320,10 +309,10 @@ export function WalkTrackSheet({ open, onClose, editIndex }: WalkTrackSheetProps
           )}
         </Field>
 
-        </div>
-
-        <div className="walk-sheet-footer">
-          <button
+        </>
+      }
+      footer={
+        <button
             type="button"
             onClick={save}
             style={{
@@ -341,8 +330,8 @@ export function WalkTrackSheet({ open, onClose, editIndex }: WalkTrackSheetProps
           >
             {editWalk ? "Save changes" : "Save walk"}
           </button>
-        </div>
-    </MotionSheet>
+      }
+    />
   );
 }
 
@@ -418,7 +407,7 @@ function SheetTextarea({
         fontWeight: 500,
         fontSize: 16,
         outline: "none",
-        resize: "vertical",
+        resize: "none",
       }}
     />
   );

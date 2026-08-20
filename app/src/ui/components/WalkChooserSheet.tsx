@@ -33,31 +33,10 @@ export function WalkChooserSheet({
       ariaLabel="Log a walk"
       scrimClassName="walk-sheet-scrim"
       sheetClassName="chooser-sheet"
+      title="Log a walk"
+      titleColor={HERO}
     >
-        <span
-          aria-hidden
-          style={{
-            width: 36,
-            height: 5,
-            borderRadius: 100,
-            background: "rgba(233,228,196,0.3)",
-            alignSelf: "center",
-            marginBottom: 20,
-          }}
-        />
-        <p
-          style={{
-            margin: "0 0 16px",
-            fontFamily: "var(--font-ui)",
-            fontWeight: 700,
-            fontSize: 28,
-            color: HERO,
-          }}
-        >
-          Log a walk
-        </p>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "8px 28px 0" }}>
           <ChooserCard
             bg="var(--color-dash-walk)"
             icon={Icons.mapPin}

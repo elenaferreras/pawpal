@@ -210,7 +210,28 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
       lastAccel.current = mag;
     };
     motionHandler.current = handleMotion;
-    window.addEventListener("devicemotion", handleMotion);
+
+    // iOS 13+ requires an explicit, user-gesture-triggered permission grant
+    // before `devicemotion` events fire. Without it the listener attaches but
+    // never receives a single event, so the step count stays stuck at 0 while
+    // GPS (a separate permission) keeps working. `requestPermission` only
+    // exists on iOS Safari; elsewhere we attach the listener directly.
+    const DME = window.DeviceMotionEvent as unknown as {
+      requestPermission?: () => Promise<"granted" | "denied">;
+    };
+    if (typeof DME?.requestPermission === "function") {
+      DME.requestPermission()
+        .then((state) => {
+          if (state === "granted") {
+            window.addEventListener("devicemotion", handleMotion);
+          }
+        })
+        .catch(() => {
+          /* permission dialog dismissed — steps just won't be tracked */
+        });
+    } else {
+      window.addEventListener("devicemotion", handleMotion);
+    }
   }, []);
 
   const start = useCallback(() => {
@@ -374,6 +395,7 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
         ariaLabel="Walk in progress"
         scrimClassName="lws-scrim"
         sheetClassName="lws"
+        hideHandle
       >
         <div className="lws-grip" aria-hidden />
         <div className="lws-head">
@@ -439,36 +461,29 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
         ariaLabel="Walk complete"
         scrimClassName="walk-sheet-scrim"
         sheetClassName="walk-sheet"
-      >
-        {phase === "summary" && (
+        title={phase === "summary" ? "Walk complete" : undefined}
+        body={
           <>
-            <div className="walk-sheet-body">
-              <p
-                style={{
-                  margin: 0,
-                  fontFamily: "var(--font-ui)",
-                  fontWeight: 700,
-                  fontSize: 32,
-                  color: SHEET_DARK,
-                }}
-              >
-                Walk complete! 🎉
-              </p>
+            <div style={{ display: "flex", gap: 8, marginTop: 24 }}>
+              <SummaryStat value={String(Math.round(elapsed / 60))} label="min" />
+              <SummaryStat value={String(steps)} label="steps" />
+              <SummaryStat value={distanceKm.toFixed(2)} label="km" />
+              <SummaryStat value={paceStr} label="pace" />
+            </div>
 
-              <div style={{ display: "flex", gap: 8, marginTop: 24 }}>
-                <SummaryStat value={String(Math.round(elapsed / 60))} label="min" />
-                <SummaryStat value={String(steps)} label="steps" />
-                <SummaryStat value={distanceKm.toFixed(2)} label="km" />
-                <SummaryStat value={paceStr} label="pace" />
+            {coords.length > 1 && (
+              <div style={{ marginTop: 24, borderRadius: 16, overflow: "hidden" }}>
+                <RouteMap
+                  coords={coords}
+                  height={200}
+                  mapStyle="voyager"
+                  lineColor="#352B25"
+                  markerHtml={markerHtml}
+                />
               </div>
+            )}
 
-              {coords.length > 1 && (
-                <div style={{ marginTop: 24, borderRadius: 16, overflow: "hidden" }}>
-                  <RouteMap coords={coords} height={200} mapStyle="voyager" lineColor="#352B25" />
-                </div>
-              )}
-
-              <SummaryField label="Weather">
+            <SummaryField label="Weather">
                 <div
                   style={{
                     display: "grid",
@@ -549,35 +564,33 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
                     fontWeight: 500,
                     fontSize: 16,
                     outline: "none",
-                    resize: "vertical",
+                    resize: "none",
                   }}
                 />
               </SummaryField>
-            </div>
-
-            <div className="walk-sheet-footer">
-              <button
-                type="button"
-                onClick={saveWalk}
-                style={{
-                  width: "100%",
-                  padding: 16,
-                  borderRadius: 16,
-                  border: "none",
-                  cursor: "pointer",
-                  background: SHEET_DARK,
-                  color: SHEET_WALK,
-                  fontFamily: "var(--font-ui)",
-                  fontWeight: 700,
-                  fontSize: 16,
-                }}
-              >
-                Save walk
-              </button>
-            </div>
           </>
-        )}
-      </MotionSheet>
+        }
+        footer={
+          <button
+            type="button"
+            onClick={saveWalk}
+            style={{
+              width: "100%",
+              padding: 16,
+              borderRadius: 16,
+              border: "none",
+              cursor: "pointer",
+              background: SHEET_DARK,
+              color: SHEET_WALK,
+              fontFamily: "var(--font-ui)",
+              fontWeight: 700,
+              fontSize: 16,
+            }}
+          >
+            Save walk
+          </button>
+        }
+      />
     </LiveWalkContext.Provider>
   );
 }

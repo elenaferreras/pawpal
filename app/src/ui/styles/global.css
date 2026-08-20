@@ -455,6 +455,14 @@ input[type="time"].form-input {
 .form-input:focus {
   border-color: var(--amber);
 }
+/* astryx DateInput/TimeInput hard-code a 180px min-width on their wrapper, so
+   two side-by-side in a flex row (e.g. the walk form's Date + Time) overflow a
+   narrow phone. Let them shrink and share the row evenly instead. */
+.astryx-date-input,
+.astryx-time-input {
+  flex: 1 1 0;
+  min-width: 0 !important;
+}
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -465,7 +473,7 @@ input[type="time"].form-input {
   min-width: 0;
 }
 textarea.form-input {
-  resize: vertical;
+  resize: none;
   min-height: 80px;
 }
 select.form-input {
@@ -838,6 +846,35 @@ body.modal-open {
 .design-toggle:hover {
   opacity: 1;
 }
+/* Native-style drag grabber + fixed compact header shown at the top of every
+   MotionSheet. Drag-to-dismiss is limited to this header so scrolling the sheet
+   body never moves the sheet. The header stays fixed while the body scrolls. */
+.sheet-header {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 28px 8px;
+  cursor: grab;
+}
+.sheet-header:active {
+  cursor: grabbing;
+}
+.sheet-grabber {
+  display: block;
+  align-self: center;
+  width: 40px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.22);
+}
+.sheet-title {
+  margin: 10px 0 0;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 1.2;
+  color: var(--color-pawpal-page);
+}
 /* "Track walk" bottom sheet (Figma node 31:925). */
 .walk-sheet-scrim {
   position: fixed;
@@ -849,58 +886,63 @@ body.modal-open {
   background: rgba(0, 0, 0, 0.4);
 }
 .walk-sheet {
+  position: relative;
   width: min(560px, 100%);
   max-height: 92vh;
   display: flex;
   flex-direction: column;
-  background: var(--color-dash-walk);
+  --sheet-surface: var(--color-dash-walk);
+  background: var(--sheet-surface);
   border-radius: 40px 40px 0 0;
   overflow: hidden;
 }
-.walk-sheet-body {
+/* Unified scrollable body + fading footer shared by every MotionSheet. Each
+   sheet only sets its own `--sheet-surface` colour; the body/footer are common.
+   The footer lives *inside* the scroller as a sticky element so its
+   backdrop-filter shares the scroll layer and blurs the scrolled content
+   (a sibling overlay would sample an empty backdrop once the body scrolls). */
+.sheet-scroll {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 28px 28px 12px;
+  display: flex;
+  flex-direction: column;
 }
-.walk-sheet-footer {
+.sheet-body {
+  flex: 1 0 auto;
+  padding: 8px 28px 0;
+}
+.sheet-footer {
+  position: sticky;
+  bottom: 0;
   flex-shrink: 0;
-  padding: 12px 28px calc(20px + env(safe-area-inset-bottom, 12px));
-  background: var(--color-dash-walk);
-  box-shadow: 0 -10px 20px -4px var(--color-dash-walk);
+  padding: 16px 28px calc(20px + env(safe-area-inset-bottom, 12px));
+  background: transparent;
 }
 /* "Log a meal" bottom sheet — meals accent surface (#E96A41). */
 .meal-sheet {
+  position: relative;
   width: min(560px, 100%);
   max-height: 92vh;
   display: flex;
   flex-direction: column;
-  background: var(--color-food);
+  --sheet-surface: var(--color-food);
+  background: var(--sheet-surface);
   border-radius: 40px 40px 0 0;
   overflow: hidden;
-}
-.meal-sheet-footer {
-  flex-shrink: 0;
-  padding: 12px 28px calc(20px + env(safe-area-inset-bottom, 12px));
-  background: var(--color-food);
-  box-shadow: 0 -10px 20px -4px var(--color-food);
 }
 /* "Bathroom log" bottom sheet — green surface (#A9E7A7). */
 .bathroom-sheet {
+  position: relative;
   width: min(560px, 100%);
   max-height: 92vh;
   display: flex;
   flex-direction: column;
-  background: #A9E7A7;
+  --sheet-surface: #A9E7A7;
+  background: var(--sheet-surface);
   border-radius: 40px 40px 0 0;
   overflow: hidden;
-}
-.bathroom-sheet-footer {
-  flex-shrink: 0;
-  padding: 12px 28px calc(20px + env(safe-area-inset-bottom, 12px));
-  background: #A9E7A7;
-  box-shadow: 0 -10px 20px -4px #A9E7A7;
 }
 @keyframes pawpal-sheet-up {
   from {
@@ -1231,7 +1273,7 @@ body.modal-open {
   background: var(--color-pawpal-page);
   border-radius: 40px 40px 0 0;
   overflow-y: auto;
-  padding: 12px 20px calc(24px + env(safe-area-inset-bottom, 12px));
+  padding: 0 0 calc(24px + env(safe-area-inset-bottom, 12px));
   animation: pawpal-sheet-up 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .wts-field::placeholder {

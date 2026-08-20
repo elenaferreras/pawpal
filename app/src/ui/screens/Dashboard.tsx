@@ -1,10 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Icon } from "@astryxdesign/core/Icon";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { useLiveWalk } from "../components/LiveWalk";
 import { WalksBarChart, type WalksBar } from "../components/WalksBarChart";
-import { NotifPanel } from "../components/NotifPanel";
 import { DogFace } from "../avatar/DogAvatar";
 import { Eyebrow, CardTitle, StatNumber, Caption, Callout } from "../components/Typography";
 import { Icons } from "../lib/icons";
@@ -13,10 +12,11 @@ import type { ScreenId } from "../types";
 interface DashboardProps {
   onNavigate: (id: ScreenId) => void;
   onLogWalk: () => void;
-  onLogFood: () => void;
   onLogBathroom: () => void;
   /** Opens Settings with a circular reveal from the tapped avatar. */
   onOpenSettings?: (origin: { x: number; y: number }) => void;
+  /** Opens the notifications page with a circular reveal from the tapped bell. */
+  onOpenNotifications?: (origin: { x: number; y: number }) => void;
 }
 
 const HERO = "var(--color-pawpal-hero)"; // cream
@@ -46,13 +46,13 @@ function localISO(d: Date): string {
 export function Dashboard({
   onNavigate,
   onLogWalk,
-  onLogFood,
+  onLogBathroom,
   onOpenSettings,
+  onOpenNotifications,
 }: DashboardProps): React.ReactElement {
   const { db, update } = useDb();
   const toast = useToast();
   const { active: walkActive, start: startWalk } = useLiveWalk();
-  const [panelOpen, setPanelOpen] = useState(false);
   const p = db.profile;
   const todayISO = localISO(new Date());
 
@@ -204,7 +204,14 @@ export function Dashboard({
         <button
           type="button"
           aria-label="Notifications"
-          onClick={() => setPanelOpen(true)}
+          onClick={(e) => {
+            if (onOpenNotifications) {
+              const r = e.currentTarget.getBoundingClientRect();
+              onOpenNotifications({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+            } else {
+              onNavigate("notifications");
+            }
+          }}
           style={{
             marginLeft: "auto",
             width: 44,
@@ -359,7 +366,7 @@ export function Dashboard({
 
         {/* Pooped + Trained */}
         <div style={{ flex: "1 1 0", minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
-          <QuickCard label="Bathroom" bg="#A9E7A7" onClick={() => onNavigate("bathroom")} />
+          <QuickCard label="Bathroom" bg="#A9E7A7" onClick={onLogBathroom} />
           <QuickCard
             label="Training"
             bg="var(--color-dash-trained)"
@@ -543,15 +550,6 @@ export function Dashboard({
           </div>
         </button>
       </div>
-
-      <NotifPanel
-        open={panelOpen}
-        onClose={() => setPanelOpen(false)}
-        db={db}
-        onLogWalk={onLogWalk}
-        onLogFood={onLogFood}
-        onNavigate={onNavigate}
-      />
     </div>
   );
 }

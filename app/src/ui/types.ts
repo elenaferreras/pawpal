@@ -168,6 +168,7 @@ export type ScreenId =
   | "food"
   | "bathroom"
   | "vet"
+  | "notifications"
   | "settings"
   | "settings-profile"
   | "settings-notifications"

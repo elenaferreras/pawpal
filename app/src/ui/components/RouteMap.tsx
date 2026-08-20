@@ -171,6 +171,26 @@ function loadLeaflet(): Promise<LeafletStatic> {
   return leafletPromise;
 }
 
+// Tracks the OS `prefers-color-scheme: dark` setting so the basemap can follow
+// the phone's light/dark mode. Re-renders when the user toggles their system.
+function useSystemDark(): boolean {
+  const [dark, setDark] = useState<boolean>(() =>
+    typeof window !== "undefined" && !!window.matchMedia
+      ? window.matchMedia("(prefers-color-scheme: dark)").matches
+      : false,
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mql = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = (e: MediaQueryListEvent): void => setDark(e.matches);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+
+  return dark;
+}
+
 interface RouteMapProps {
   coords: GpsCoord[];
   height?: number;
@@ -226,6 +246,12 @@ export function RouteMap({
   const didCenterRef = useRef(false);
   const syncRef = useRef<((L: LeafletStatic, pts: [number, number][]) => void) | null>(null);
   const [error, setError] = useState(false);
+
+  // Follow the phone's light/dark mode: swap light basemaps for CARTO's dark
+  // basemap when the OS is in dark mode. Explicit "dark"/"osm" are left as-is.
+  const systemDark = useSystemDark();
+  const resolvedStyle: MapStyle =
+    systemDark && (mapStyle === "voyager" || mapStyle === "light") ? "dark" : mapStyle;
 
   const points: [number, number][] = coords
     .filter((c) => Number.isFinite(c.lat) && Number.isFinite(c.lng))
@@ -363,7 +389,7 @@ export function RouteMap({
         mapRef.current = map;
         if (hideWordmark) map.attributionControl.setPrefix(false);
 
-        const tiles = TILE_STYLES[mapStyle];
+        const tiles = TILE_STYLES[resolvedStyle];
         L.tileLayer(tiles.url, {
           maxZoom: tiles.maxZoom,
           attribution: tiles.attribution,
@@ -418,7 +444,7 @@ export function RouteMap({
     };
     // Rebuild only when basemap/mode/colour identity changes — NOT on coords.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapStyle, lineColor, startColor, endColor, hideWordmark, live]);
+  }, [resolvedStyle, lineColor, startColor, endColor, hideWordmark, live]);
 
   // ---- Update effect: feed new points into the existing map (no teardown).
   useEffect(() => {

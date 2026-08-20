@@ -232,20 +232,9 @@ export function VetAddModal({ open, onClose, editReminderIndex }: VetAddModalPro
       ariaLabel={editReminder ? "Edit reminder" : "Add health record"}
       scrimClassName="walk-sheet-scrim"
       sheetClassName="walk-sheet"
-    >
-      <div className="walk-sheet-body">
-        <p
-          style={{
-            margin: 0,
-            fontFamily: "var(--font-ui)",
-            fontWeight: 700,
-            fontSize: 32,
-            color: DARK,
-          }}
-        >
-          {editReminder ? "Edit reminder" : "Add health record"}
-        </p>
-
+      title={editReminder ? "Edit reminder" : "Add health record"}
+      body={
+        <>
         {!editReminder && (
           <Field label="Record type">
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -399,9 +388,9 @@ export function VetAddModal({ open, onClose, editReminderIndex }: VetAddModalPro
             </Field>
           </>
         )}
-      </div>
-
-      <div className="walk-sheet-footer">
+        </>
+      }
+      footer={
         <button
           type="button"
           onClick={save}
@@ -420,8 +409,8 @@ export function VetAddModal({ open, onClose, editReminderIndex }: VetAddModalPro
         >
           {editReminder ? "Save changes" : "Save record"}
         </button>
-      </div>
-    </MotionSheet>
+      }
+    />
   );
 }
 
@@ -457,7 +446,15 @@ function SheetInput({
       placeholder={placeholder}
       inputMode={inputMode}
       onChange={(e) => onChange(e.target.value)}
-      style={sheetFieldStyle}
+      style={{
+        ...sheetFieldStyle,
+        // Native date/time inputs on iOS keep an intrinsic width and ignore
+        // `width: 100%`, overflowing the sheet. Reset appearance + min-width so
+        // they respect the container.
+        minWidth: 0,
+        WebkitAppearance: "none",
+        appearance: "none",
+      }}
     />
   );
 }

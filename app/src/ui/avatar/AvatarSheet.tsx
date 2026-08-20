@@ -71,6 +71,7 @@ export function AvatarSheet({ open, value, onConfirm, onClose }: AvatarSheetProp
         overflowX: "hidden",
         boxSizing: "border-box",
       }}
+      hideHandle
     >
         {/* Grabber */}
         <div style={{ display: "flex", justifyContent: "center", paddingTop: 8 }}>

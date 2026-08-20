@@ -6,7 +6,7 @@ import { Icon } from "@astryxdesign/core/Icon";
 import { Icons } from "../lib/icons";
 import { useLiveWalk } from "./LiveWalk";
 import { RouteMap } from "./RouteMap";
-import { Modal } from "./Modal";
+import { MotionSheet } from "./MotionSheet";
 import { RevealItem } from "./Reveal";
 import { SwipeableRow } from "./SwipeableRow";
 import { PageTitle, StatNumber } from "./Typography";
@@ -503,13 +503,23 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
         )}
       </div>
 
-      <Modal
+      <MotionSheet
         open={mapWalk !== null}
-        title={mapWalk ? `Walk · ${fmtDate(mapWalk.date)}` : undefined}
         onClose={() => setMapWalk(null)}
+        ariaLabel="Walk route"
+        scrimClassName="walk-sheet-scrim"
+        sheetClassName="walk-sheet"
+        title={mapWalk ? `Walk · ${fmtDate(mapWalk.date)}` : undefined}
       >
         {mapWalk && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+              padding: "8px 28px calc(28px + env(safe-area-inset-bottom, 12px))",
+            }}
+          >
             <RouteMap
               coords={mapWalk.gpsRoute ?? []}
               height={340}
@@ -520,7 +530,7 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
             <RouteMapCaption walk={mapWalk} />
           </div>
         )}
-      </Modal>
+      </MotionSheet>
     </div>
   );
 }

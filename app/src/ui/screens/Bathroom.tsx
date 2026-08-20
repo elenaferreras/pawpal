@@ -5,7 +5,7 @@ import { useConfirm } from "../components/ConfirmDialog";
 import { SwipeableRow } from "../components/SwipeableRow";
 import { PageTitle, CardTitle } from "../components/Typography";
 import { RevealItem } from "../components/Reveal";
-import { Icons } from "../lib/icons";
+import { Icons, type AppIconName } from "../lib/icons";
 import { fmtDate } from "../lib/date";
 import type { BathroomType } from "../types";
 
@@ -22,8 +22,8 @@ function typeLabel(type: BathroomType): string {
   return type === "pipi" ? "Pipi" : type === "popo" ? "Popo" : "Pipi & Popo";
 }
 
-function typeEmoji(type: BathroomType): string {
-  return type === "pipi" ? "💧" : "💩";
+function typeIcon(type: BathroomType): AppIconName {
+  return type === "pipi" ? "droplet" : "toilet";
 }
 
 /**
@@ -109,7 +109,9 @@ export function Bathroom({ onAdd, onEdit }: BathroomProps): React.ReactElement {
             textAlign: "center",
           }}
         >
-          <div style={{ fontSize: 40, marginBottom: 8 }}>💩</div>
+          <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", color: CREAM }}>
+            <Icon icon={Icons.toilet} size="lg" color="inherit" />
+          </div>
           <CardTitle color={CREAM} size={20} weight={400} style={{ display: "block" }}>
             No bathroom logs yet
           </CardTitle>
@@ -183,12 +185,12 @@ export function Bathroom({ onAdd, onEdit }: BathroomProps): React.ReactElement {
                         width: 36,
                         height: 36,
                         borderRadius: 12,
-                        fontSize: 18,
+                        color: DARK,
                         background: POOP,
                         flexShrink: 0,
                       }}
                     >
-                      {typeEmoji(b.type)}
+                      <Icon icon={Icons[typeIcon(b.type)]} color="inherit" />
                     </span>
                     <span style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
                       <span

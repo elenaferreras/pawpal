@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Icon } from "@astryxdesign/core/Icon";
 import { MotionSheet } from "./MotionSheet";
-import { Icons } from "../lib/icons";
+import { Icons, type AppIconName } from "../lib/icons";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { nowTime } from "../lib/date";
@@ -19,9 +19,9 @@ const BATH = "#A9E7A7"; // green bathroom accent (matches the sheet surface)
 
 const CONSISTENCIES = ["Normal", "Soft", "Runny", "Hard", "Mucus", "Other"];
 
-const TYPES: { value: BathroomType; label: string }[] = [
-  { value: "pipi", label: "💧 Pipi" },
-  { value: "popo", label: "💩 Popo" },
+const TYPES: { value: BathroomType; label: string; icon?: AppIconName }[] = [
+  { value: "pipi", label: "Pipi", icon: "droplet" },
+  { value: "popo", label: "Popo", icon: "toilet" },
   { value: "both", label: "Both" },
 ];
 
@@ -120,7 +120,7 @@ export function PoopFormModal({ open, onClose, editIndex }: PoopFormModalProps):
       }
       syncVetNote(d);
     });
-    toast(editIndex != null ? "Updated! 👍" : "Logged! 👍");
+    toast(editIndex != null ? "Updated!" : "Logged!");
     onClose();
   };
 
@@ -131,26 +131,16 @@ export function PoopFormModal({ open, onClose, editIndex }: PoopFormModalProps):
       ariaLabel={editIndex != null ? "Edit bathroom log" : "Bathroom log"}
       scrimClassName="walk-sheet-scrim"
       sheetClassName="bathroom-sheet"
-    >
-      <div className="walk-sheet-body">
-        <p
-          style={{
-            margin: 0,
-            fontFamily: "var(--font-ui)",
-            fontWeight: 700,
-            fontSize: 32,
-            color: DARK,
-          }}
-        >
-          {editIndex != null ? "Edit bathroom log" : "Bathroom log"}
-        </p>
-
+      title={editIndex != null ? "Edit bathroom log" : "Bathroom log"}
+      body={
+        <>
         <Field label="Type">
           <div style={{ display: "flex", gap: 8 }}>
             {TYPES.map((t) => (
               <ChoiceChip
                 key={t.value}
                 label={t.label}
+                icon={t.icon}
                 selected={type === t.value}
                 onClick={() => setType(t.value)}
                 grow
@@ -204,9 +194,9 @@ export function PoopFormModal({ open, onClose, editIndex }: PoopFormModalProps):
             />
           )}
         </Field>
-      </div>
-
-      <div className="bathroom-sheet-footer">
+        </>
+      }
+      footer={
         <button
           type="button"
           onClick={save}
@@ -225,8 +215,8 @@ export function PoopFormModal({ open, onClose, editIndex }: PoopFormModalProps):
         >
           {editIndex != null ? "Save changes" : "Save"}
         </button>
-      </div>
-    </MotionSheet>
+      }
+    />
   );
 }
 
@@ -262,7 +252,16 @@ function SheetInput({
       placeholder={placeholder}
       max={max}
       onChange={(e) => onChange(e.target.value)}
-      style={{ ...sheetFieldStyle, colorScheme: "light" }}
+      style={{
+        ...sheetFieldStyle,
+        colorScheme: "light",
+        // Native date/time inputs on iOS keep an intrinsic width and ignore
+        // `width: 100%`, overflowing the sheet. Reset appearance + min-width so
+        // they respect the container.
+        minWidth: 0,
+        WebkitAppearance: "none",
+        appearance: "none",
+      }}
     />
   );
 }
@@ -293,11 +292,13 @@ function ChoiceChip({
   selected,
   onClick,
   grow,
+  icon,
 }: {
   label: string;
   selected: boolean;
   onClick: () => void;
   grow?: boolean;
+  icon?: AppIconName;
 }): React.ReactElement {
   return (
     <button
@@ -322,6 +323,7 @@ function ChoiceChip({
         whiteSpace: "nowrap",
       }}
     >
+      {icon && <Icon icon={Icons[icon]} color="inherit" size="sm" />}
       <span>{label}</span>
     </button>
   );

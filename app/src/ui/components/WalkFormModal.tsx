@@ -4,13 +4,14 @@ import { Text } from "@astryxdesign/core/Text";
 import { Button } from "./Button";
 import { ToggleButton } from "@astryxdesign/core/ToggleButton";
 import { TextInput } from "@astryxdesign/core/TextInput";
-import { TextArea } from "@astryxdesign/core/TextArea";
 import { Modal } from "./Modal";
 import { DateField, TimeField } from "./fields";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { nowTime } from "../lib/date";
 import type { BathroomLog, Walk } from "../types";
+
+const DARK = "var(--color-pawpal-page)"; // #352B25
 
 const WEATHERS: { value: string; icon: string }[] = [
   { value: "sunny", icon: "☀️" },
@@ -146,7 +147,10 @@ export function WalkFormModal({ open, onClose, editIndex }: WalkFormModalProps):
           </ToggleButton>
         </HStack>
 
-        <TextArea label="Notes" value={notes} onChange={setNotes} />
+        <VStack gap={1}>
+          <Text type="label">Notes</Text>
+          <SheetTextarea value={notes} onChange={setNotes} placeholder="How was the walk?" />
+        </VStack>
 
         <Button
           label={editIndex != null ? "Save changes" : "Save walk"}
@@ -156,5 +160,38 @@ export function WalkFormModal({ open, onClose, editIndex }: WalkFormModalProps):
         />
       </VStack>
     </Modal>
+  );
+}
+
+function SheetTextarea({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}): React.ReactElement {
+  return (
+    <textarea
+      className="wts-field"
+      value={value}
+      placeholder={placeholder}
+      rows={3}
+      onChange={(e) => onChange(e.target.value)}
+      style={{
+        width: "100%",
+        padding: 16,
+        borderRadius: 16,
+        border: `1px solid ${DARK}`,
+        background: "transparent",
+        color: DARK,
+        fontFamily: "var(--font-ui)",
+        fontWeight: 500,
+        fontSize: 16,
+        outline: "none",
+        resize: "none",
+      }}
+    />
   );
 }
