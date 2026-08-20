@@ -17,17 +17,13 @@ import { WalksStats } from "./components/WalksStats";
 import { WalkTrackSheet } from "./components/WalkTrackSheet";
 import { Splash } from "./components/Splash";
 import { DesktopGate, useIsDesktop } from "./components/DesktopGate";
-import { WalkChooser } from "./components/WalkChooser";
 import { WalkChooserSheet } from "./components/WalkChooserSheet";
 import { CircleReveal } from "./components/CircleReveal";
 import { ScreenTransition } from "./components/ScreenTransition";
-import { WalkFormModal } from "./components/WalkFormModal";
 import { FoodFormModal } from "./components/FoodFormModal";
 import { PoopFormModal } from "./components/PoopFormModal";
 import { VetAddModal } from "./components/VetAddModal";
-import { Home } from "./screens/Home";
 import { Dashboard } from "./screens/Dashboard";
-import { Walks } from "./screens/Walks";
 import { Food } from "./screens/Food";
 import { Bathroom } from "./screens/Bathroom";
 import { Vet } from "./screens/Vet";
@@ -39,7 +35,6 @@ import { AccountScreen } from "./screens/settings/AccountScreen";
 import { DogSittingScreen } from "./screens/settings/DogSittingScreen";
 import { CloudSyncScreen } from "./screens/settings/CloudSyncScreen";
 import { DataScreen } from "./screens/settings/DataScreen";
-import { Onboarding } from "./screens/Onboarding";
 import { OnboardingProposal } from "./screens/OnboardingProposal";
 import { SitterApp } from "./screens/SitterApp";
 import { SitterClaim } from "./screens/SitterClaim";
@@ -76,24 +71,7 @@ export function App(): React.ReactElement {
   );
 }
 
-type QuickModal = "none" | "walk-choose" | "walk-manual" | "walk-track" | "food" | "poop" | "vet";
-
-type ObVariant = "classic" | "proposal";
-
-type DesignMode = "new" | "old";
-
-function initialObVariant(): ObVariant {
-  const param = new URLSearchParams(window.location.search).get("onboarding");
-  return param === "classic" ? "classic" : "proposal";
-}
-
-function initialDesign(): DesignMode {
-  try {
-    return localStorage.getItem("pawpal-design") === "old" ? "old" : "new";
-  } catch {
-    return "new";
-  }
-}
+type QuickModal = "none" | "walk-choose" | "walk-track" | "food" | "poop" | "vet";
 
 function Shell(): React.ReactElement {
   const { db, getDb, update: updateDb } = useDb();
@@ -101,10 +79,8 @@ function Shell(): React.ReactElement {
   const [screen, setScreen] = useState<ScreenId>("home");
   const [showSplash, setShowSplash] = useState(true);
   const [onboarding, setOnboarding] = useState(!db.profile.onboarded);
-  const [obVariant, setObVariant] = useState<ObVariant>(initialObVariant);
   const [modal, setModal] = useState<QuickModal>("none");
   const [trackOpen, setTrackOpen] = useState(false);
-  const [design] = useState<DesignMode>(initialDesign);
   const [editWalkIndex, setEditWalkIndex] = useState<number | null>(null);
   const [editReminderIndex, setEditReminderIndex] = useState<number | null>(null);
   const [editBathroomIndex, setEditBathroomIndex] = useState<number | null>(null);
@@ -171,24 +147,17 @@ function Shell(): React.ReactElement {
     navigate("notifications");
   };
 
-  const openManualWalk = (index: number | null): void => {
-    setEditWalkIndex(index);
-    setModal("walk-manual");
-  };
-
-  // New-design edit opens the Track-walk sheet pre-filled with the walk.
+  // Edit opens the Track-walk sheet pre-filled with the walk.
   const openTrackWalk = (index: number | null): void => {
     setEditWalkIndex(index);
     setModal("walk-track");
   };
 
-  // "Log walk" opens the new Track-walk sheet in new design, else the chooser.
+  // "Log walk" opens the Track-walk sheet.
   const logWalk = (): void => {
     setEditWalkIndex(null);
-    setModal(design === "new" ? "walk-track" : "walk-choose");
+    setModal("walk-track");
   };
-
-  // Design toggle button is hidden; design defaults to "new".
 
   // Sitter mode takes over the whole screen (ephemeral guest session).
   if (sitter) {
@@ -233,28 +202,15 @@ function Shell(): React.ReactElement {
 
   const tabNode: React.ReactElement | null =
     tabKey === "home" ? (
-      design === "new" ? (
-        <Dashboard
-          onNavigate={navigate}
-          onOpenSettings={openSettings}
-          onOpenNotifications={openNotifications}
-          onLogWalk={logWalk}
-          onLogBathroom={() => setModal("poop")}
-        />
-      ) : (
-        <Home
-          onNavigate={navigate}
-          onLogWalk={logWalk}
-          onLogFood={() => setModal("food")}
-          onLogBathroom={() => setModal("poop")}
-        />
-      )
+      <Dashboard
+        onNavigate={navigate}
+        onOpenSettings={openSettings}
+        onOpenNotifications={openNotifications}
+        onLogWalk={logWalk}
+        onLogBathroom={() => setModal("poop")}
+      />
     ) : tabKey === "walks" ? (
-      design === "new" ? (
-        <WalksStats onAdd={() => setModal("walk-choose")} onEdit={(i) => openTrackWalk(i)} />
-      ) : (
-        <Walks onAdd={() => setModal("walk-choose")} onEdit={(i) => openManualWalk(i)} />
-      )
+      <WalksStats onAdd={() => setModal("walk-choose")} onEdit={(i) => openTrackWalk(i)} />
     ) : tabKey === "food" ? (
       <Food onAdd={() => setModal("food")} />
     ) : tabKey === "bathroom" ? (
@@ -286,31 +242,13 @@ function Shell(): React.ReactElement {
       {showSplash && <Splash onDone={() => setShowSplash(false)} />}
 
       {onboarding ? (
-        <>
-          {obVariant === "proposal" ? (
-            <OnboardingProposal
-              onDone={() => {
-                setOnboarding(false);
-                navigate("home");
-              }}
-              onDogSit={() => setClaim({ open: true })}
-            />
-          ) : (
-            <Onboarding
-              onDone={() => {
-                setOnboarding(false);
-                navigate("home");
-              }}
-            />
-          )}
-          <button
-            type="button"
-            className="ob-variant-toggle"
-            onClick={() => setObVariant((v) => (v === "proposal" ? "classic" : "proposal"))}
-          >
-            {obVariant === "proposal" ? "Proposal · tap for Classic" : "Classic · tap for Proposal"}
-          </button>
-        </>
+        <OnboardingProposal
+          onDone={() => {
+            setOnboarding(false);
+            navigate("home");
+          }}
+          onDogSit={() => setClaim({ open: true })}
+        />
       ) : (
         <>
           {tabNode && (
@@ -351,7 +289,6 @@ function Shell(): React.ReactElement {
                   <AccountScreen
                     onBack={() => navigate("settings")}
                     onSignedOut={() => {
-                      setObVariant("proposal");
                       setOnboarding(true);
                       navigate("home");
                     }}
@@ -370,7 +307,7 @@ function Shell(): React.ReactElement {
           </AnimatePresence>
 
           <BottomNav
-            variant={design === "new" ? "trigger" : "full"}
+            variant="trigger"
             current={screen === "settings" ? "home" : screen.startsWith("settings") ? "settings" : screen}
             onNavigate={navigate}
             onAction={() => setTrackOpen((v) => !v)}
@@ -381,35 +318,19 @@ function Shell(): React.ReactElement {
           <GooeyFab
             open={trackOpen}
             onClose={() => setTrackOpen(false)}
-            onWalk={design === "new" ? () => navigate("walks") : logWalk}
-            onMeal={design === "new" ? () => navigate("food") : () => setModal("food")}
+            onWalk={() => navigate("walks")}
+            onMeal={() => navigate("food")}
             onDiary={() => toast("Diary coming soon \u{1F43E}")}
-            onPoop={design === "new" ? () => navigate("bathroom") : () => setModal("poop")}
-            onVet={design === "new" ? () => navigate("vet") : () => setModal("vet")}
+            onPoop={() => navigate("bathroom")}
+            onVet={() => navigate("vet")}
           />
 
-          {design === "new" ? (
-            <WalkChooserSheet
-              open={modal === "walk-choose"}
-              onClose={() => setModal("none")}
-              onManual={() => {
-                setEditWalkIndex(null);
-                setModal("walk-track");
-              }}
-            />
-          ) : (
-            <WalkChooser
-              open={modal === "walk-choose"}
-              onClose={() => setModal("none")}
-              onManual={() => openManualWalk(null)}
-            />
-          )}
-          <WalkFormModal
-            open={modal === "walk-manual"}
-            editIndex={editWalkIndex}
-            onClose={() => {
-              setModal("none");
+          <WalkChooserSheet
+            open={modal === "walk-choose"}
+            onClose={() => setModal("none")}
+            onManual={() => {
               setEditWalkIndex(null);
+              setModal("walk-track");
             }}
           />
           <FoodFormModal open={modal === "food"} onClose={() => setModal("none")} />

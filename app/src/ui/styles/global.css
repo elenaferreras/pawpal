@@ -72,47 +72,6 @@ body {
 button {
   font-family: inherit;
 }
-.screen {
-  min-height: 100vh;
-  padding: calc(14px + env(safe-area-inset-top, 0px)) 16px calc(96px + var(--safe-bottom));
-}
-.hdr {
-  padding: 20px 22px 14px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--bg);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-.hdr-title {
-  font-size: 28px;
-  font-weight: 700;
-  letter-spacing: -1px;
-  line-height: 1;
-}
-.hdr-sub {
-  font-size: 14px;
-  color: var(--text2);
-  margin-top: 2px;
-  font-weight: 400;
-}
-.hdr-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: none;
-  background: var(--text);
-  color: white;
-  font-size: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  flex-shrink: 0;
-  position: relative;
-}
 .nav {
   position: fixed;
   bottom: calc(14px + var(--safe-bottom));
@@ -242,62 +201,6 @@ button {
 }
 .scroll {
   padding: 4px 0 8px;
-}
-.dog-hero {
-  margin: 0 18px 20px;
-  padding: 22px 20px;
-  background: var(--amber);
-  border-radius: 24px;
-  color: white;
-  position: relative;
-  overflow: hidden;
-}
-.dog-hero h2 {
-  font-size: 32px;
-  font-weight: 700;
-  letter-spacing: -1px;
-  line-height: 1.1;
-}
-.dog-hero p {
-  font-size: 13px;
-  opacity: 0.85;
-  margin-top: 3px;
-  font-weight: 500;
-}
-.dog-hero-emoji {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-}
-.dog-hero-stats {
-  display: flex;
-  gap: 10px;
-  margin-top: 16px;
-}
-.dog-hero-stat {
-  background: rgba(0, 0, 0, 0.15);
-  border-radius: 14px;
-  padding: 10px 12px;
-  flex: 1;
-}
-.dog-hero-stat .val {
-  font-size: 20px;
-  font-weight: 800;
-}
-.dog-hero-stat .lbl {
-  font-size: 10px;
-  opacity: 0.8;
-  font-weight: 500;
-  margin-top: 1px;
-}
-.section-label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.6px;
-  color: var(--text3);
-  text-transform: uppercase;
-  margin: 20px 22px 10px;
 }
 .card {
   background: var(--surface);
@@ -658,19 +561,6 @@ body.modal-open {
   font-size: 16px;
   flex-shrink: 0;
 }
-.profile-name {
-  text-align: center;
-  font-size: 26px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-}
-.profile-sub {
-  text-align: center;
-  font-size: 13px;
-  color: var(--text2);
-  margin-top: 4px;
-  margin-bottom: 24px;
-}
 .med-item {
   display: flex;
   align-items: center;
@@ -798,49 +688,6 @@ body.modal-open {
   margin-top: 16px;
 }
 
-/* Onboarding proposal (How We Feel style) */
-.ob-variant-toggle {
-  position: fixed;
-  top: 14px;
-  right: 14px;
-  z-index: 600;
-  padding: 7px 14px;
-  border-radius: var(--radius-pill);
-  border: 1.5px solid var(--border-strong);
-  background: var(--text);
-  color: white;
-  font-size: 12px;
-  font-weight: 700;
-  font-family: inherit;
-  cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
-  opacity: 0.9;
-}
-.ob-variant-toggle:hover {
-  opacity: 1;
-}
-.design-toggle {
-  position: fixed;
-  top: calc(8px + env(safe-area-inset-top, 0px));
-  right: 10px;
-  z-index: 600;
-  padding: 6px 12px;
-  border-radius: var(--radius-pill);
-  border: 1.5px solid rgba(255, 255, 255, 0.25);
-  background: rgba(28, 28, 30, 0.82);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  font-family: inherit;
-  cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
-  opacity: 0.85;
-}
-.design-toggle:hover {
-  opacity: 1;
-}
 /* Native-style drag grabber + fixed compact header shown at the top of every
    MotionSheet. Drag-to-dismiss is limited to this header so scrolling the sheet
    body never moves the sheet. The header stays fixed while the body scrolls. */

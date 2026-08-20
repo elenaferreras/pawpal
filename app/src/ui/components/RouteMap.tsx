@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { GpsCoord } from "../types";
 
-// PawPal route colours (match RouteCanvas).
+// PawPal route colours.
 const LINE = "#2AA98B";
 const START = "#0F6E56";
 const END = "#F5A623";

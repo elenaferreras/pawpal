@@ -25,7 +25,7 @@ interface Pt {
   y: number;
 }
 
-/** Glowy bubble diameter (px) — matches the previous TrackMenu. */
+/** Glowy bubble diameter (px). */
 const BUBBLE = 116;
 /** Solid goo-blob diameter — larger than the glow bubble so neighbouring
  * blobs overlap underneath and form the melty necks. */
@@ -33,7 +33,7 @@ const GOO_D = 132;
 /** Cluster box the resting positions are measured in (bottom-right anchored). */
 const BOX_W = 300;
 const BOX_H = 248;
-/** Cluster box offset from the bottom-right corner (matches TrackMenu). */
+/** Cluster box offset from the bottom-right corner. */
 const BOX_BOTTOM = 72;
 /** Pointer travel (px) beyond which a press is treated as a drag, not a tap. */
 const DRAG_THRESHOLD = 6;
@@ -50,8 +50,6 @@ const FAB_BOTTOM = 44;
  * screen (pointer events) as well as tapped. A short press fires the action; a
  * press that travels past {@link DRAG_THRESHOLD} is a drag and leaves the
  * bubble where you drop it, stretching a gooey neck back toward its neighbours.
- *
- * Drop-in replacement for {@link TrackMenu} — same props.
  */
 export function GooeyFab({
   open,
@@ -97,7 +95,7 @@ export function GooeyFab({
         })()
       : { x: window.innerWidth - FAB_RIGHT, y: window.innerHeight - FAB_BOTTOM };
 
-    // Rest positions: the previous TrackMenu cluster, anchored bottom-right.
+    // Rest positions: the action cluster, anchored bottom-right.
     const safe =
       parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--safe-bottom")) || 0;
     const boxLeft = window.innerWidth - BOX_W;
