@@ -1,4 +1,5 @@
 import { AnimatePresence, motion, useDragControls, useReducedMotion } from "motion/react";
+import { useScrollLock } from "../lib/scrollLock";
 
 interface MotionSheetProps {
   open: boolean;
@@ -52,6 +53,7 @@ export function MotionSheet({
   const dragControls = useDragControls();
   const showHandle = !reduceMotion && !hideHandle;
   const draggable = !reduceMotion;
+  useScrollLock(open);
 
   return (
     <AnimatePresence>

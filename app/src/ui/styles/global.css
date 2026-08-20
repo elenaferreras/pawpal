@@ -553,6 +553,9 @@ select.form-input {
   display: flex;
 }
 body.modal-open {
+  position: fixed;
+  left: 0;
+  right: 0;
   overflow: hidden;
   height: 100%;
 }

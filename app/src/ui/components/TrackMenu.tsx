@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useScrollLock } from "../lib/scrollLock";
 
 interface TrackMenuProps {
   open: boolean;
@@ -59,6 +60,8 @@ export function TrackMenu({ open, onClose, onWalk, onMeal, onDiary, onPoop, onVe
   useEffect(() => () => {
     if (timer.current) clearTimeout(timer.current);
   }, []);
+
+  useScrollLock(open);
 
   if (!render) return null;
 
