@@ -348,7 +348,14 @@ function Shell(): React.ReactElement {
                 ) : screen === "settings-notifications" ? (
                   <NotificationsScreen onBack={() => navigate("settings")} />
                 ) : screen === "settings-account" ? (
-                  <AccountScreen onBack={() => navigate("settings")} />
+                  <AccountScreen
+                    onBack={() => navigate("settings")}
+                    onSignedOut={() => {
+                      setObVariant("proposal");
+                      setOnboarding(true);
+                      navigate("home");
+                    }}
+                  />
                 ) : screen === "settings-sitting" ? (
                   <DogSittingScreen onBack={() => navigate("settings")} />
                 ) : screen === "settings-sync" ? (

@@ -13,7 +13,7 @@ import { SettingsPage, Panel, PanelTitle, PanelText } from "./shared";
  * Account subpage. Signed in → shows the account + sign out. Signed out → email
  * login / sign-up. When signing in, cloud data is pulled and merged locally.
  */
-export function AccountScreen({ onBack }: { onBack: () => void }): React.ReactElement {
+export function AccountScreen({ onBack, onSignedOut }: { onBack: () => void; onSignedOut?: () => void }): React.ReactElement {
   const { db, replace } = useDb();
   const toast = useToast();
   const [user, setUser] = useState<AuthUser | null>(getCurrentUser);
@@ -68,6 +68,7 @@ export function AccountScreen({ onBack }: { onBack: () => void }): React.ReactEl
     await unsubscribeFromPush();
     await signOut();
     toast("Signed out");
+    onSignedOut?.();
   };
 
   if (user) {
