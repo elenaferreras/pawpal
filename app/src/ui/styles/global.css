@@ -1279,6 +1279,16 @@ body.modal-open {
 .wts-field::placeholder {
   color: rgba(53, 43, 37, 0.55);
 }
+/* WebKit date/time inputs keep an intrinsic min-content width and won't shrink
+   to their container, making them overflow the sheet. Force them to fill the
+   available width instead. */
+input.wts-field[type="date"],
+input.wts-field[type="time"] {
+  min-width: 0;
+  max-width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+}
 .obp-progress-wrap {
   display: flex;
   align-items: center;

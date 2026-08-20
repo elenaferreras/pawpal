@@ -32,6 +32,8 @@ const sheetFieldStyle: CSSProperties = {
   fontSize: 16,
   outline: "none",
   boxSizing: "border-box",
+  minWidth: 0,
+  maxWidth: "100%",
 };
 
 /**
