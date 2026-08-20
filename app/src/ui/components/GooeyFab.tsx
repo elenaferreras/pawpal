@@ -370,7 +370,7 @@ export function GooeyFab({
               justifyContent: "center",
               color: "#fff",
               fontWeight: 700,
-              fontSize: 26,
+              fontSize: 20,
               cursor: "grab",
               touchAction: "none",
               transform: tf(p),
