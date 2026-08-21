@@ -59,12 +59,19 @@
 html {
   overflow-x: hidden;
   touch-action: pan-x pan-y;
+  /* Paint the root the app's page colour so the areas behind native chrome
+     (the bottom home-indicator inset, plus any overscroll rubber-banding) read
+     as a seamless extension of the app instead of falling back to white. The
+     top safe area is covered by the `.ios-status-blur` overlay, which uses the
+     same colour — this makes the app feel full-screen edge to edge. */
+  background-color: var(--color-pawpal-page, #352b25);
+  min-height: 100%;
 }
 body {
   font-family: var(--font-ui);
-  background: var(--bg);
+  background: var(--color-pawpal-page, #352b25);
   color: var(--text);
-  min-height: 100vh;
+  min-height: 100dvh;
   max-width: 430px;
   margin: 0 auto;
   overflow-x: hidden;
