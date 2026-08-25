@@ -265,15 +265,15 @@ export function WalkTrackSheet({ open, onClose, editIndex }: WalkTrackSheetProps
         </Field>
 
         <Field label="Duration">
-          <SheetInput value={duration} onChange={setDuration} placeholder="40 minutes" inputMode="numeric" />
+          <SheetInput value={duration} onChange={setDuration} placeholder="40" inputMode="numeric" suffix="min" />
         </Field>
 
         <Field label="Steps">
-          <SheetInput value={steps} onChange={setSteps} placeholder="12000 steps" inputMode="numeric" />
+          <SheetInput value={steps} onChange={setSteps} placeholder="12000" inputMode="numeric" suffix="steps" />
         </Field>
 
-        <Field label="Distance (km)">
-          <SheetInput value={distance} onChange={setDistance} placeholder="2.5 km" inputMode="decimal" />
+        <Field label="Distance">
+          <SheetInput value={distance} onChange={setDistance} placeholder="2.5" inputMode="decimal" suffix="km" />
         </Field>
 
         <Field label="Extras">
@@ -351,32 +351,62 @@ function SheetInput({
   onChange,
   placeholder,
   inputMode,
+  suffix,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder: string;
   inputMode?: "numeric" | "decimal";
+  suffix?: string;
 }): React.ReactElement {
   return (
-    <input
+    <div
       className="wts-field"
-      value={value}
-      placeholder={placeholder}
-      inputMode={inputMode}
-      onChange={(e) => onChange(e.target.value)}
       style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
         width: "100%",
         padding: 16,
         borderRadius: 16,
         border: `1px solid ${DARK}`,
         background: "transparent",
-        color: DARK,
-        fontFamily: "var(--font-ui)",
-        fontWeight: 500,
-        fontSize: 16,
-        outline: "none",
       }}
-    />
+    >
+      <input
+        value={value}
+        placeholder={placeholder}
+        inputMode={inputMode}
+        onChange={(e) => onChange(e.target.value)}
+        className="wts-field"
+        style={{
+          flex: 1,
+          minWidth: 0,
+          padding: 0,
+          border: "none",
+          background: "transparent",
+          color: DARK,
+          fontFamily: "var(--font-ui)",
+          fontWeight: 500,
+          fontSize: 16,
+          outline: "none",
+        }}
+      />
+      {suffix && (
+        <span
+          aria-hidden
+          style={{
+            flexShrink: 0,
+            color: "rgba(53, 43, 37, 0.55)",
+            fontFamily: "var(--font-ui)",
+            fontWeight: 500,
+            fontSize: 16,
+          }}
+        >
+          {suffix}
+        </span>
+      )}
+    </div>
   );
 }
 

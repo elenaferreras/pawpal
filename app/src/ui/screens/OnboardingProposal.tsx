@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence } from "motion/react";
 import { Button } from "../components/Button";
-import { Slider } from "@astryxdesign/core/Slider";
 import { Toggle } from "../components/Toggle";
 import { Icon } from "@astryxdesign/core/Icon";
 import { Icons } from "../lib/icons";
@@ -26,6 +25,32 @@ const DEFAULT_AVATAR: Avatar = {
 
 const MEAL_OPTIONS = [1, 2, 3, 4];
 const RECOMMENDED_MEALS = 2;
+
+// Most common breeds for the onboarding picker. Selecting OTHER_BREED reveals
+// a free-text input for anything not listed here.
+const OTHER_BREED = "__other__";
+const COMMON_BREEDS = [
+  "Mixed breed",
+  "Labrador Retriever",
+  "Golden Retriever",
+  "German Shepherd",
+  "French Bulldog",
+  "Bulldog",
+  "Poodle",
+  "Beagle",
+  "Rottweiler",
+  "Dachshund",
+  "Yorkshire Terrier",
+  "Boxer",
+  "Chihuahua",
+  "Border Collie",
+  "Cocker Spaniel",
+  "Shih Tzu",
+  "Pug",
+  "Australian Shepherd",
+  "Cavalier King Charles Spaniel",
+  "Jack Russell Terrier",
+];
 
 interface WheelItem {
   value: number;
@@ -56,6 +81,9 @@ const FIRST_INPUT_STEP = 2;
 const REVIEW_STEP = 10;
 const NOTIF_STEP = 11;
 const FINISH_STEP = 12;
+// Account creation (email/password + Google) shown at the very end of the
+// sign-up flow, after the dog's details have been reviewed.
+const ACCOUNT_STEP = 13;
 
 interface OnboardingProposalProps {
   onDone: () => void;
@@ -68,6 +96,9 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
   const toast = useToast();
 
   const [phase, setPhase] = useState<"auth" | "flow">("auth");
+  // True when the user chose "Sign up": their account is created at the end of
+  // the flow (the AccountStep) instead of up front.
+  const [needsAccount, setNeedsAccount] = useState(false);
   // The flow now opens on "Find your pup" — the old hero/intro steps are gone.
   const [step, setStep] = useState(FIRST_INPUT_STEP);
   // Slide direction for the step transition: 1 = forward, -1 = back.
@@ -81,7 +112,8 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
   const [breed, setBreed] = useState("");
   const [birthday, setBirthday] = useState("");
   const [weight, setWeight] = useState("");
-  const [foodGoal, setFoodGoal] = useState(300);
+  // 0 means "not set yet" — the food-goal step seeds a weight-based default.
+  const [foodGoal, setFoodGoal] = useState(0);
   const [mealsPerDay, setMealsPerDay] = useState(RECOMMENDED_MEALS);
   const [vet, setVet] = useState("");
   const [vetPhone, setVetPhone] = useState("");
@@ -183,7 +215,14 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
   if (phase === "auth") {
     stepKey = "auth";
     stepNode = (
-      <AuthGate onLoggedIn={handleLoggedIn} onSignedUp={goToFlow} onDogSit={onDogSit} />
+      <AuthGate
+        onLoggedIn={handleLoggedIn}
+        onStartSignup={() => {
+          setNeedsAccount(true);
+          goToFlow();
+        }}
+        onDogSit={onDogSit}
+      />
     );
   } else if (step === FIRST_INPUT_STEP) {
     // First flow step — the redesigned "Find your pup" avatar picker. It runs in
@@ -248,6 +287,7 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
     stepNode = (
       <FoodGoalStep
         dogName={dogName}
+        weight={weight}
         value={foodGoal}
         onChange={setFoodGoal}
         onBack={back}
@@ -286,11 +326,23 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
         name={name}
         breed={breed}
         birthday={birthday}
+        weight={weight}
         foodGoal={foodGoal}
         mealsPerDay={mealsPerDay}
         vet={vet}
+        avatarUrl={AVATAR_STICKERS.find((s) => s.id === sticker)?.url}
+        avatarBg={bg}
         onBack={back}
-        onNext={() => go(NOTIF_STEP)}
+        onNext={() => go(needsAccount ? ACCOUNT_STEP : NOTIF_STEP)}
+      />
+    );
+  } else if (step === ACCOUNT_STEP) {
+    stepKey = "account";
+    stepNode = (
+      <AccountStep
+        dogName={dogName}
+        onBack={() => go(REVIEW_STEP)}
+        onCreated={() => go(NOTIF_STEP)}
       />
     );
   } else if (step === NOTIF_STEP) {
@@ -308,7 +360,7 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
         onFeedTime={setFeedTime}
         vetNotif={vetNotif}
         onVetNotif={setVetNotif}
-        onBack={back}
+        onBack={() => go(needsAccount ? ACCOUNT_STEP : REVIEW_STEP)}
         onEnable={() => void enableReminders()}
         onSkip={celebrate}
       />
@@ -329,7 +381,7 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
   );
 }
 
-type AuthMode = "choose" | "signup" | "login";
+type AuthMode = "choose" | "login";
 
 // Google's multicolour "G" mark, inlined so it renders without a network fetch.
 function GoogleGlyph(): React.ReactElement {
@@ -360,11 +412,11 @@ function GoogleGlyph(): React.ReactElement {
 // "Continue on this device" keeps everything local (device-scoped sync).
 function AuthGate({
   onLoggedIn,
-  onSignedUp,
+  onStartSignup,
   onDogSit,
 }: {
   onLoggedIn: () => Promise<void>;
-  onSignedUp: () => void;
+  onStartSignup: () => void;
   onDogSit: () => void;
 }): React.ReactElement {
   const toast = useToast();
@@ -414,18 +466,8 @@ function AuthGate({
     setBusy(true);
     setError(null);
     try {
-      if (mode === "signup") {
-        const { needsConfirmation } = await signUp(email.trim(), password);
-        toast(
-          needsConfirmation
-            ? "Account created — check your email to confirm ✉️"
-            : "Account created 🎉",
-        );
-        onSignedUp();
-      } else {
-        await signIn(email.trim(), password);
-        await onLoggedIn();
-      }
+      await signIn(email.trim(), password);
+      await onLoggedIn();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
       setBusy(false);
@@ -455,7 +497,7 @@ function AuthGate({
               fullWidth
               onClick={() => {
                 setError(null);
-                setMode("signup");
+                onStartSignup();
               }}
             >
               Sign up
@@ -470,10 +512,6 @@ function AuthGate({
             >
               Log in
             </Button>
-            <button type="button" className="oba-google" onClick={googleSignIn} disabled={busy}>
-              <GoogleGlyph />
-              Continue with Google
-            </button>
             <Button variant="ghost" fullWidth onClick={onDogSit}>
               I&rsquo;m dog sitting today
             </Button>
@@ -483,12 +521,10 @@ function AuthGate({
     );
   }
 
-  const isSignup = mode === "signup";
   // An error belongs to the email field when the email itself is invalid;
   // otherwise it relates to the password / auth attempt.
   const emailError = error != null && !emailOk;
   const passwordError = error != null && emailOk;
-
   return (
     <div className="oba">
       <button
@@ -503,7 +539,7 @@ function AuthGate({
         <Icon icon={Icons.caretLeft} color="inherit" />
       </button>
 
-      <h1 className="oba-title">{isSignup ? "Let's get started!" : "Welcome back!"}</h1>
+      <h1 className="oba-title">Welcome back!</h1>
 
       <div className="oba-fields">
         <div className="oba-field">
@@ -537,9 +573,9 @@ function AuthGate({
               id="oba-password"
               className="oba-input"
               type={showPassword ? "text" : "password"}
-              autoComplete={isSignup ? "new-password" : "current-password"}
+              autoComplete="current-password"
               value={password}
-              placeholder={isSignup ? "At least 6 characters" : "Your password"}
+              placeholder="Your password"
               onChange={(e) => {
                 setPassword(e.target.value);
                 setError(null);
@@ -568,7 +604,7 @@ function AuthGate({
         onClick={() => void submit()}
         disabled={busy}
       >
-        {busy ? "Please wait…" : isSignup ? "Create account" : "Log in"}
+        {busy ? "Please wait…" : "Log in"}
       </button>
 
       <div className="oba-divider">
@@ -580,22 +616,157 @@ function AuthGate({
         Continue with Google
       </button>
 
-      {isSignup ? (
-        <button
-          type="button"
-          className="oba-link"
-          onClick={() => {
-            setError(null);
-            setMode("login");
-          }}
-        >
-          I already have an account
-        </button>
-      ) : (
-        <button type="button" className="oba-link" onClick={() => void forgot()} disabled={busy}>
-          Forgot password
-        </button>
-      )}
+      <button type="button" className="oba-link" onClick={() => void forgot()} disabled={busy}>
+        Forgot password
+      </button>
+
+      <div className="oba-spacer" />
+    </div>
+  );
+}
+
+// Account creation shown at the very end of the sign-up flow, after the dog's
+// details have been reviewed. Same email/password + Google UI as the auth
+// screen, but its "Create account" action advances the flow instead of
+// gating it up front.
+function AccountStep({
+  dogName,
+  onBack,
+  onCreated,
+}: {
+  dogName: string;
+  onBack: () => void;
+  onCreated: () => void;
+}): React.ReactElement {
+  const toast = useToast();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const canSubmit = emailOk && password.length >= 6 && !busy;
+  const emailError = error != null && !emailOk;
+  const passwordError = error != null && emailOk;
+
+  const googleSignIn = (): void => {
+    setError(null);
+    setBusy(true);
+    signInWithGoogle();
+  };
+
+  const submit = async (): Promise<void> => {
+    if (!canSubmit) {
+      setError(
+        !emailOk ? "Enter a valid email address" : "Password must be at least 6 characters",
+      );
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const { needsConfirmation } = await signUp(email.trim(), password);
+      toast(
+        needsConfirmation
+          ? "Account created — check your email to confirm ✉️"
+          : "Account created 🎉",
+      );
+      onCreated();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="oba">
+      <button type="button" aria-label="Back" className="oba-back" onClick={onBack}>
+        <Icon icon={Icons.caretLeft} color="inherit" />
+      </button>
+
+      <h1 className="oba-title">Save {dogName}&rsquo;s profile</h1>
+      <p
+        style={{
+          margin: "-14px 0 24px",
+          fontFamily: "var(--font-ui)",
+          fontSize: 16,
+          lineHeight: 1.5,
+          color: "color-mix(in srgb, var(--color-pawpal-hero) 70%, transparent)",
+        }}
+      >
+        Create an account to back everything up and sync across your devices.
+      </p>
+
+      <div className="oba-fields">
+        <div className="oba-field">
+          <label className="oba-field-label" htmlFor="acc-email">
+            Email
+          </label>
+          <div className={`oba-input-wrap${emailError ? " error" : ""}`}>
+            <input
+              id="acc-email"
+              className="oba-input"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              value={email}
+              placeholder="you@example.com"
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setError(null);
+              }}
+            />
+          </div>
+          {emailError && <p className="oba-fielderror">{error}</p>}
+        </div>
+
+        <div className="oba-field">
+          <label className="oba-field-label" htmlFor="acc-password">
+            Password
+          </label>
+          <div className={`oba-input-wrap${passwordError ? " error" : ""}`}>
+            <input
+              id="acc-password"
+              className="oba-input"
+              type={showPassword ? "text" : "password"}
+              autoComplete="new-password"
+              value={password}
+              placeholder="At least 6 characters"
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void submit();
+              }}
+            />
+            <button
+              type="button"
+              className="oba-eye"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-pressed={showPassword}
+              onClick={() => setShowPassword((v) => !v)}
+            >
+              <Icon icon={showPassword ? Icons.eyeOff : Icons.eye} color="inherit" />
+            </button>
+          </div>
+          {passwordError && <p className="oba-fielderror">{error}</p>}
+        </div>
+      </div>
+
+      <button type="button" className="oba-submit" onClick={() => void submit()} disabled={busy}>
+        {busy ? "Please wait…" : "Create account"}
+      </button>
+
+      <div className="oba-divider">
+        <span>or</span>
+      </div>
+
+      <button type="button" className="oba-google" onClick={googleSignIn} disabled={busy}>
+        <GoogleGlyph />
+        Continue with Google
+      </button>
 
       <div className="oba-spacer" />
     </div>
@@ -677,11 +848,11 @@ function FindYourPup({
         })}
       </div>
 
-      <div className="oba-spacer" />
-
-      <button type="button" className="oba-submit" onClick={onNext}>
-        Continue
-      </button>
+      <div className="fyp-footer">
+        <button type="button" className="oba-submit" onClick={onNext}>
+          Continue
+        </button>
+      </div>
     </div>
   );
 }
@@ -734,20 +905,21 @@ function NameStep({
             }}
           />
         </div>
-        {error && <p className="oba-fielderror">Every good dog needs a name 🐶</p>}
+        {error && <p className="oba-fielderror">Every good dog needs a name</p>}
       </div>
 
-      <div className="oba-spacer" />
-
-      <button type="button" className="oba-submit" onClick={onNext}>
-        Continue
-      </button>
+      <div className="fyp-footer">
+        <button type="button" className="oba-submit" onClick={onNext}>
+          Continue
+        </button>
+      </div>
     </div>
   );
 }
 
-// Breed step (new dark UI). Full-screen dark shell with an autofocused text
-// input and the shared pill button.
+// Breed step (new dark UI). A native dropdown of the most common breeds (opens
+// the platform picker on iOS) plus an "Other" option that reveals a free-text
+// input for anything not listed.
 function BreedStep({
   value,
   dogName,
@@ -761,10 +933,38 @@ function BreedStep({
   onBack: () => void;
   onNext: () => void;
 }): React.ReactElement {
+  const isKnownBreed = COMMON_BREEDS.includes(value);
+  const [otherActive, setOtherActive] = useState<boolean>(value !== "" && !isKnownBreed);
+  const [showError, setShowError] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+    if (otherActive) inputRef.current?.focus();
+  }, [otherActive]);
+
+  const handleSelect = (selected: string): void => {
+    setShowError(false);
+    if (selected === OTHER_BREED) {
+      setOtherActive(true);
+      if (COMMON_BREEDS.includes(value)) onChange("");
+    } else {
+      setOtherActive(false);
+      onChange(selected);
+    }
+  };
+
+  const selectValue = otherActive ? OTHER_BREED : isKnownBreed ? value : "";
+  // When "Other…" is chosen, the free-text breed name must not be left blank.
+  const otherEmpty = otherActive && value.trim() === "";
+
+  const handleContinue = (): void => {
+    if (otherEmpty) {
+      setShowError(true);
+      inputRef.current?.focus();
+      return;
+    }
+    onNext();
+  };
 
   return (
     <div className="obn">
@@ -776,31 +976,63 @@ function BreedStep({
       <p className="fyp-sub">Helps us tailor care tips. Not sure yet? You can skip this.</p>
 
       <div className="oba-field">
-        <label className="oba-field-label" htmlFor="obn-breed">
+        <label className="oba-field-label" htmlFor="obn-breed-select">
           Breed
         </label>
-        <div className="oba-input-wrap">
-          <input
-            id="obn-breed"
-            ref={inputRef}
-            className="oba-input"
-            type="text"
-            autoComplete="off"
-            value={value}
-            placeholder="e.g. Mixed breed"
-            onChange={(e) => onChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") onNext();
-            }}
-          />
+        <div className="oba-input-wrap obp-select-wrap">
+          <select
+            id="obn-breed-select"
+            className="oba-input obp-select"
+            value={selectValue}
+            onChange={(e) => handleSelect(e.target.value)}
+          >
+            <option value="">Select a breed…</option>
+            {COMMON_BREEDS.map((breed) => (
+              <option key={breed} value={breed}>
+                {breed}
+              </option>
+            ))}
+            <option value={OTHER_BREED}>Other…</option>
+          </select>
+          <span className="obp-select-caret" aria-hidden>
+            <Icon icon={Icons.chevronDown} color="inherit" />
+          </span>
         </div>
       </div>
 
-      <div className="oba-spacer" />
+      {otherActive && (
+        <div className="oba-field obp-breed-other">
+          <label className="oba-field-label" htmlFor="obn-breed">
+            Breed name
+          </label>
+          <div className={`oba-input-wrap${showError ? " error" : ""}`}>
+            <input
+              id="obn-breed"
+              ref={inputRef}
+              className="oba-input"
+              type="text"
+              autoComplete="off"
+              value={value}
+              placeholder="e.g. Cavapoo"
+              aria-invalid={showError}
+              onChange={(e) => {
+                if (showError) setShowError(false);
+                onChange(e.target.value);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleContinue();
+              }}
+            />
+          </div>
+          {showError && <p className="oba-fielderror">This field is mandatory</p>}
+        </div>
+      )}
 
-      <button type="button" className="oba-submit" onClick={onNext}>
-        Continue
-      </button>
+      <div className="fyp-footer">
+        <button type="button" className="oba-submit" onClick={handleContinue}>
+          Continue
+        </button>
+      </div>
     </div>
   );
 }
@@ -830,11 +1062,11 @@ function BirthdayStep({
 
       <WheelDate value={value} onChange={onChange} />
 
-      <div className="oba-spacer" />
-
-      <button type="button" className="oba-submit" onClick={onNext}>
-        Continue
-      </button>
+      <div className="fyp-footer">
+        <button type="button" className="oba-submit" onClick={onNext}>
+          Continue
+        </button>
+      </div>
     </div>
   );
 }
@@ -869,7 +1101,7 @@ function WeightStep({
 
       <div className="oba-field">
         <label className="oba-field-label" htmlFor="obn-weight">
-          Weight (kg)
+          Weight
         </label>
         <div className="oba-input-wrap">
           <input
@@ -886,32 +1118,89 @@ function WeightStep({
               if (e.key === "Enter") onNext();
             }}
           />
+          <span className="oba-input-suffix" aria-hidden>
+            kg
+          </span>
         </div>
       </div>
 
-      <div className="oba-spacer" />
-
-      <button type="button" className="oba-submit" onClick={onNext}>
-        Continue
-      </button>
+      <div className="fyp-footer">
+        <button type="button" className="oba-submit" onClick={onNext}>
+          Continue
+        </button>
+      </div>
     </div>
   );
 }
 
-// Food goal step (new dark UI). Big readout above the shared slider.
+// Food goal step (new dark UI). Weight-aware slider with a highlighted
+// recommended range and a live gram readout.
+const FOOD_GOAL_MIN = 50;
+const FOOD_GOAL_MAX = 800;
+const FOOD_GOAL_STEP = 10;
+
+// Recommended daily grams by weight, interpolated between these anchor points.
+const FOOD_ANCHORS = [
+  { kg: 5, min: 50, max: 90 },
+  { kg: 10, min: 100, max: 180 },
+  { kg: 20, min: 240, max: 370 },
+  { kg: 30, min: 360, max: 500 },
+  { kg: 40, min: 470, max: 600 },
+];
+
+const roundTo10 = (n: number): number => Math.round(n / 10) * 10;
+
+function recommendFoodRange(kg: number): { min: number; max: number } | null {
+  if (!Number.isFinite(kg) || kg <= 0) return null;
+  const first = FOOD_ANCHORS[0];
+  const last = FOOD_ANCHORS[FOOD_ANCHORS.length - 1];
+  if (kg <= first.kg) return { min: first.min, max: first.max };
+  if (kg >= last.kg) return { min: last.min, max: last.max };
+  for (let i = 0; i < FOOD_ANCHORS.length - 1; i++) {
+    const lo = FOOD_ANCHORS[i];
+    const hi = FOOD_ANCHORS[i + 1];
+    if (kg >= lo.kg && kg <= hi.kg) {
+      const t = (kg - lo.kg) / (hi.kg - lo.kg);
+      return {
+        min: roundTo10(lo.min + (hi.min - lo.min) * t),
+        max: roundTo10(lo.max + (hi.max - lo.max) * t),
+      };
+    }
+  }
+  return null;
+}
+
 function FoodGoalStep({
   dogName,
+  weight,
   value,
   onChange,
   onBack,
   onNext,
 }: {
   dogName: string;
+  weight: string;
   value: number;
   onChange: (value: number) => void;
   onBack: () => void;
   onNext: () => void;
 }): React.ReactElement {
+  const kg = Number.parseFloat(weight);
+  const rec = recommendFoodRange(kg);
+  const defaultGoal = rec ? roundTo10((rec.min + rec.max) / 2) : 300;
+
+  // Seed a weight-based default the first time we land here (value 0 = unset).
+  useEffect(() => {
+    if (value < FOOD_GOAL_MIN) onChange(defaultGoal);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const shown = value >= FOOD_GOAL_MIN ? value : defaultGoal;
+  const span = FOOD_GOAL_MAX - FOOD_GOAL_MIN;
+  const pct = ((shown - FOOD_GOAL_MIN) / span) * 100;
+  const bandLeft = rec ? ((rec.min - FOOD_GOAL_MIN) / span) * 100 : 0;
+  const bandWidth = rec ? ((rec.max - rec.min) / span) * 100 : 0;
+
   return (
     <div className="obn">
       <button type="button" aria-label="Back" className="oba-back" onClick={onBack}>
@@ -922,23 +1211,46 @@ function FoodGoalStep({
       <p className="fyp-sub">Set a gentle target — we’ll help you keep the bowl balanced.</p>
 
       <div className="obp-goal-readout">
-        <span className="obp-goal-value">{value}</span>
+        <span className="obp-goal-value">{shown}</span>
         <span className="obp-goal-unit">grams / day</span>
       </div>
-      <Slider
-        label="Daily food goal"
-        value={value}
-        min={50}
-        max={1000}
-        step={10}
-        onChange={(v: number) => onChange(v)}
-      />
+      {rec && (
+        <p className="obp-goal-rec">
+          Recommended for {kg} kg: {rec.min}–{rec.max} g
+        </p>
+      )}
 
-      <div className="oba-spacer" />
+      <div className="obp-slider">
+        <div className="obp-slider-rail" aria-hidden>
+          {rec && (
+            <div
+              className="obp-slider-band"
+              style={{ left: `${bandLeft}%`, width: `${bandWidth}%` }}
+            />
+          )}
+          <div className="obp-slider-fill" style={{ width: `${pct}%` }} />
+        </div>
+        <input
+          className="obp-range"
+          type="range"
+          min={FOOD_GOAL_MIN}
+          max={FOOD_GOAL_MAX}
+          step={FOOD_GOAL_STEP}
+          value={shown}
+          aria-label="Daily food goal (grams)"
+          onChange={(e) => onChange(Number(e.target.value))}
+        />
+      </div>
+      <div className="obp-slider-scale" aria-hidden>
+        <span>{FOOD_GOAL_MIN} g</span>
+        <span>{FOOD_GOAL_MAX} g</span>
+      </div>
 
-      <button type="button" className="oba-submit" onClick={onNext}>
-        Continue
-      </button>
+      <div className="fyp-footer">
+        <button type="button" className="oba-submit" onClick={onNext}>
+          Continue
+        </button>
+      </div>
     </div>
   );
 }
@@ -987,11 +1299,11 @@ function MealsStep({
         })}
       </div>
 
-      <div className="oba-spacer" />
-
-      <button type="button" className="oba-submit" onClick={onNext}>
-        Continue
-      </button>
+      <div className="fyp-footer">
+        <button type="button" className="oba-submit" onClick={onNext}>
+          Continue
+        </button>
+      </div>
     </div>
   );
 }
@@ -1070,27 +1382,30 @@ function VetStep({
         </div>
       </div>
 
-      <div className="oba-spacer" />
-
-      <button type="button" className="oba-submit" onClick={onNext}>
-        Continue
-      </button>
-      <button type="button" className="oba-link" onClick={onNext}>
-        Skip for now
-      </button>
+      <div className="fyp-footer">
+        <button type="button" className="oba-submit" onClick={onNext}>
+          Continue
+        </button>
+        <button type="button" className="oba-skip" onClick={onNext}>
+          Skip for now
+        </button>
+      </div>
     </div>
   );
 }
 
-// Review step (new dark UI). Summary card before the notifications step.
+// Review step (new dark UI). Pet ID card summary before the notifications step.
 function ReviewStep({
   dogName,
   name,
   breed,
   birthday,
+  weight,
   foodGoal,
   mealsPerDay,
   vet,
+  avatarUrl,
+  avatarBg,
   onBack,
   onNext,
 }: {
@@ -1098,9 +1413,12 @@ function ReviewStep({
   name: string;
   breed: string;
   birthday: string;
+  weight: string;
   foodGoal: number;
   mealsPerDay: number;
   vet: string;
+  avatarUrl?: string;
+  avatarBg: string;
   onBack: () => void;
   onNext: () => void;
 }): React.ReactElement {
@@ -1115,19 +1433,61 @@ function ReviewStep({
         Everything you’ve entered stays private on your device. Ready to start caring for {dogName}?
       </p>
 
-      <div className="obp-review-card">
-        <ReviewRow label="Name" value={name.trim() || "—"} />
-        <ReviewRow label="Breed" value={breed || "—"} />
-        <ReviewRow label="Birthday" value={prettyDate(birthday)} />
-        <ReviewRow label="Food goal" value={`${foodGoal} g/day · ${mealsPerDay} meals`} />
-        <ReviewRow label="Vet" value={vet || "Not added"} />
+      <div className="obp-idcard">
+        <div className="obp-idcard-head">
+          <span className="obp-idcard-kicker">Pet Identity Card</span>
+          <Icon icon={Icons.pawPrint} color="inherit" />
+        </div>
+
+        <span className="obp-idcard-watermark" aria-hidden>
+          <Icon icon={Icons.pawPrint} color="inherit" />
+        </span>
+
+        <div className="obp-idcard-body">
+          <div className="obp-idcard-id">
+            <div className="obp-idcard-photo" style={{ background: avatarBg }}>
+              {avatarUrl && <img src={avatarUrl} alt="" className="obp-idcard-photo-img" />}
+            </div>
+            <div className="obp-idcard-headline">
+              <span className="obp-idcard-name">{name.trim() || dogName || "—"}</span>
+              <span className="obp-idcard-breed">{breed || "Mixed breed"}</span>
+            </div>
+          </div>
+
+          <dl className="obp-idcard-meta">
+            <div>
+              <dt>Born</dt>
+              <dd>{prettyDate(birthday)}</dd>
+            </div>
+            <div>
+              <dt>Weight</dt>
+              <dd>{weight.trim() ? `${weight.trim()} kg` : "—"}</dd>
+            </div>
+            <div>
+              <dt>Daily food</dt>
+              <dd>
+                {foodGoal} g · {mealsPerDay} meals
+              </dd>
+            </div>
+            <div>
+              <dt>Vet</dt>
+              <dd>{vet || "Not added"}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div className="obp-idcard-barcode" aria-hidden>
+          {Array.from({ length: 34 }).map((_, i) => (
+            <span key={i} />
+          ))}
+        </div>
       </div>
 
-      <div className="oba-spacer" />
-
-      <button type="button" className="oba-submit" onClick={onNext}>
-        Continue
-      </button>
+      <div className="fyp-footer">
+        <button type="button" className="oba-submit" onClick={onNext}>
+          Continue
+        </button>
+      </div>
     </div>
   );
 }
@@ -1165,7 +1525,7 @@ function NotifStep({
   onSkip: () => void;
 }): React.ReactElement {
   return (
-    <div className="obn">
+    <div className="obn obn-notify">
       <button type="button" aria-label="Back" className="oba-back" onClick={onBack}>
         <Icon icon={Icons.caretLeft} color="inherit" />
       </button>
@@ -1202,23 +1562,14 @@ function NotifStep({
         />
       </div>
 
-      <div className="oba-spacer" />
-
-      <button type="button" className="oba-submit" onClick={onEnable}>
-        Turn on reminders
-      </button>
-      <button type="button" className="oba-link" onClick={onSkip}>
-        Set up later
-      </button>
-    </div>
-  );
-}
-
-function ReviewRow({ label, value }: { label: string; value: string }): React.ReactElement {
-  return (
-    <div className="obp-review-row">
-      <span className="obp-review-label">{label}</span>
-      <span className="obp-review-value">{value}</span>
+      <div className="fyp-footer">
+        <button type="button" className="oba-submit" onClick={onEnable}>
+          Turn on reminders
+        </button>
+        <button type="button" className="oba-link" onClick={onSkip}>
+          Set up later
+        </button>
+      </div>
     </div>
   );
 }

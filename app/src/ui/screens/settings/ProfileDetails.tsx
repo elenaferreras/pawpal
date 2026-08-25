@@ -96,6 +96,7 @@ export function ProfileDetails({ onBack }: ProfileDetailsProps): React.ReactElem
       value: p.mealsPerDay ? String(p.mealsPerDay) : "—",
       editValue: p.mealsPerDay ? String(p.mealsPerDay) : "",
       type: "number",
+      placeholder: "1–4",
     },
     { key: "vet", label: "Vet name", value: p.vet || "—", editValue: p.vet, type: "text" },
     {
@@ -125,7 +126,11 @@ export function ProfileDetails({ onBack }: ProfileDetailsProps): React.ReactElem
       if (key === "foodGoal") {
         next.foodGoal = parseInt(value, 10) || next.foodGoal;
       } else if (key === "mealsPerDay") {
-        next.mealsPerDay = parseInt(value, 10) || next.mealsPerDay;
+        // Meals are picked 1–4 in onboarding; keep settings in the same range.
+        const parsed = parseInt(value, 10);
+        next.mealsPerDay = Number.isNaN(parsed)
+          ? next.mealsPerDay
+          : Math.min(4, Math.max(1, parsed));
       } else if (key === "weight") {
         next.weight = value;
       } else {

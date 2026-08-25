@@ -135,15 +135,54 @@ export function FoodFormModal({ open, onClose }: FoodFormModalProps): React.Reac
           />
         </Field>
 
-        <Field label="Amount (g)">
-          <input
+        <Field label="Amount">
+          <div
             className="wts-field"
-            value={amount}
-            placeholder="120 g"
-            inputMode="numeric"
-            onChange={(e) => setAmount(e.target.value)}
-            style={sheetFieldStyle}
-          />
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              width: "100%",
+              padding: 16,
+              borderRadius: 16,
+              border: `1px solid ${DARK}`,
+              background: "transparent",
+              boxSizing: "border-box",
+              maxWidth: "100%",
+            }}
+          >
+            <input
+              className="wts-field"
+              value={amount}
+              placeholder="120"
+              inputMode="numeric"
+              onChange={(e) => setAmount(e.target.value)}
+              style={{
+                flex: 1,
+                minWidth: 0,
+                padding: 0,
+                border: "none",
+                background: "transparent",
+                color: DARK,
+                fontFamily: "var(--font-ui)",
+                fontWeight: 500,
+                fontSize: 16,
+                outline: "none",
+              }}
+            />
+            <span
+              aria-hidden
+              style={{
+                flexShrink: 0,
+                color: "rgba(53, 43, 37, 0.55)",
+                fontFamily: "var(--font-ui)",
+                fontWeight: 500,
+                fontSize: 16,
+              }}
+            >
+              g
+            </span>
+          </div>
         </Field>
 
         <Field label="Type">
