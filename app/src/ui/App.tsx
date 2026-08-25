@@ -8,8 +8,8 @@ import { DbProvider, useDb } from "./lib/store";
 import { ToastProvider, useToast } from "./lib/toast";
 import { ConfirmProvider } from "./components/ConfirmDialog";
 import { setupReminderChecks } from "./lib/notifications";
-import { isSignedIn } from "./lib/auth";
-import { reconcileFromCloud } from "./lib/supabase";
+import { completeOAuthRedirect, hasPendingOAuth, isSignedIn } from "./lib/auth";
+import { reconcileFromCloud, syncFromSupabase } from "./lib/supabase";
 import { LiveWalkProvider } from "./components/LiveWalk";
 import { BottomNav } from "./components/BottomNav";
 import { GooeyFab } from "./components/GooeyFab";
@@ -74,11 +74,15 @@ export function App(): React.ReactElement {
 type QuickModal = "none" | "walk-choose" | "walk-track" | "food" | "poop" | "vet";
 
 function Shell(): React.ReactElement {
-  const { db, getDb, update: updateDb } = useDb();
+  const { db, getDb, update: updateDb, replace } = useDb();
   const toast = useToast();
   const [screen, setScreen] = useState<ScreenId>("home");
   const [showSplash, setShowSplash] = useState(true);
   const [onboarding, setOnboarding] = useState(!db.profile.onboarded);
+  // True while we finish a Google OAuth round-trip on the first load after the
+  // redirect back from Google — keeps the app content hidden until the session
+  // (and any cloud profile) has been resolved.
+  const [authResolving, setAuthResolving] = useState(() => hasPendingOAuth());
   const [modal, setModal] = useState<QuickModal>("none");
   const [trackOpen, setTrackOpen] = useState(false);
   const [editWalkIndex, setEditWalkIndex] = useState<number | null>(null);
@@ -95,6 +99,32 @@ function Shell(): React.ReactElement {
     const c = new URLSearchParams(window.location.search).get("sit");
     return c ? { open: true, code: c } : { open: false };
   });
+
+  // Finish the Google OAuth redirect: read the tokens out of the URL, store the
+  // session, then pull the account's cloud profile. If they've already
+  // onboarded, skip straight into the app; otherwise fall through to onboarding.
+  useEffect(() => {
+    if (!authResolving) return;
+    void (async () => {
+      try {
+        const session = await completeOAuthRedirect();
+        if (session) {
+          const payload = await syncFromSupabase();
+          if (payload?.profile?.onboarded) {
+            replace({ ...getDb(), ...payload } as typeof db);
+            setOnboarding(false);
+          }
+          toast("Signed in with Google \u{1F43E}");
+        }
+      } catch (e) {
+        toast(e instanceof Error ? e.message : "Google sign-in failed. Please try again.");
+      } finally {
+        setAuthResolving(false);
+      }
+    })();
+    // Run once on mount only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Kick off the minute-by-minute reminder checks once.
   useEffect(() => {
@@ -241,7 +271,9 @@ function Shell(): React.ReactElement {
     <>
       {showSplash && <Splash onDone={() => setShowSplash(false)} />}
 
-      {onboarding ? (
+      {authResolving ? (
+        <div style={{ background: "var(--color-pawpal-page)", minHeight: "100vh" }} />
+      ) : onboarding ? (
         <OnboardingProposal
           onDone={() => {
             setOnboarding(false);

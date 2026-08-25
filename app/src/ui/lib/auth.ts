@@ -141,6 +141,78 @@ export async function signIn(email: string, password: string): Promise<AuthSessi
   return session;
 }
 
+// ── Google OAuth (implicit flow, no SDK) ─────────────────────────────────────
+// Kicks off Google sign-in by handing the browser to GoTrue's /authorize
+// endpoint. Supabase bounces the user through Google's consent screen and then
+// back to `redirect_to` with the session in the URL fragment, which
+// completeOAuthRedirect() reads on the next load. Covers both sign-up and
+// sign-in — Google/GoTrue create the account on first use automatically.
+//
+// The redirect target (the app's own URL) must be added to the project's
+// Auth → URL Configuration → Redirect URLs allow-list in the Supabase dashboard.
+export function signInWithGoogle(): void {
+  const { url } = getSBConfig();
+  const redirectTo = window.location.origin + window.location.pathname;
+  window.location.href =
+    `${url}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectTo)}`;
+}
+
+// True when the current URL carries an OAuth result (tokens or an error) in its
+// fragment — i.e. we've just been redirected back from Google.
+export function hasPendingOAuth(): boolean {
+  const hash = window.location.hash;
+  return hash.includes("access_token=") || hash.includes("error=");
+}
+
+// GoTrue's implicit flow returns tokens but no user object, so fetch the user
+// with the freshly-issued access token to fill out the session.
+async function fetchUser(accessToken: string): Promise<AuthUser> {
+  const { url, key } = getSBConfig();
+  const res = await fetch(`${url}/auth/v1/user`, {
+    headers: { apikey: key, Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) throw new Error(await readError(res));
+  const body = (await res.json()) as { id: string; email: string };
+  return { id: body.id, email: body.email };
+}
+
+// Reads the OAuth result out of the URL fragment, establishes the session, and
+// strips the tokens from the address bar. Returns null when there's nothing to
+// complete; throws with a readable message when Google/GoTrue reported an error.
+export async function completeOAuthRedirect(): Promise<AuthSession | null> {
+  const raw = window.location.hash.startsWith("#")
+    ? window.location.hash.slice(1)
+    : window.location.hash;
+  const params = new URLSearchParams(raw);
+
+  // Always drop the fragment so tokens don't linger in the URL or history.
+  const clearHash = (): void => {
+    history.replaceState(null, "", window.location.pathname + window.location.search);
+  };
+
+  const err = params.get("error_description") || params.get("error");
+  if (err) {
+    clearHash();
+    throw new Error(err);
+  }
+
+  const accessToken = params.get("access_token");
+  const refreshToken = params.get("refresh_token");
+  if (!accessToken || !refreshToken) return null;
+
+  const expiresIn = Number(params.get("expires_in"));
+  const user = await fetchUser(accessToken);
+  const session: AuthSession = {
+    accessToken,
+    refreshToken,
+    expiresAt: Math.floor(Date.now() / 1000) + (Number.isFinite(expiresIn) ? expiresIn : 3600),
+    user,
+  };
+  clearHash();
+  writeSession(session);
+  return session;
+}
+
 // Trigger a password-reset email via GoTrue's recover endpoint. Resolves once
 // the request is accepted; the user follows the emailed link to set a new one.
 export async function requestPasswordReset(email: string): Promise<void> {

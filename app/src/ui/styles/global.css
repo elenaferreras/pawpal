@@ -766,8 +766,11 @@ body.modal-open {
   position: sticky;
   bottom: 0;
   flex-shrink: 0;
-  padding: 16px 28px calc(20px + env(safe-area-inset-bottom, 12px));
-  background: transparent;
+  padding: 16px 28px max(20px, calc(20px + env(safe-area-inset-bottom, 0px)));
+  /* Fade scrolled content into the sheet surface, and keep the bottom edge —
+     including the iOS home-indicator safe area — an opaque extension of the
+     sheet colour so it never reveals the dark page background beneath. */
+  background: linear-gradient(to bottom, transparent 0, var(--sheet-surface) 24px);
 }
 /* "Log a meal" bottom sheet — meals accent surface (#E96A41). */
 .meal-sheet {
@@ -2603,6 +2606,54 @@ input.wts-field[type="time"] {
 }
 .oba-link:active {
   opacity: 0.6;
+}
+.oba-google {
+  flex-shrink: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px 24px;
+  border: 1px solid transparent;
+  border-radius: 100px;
+  line-height: 1;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 16px;
+  color: #1f1f1f;
+  background: #fff;
+  transition: transform 0.12s ease, opacity 0.2s ease;
+}
+.oba-google:active {
+  transform: scale(0.98);
+}
+.oba-google:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.oba-google svg {
+  flex-shrink: 0;
+}
+/* Divider between the email submit and the Google option on the auth forms. */
+.oba-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin: 20px 0 16px;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+}
+.oba-divider::before,
+.oba-divider::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.15);
 }
 .oba-spacer {
   flex: 1 1 auto;
