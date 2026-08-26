@@ -55,13 +55,18 @@
     event.notification.close();
     event.waitUntil(
       (async () => {
-        const list = await sw.clients.matchAll({ type: "window" });
+        const home = sw.registration.scope;
+        const list = await sw.clients.matchAll({
+          type: "window",
+          includeUncontrolled: true
+        });
         const client = list[0];
         if (client) {
           await client.focus();
+          client.postMessage({ type: "notification-open", screen: "home" });
           return;
         }
-        await sw.clients.openWindow(APP_SHELL);
+        await sw.clients.openWindow(home);
       })()
     );
   });
