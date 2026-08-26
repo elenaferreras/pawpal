@@ -14,6 +14,11 @@ create table if not exists public.sitter_invites (
   -- The pawpal_data row this invite shares, e.g. 'user_<uid>'.
   owner_row_key text not null,
   dog_name      text,
+  -- Optional owner-chosen label for the sitter (e.g. "Grandma"). Owner-only.
+  alias         text,
+  -- Optional free-text notes the owner leaves for the sitter (feeding quirks,
+  -- house rules, emergency instructions). Shown to the sitter after they claim.
+  notes         text,
   -- Human, single-claim access code (shown to the sitter). Low-sensitivity:
   -- short-lived, single-use and revocable. Stored so the owner can re-display
   -- it while the invite is still pending.
@@ -26,6 +31,9 @@ create table if not exists public.sitter_invites (
   claimed_by    text,
   revoked_at    timestamptz
 );
+
+-- Backfill for databases created before the sitter-notes column existed.
+alter table public.sitter_invites add column if not exists notes text;
 
 create index if not exists sitter_invites_owner_idx
   on public.sitter_invites (owner_user_id);

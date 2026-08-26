@@ -13,6 +13,18 @@ import {
 
 const SITTER_SESSION_KEY = "pawpal_sitter";
 
+/** Cached display name of the currently active sitter (owner side). */
+const ACTIVE_SITTER_KEY = "pawpal_active_sitter";
+
+/** The active sitter's display name, if one is known. Owner side. */
+export function getActiveSitterName(): string | null {
+  try {
+    return localStorage.getItem(ACTIVE_SITTER_KEY)?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 function fnUrl(name: string): string {
   return `${getSBConfig().url}/functions/v1/${name}`;
 }
@@ -30,6 +42,8 @@ export interface InviteRow {
   id: string;
   code: string;
   dog_name: string | null;
+  alias: string | null;
+  notes: string | null;
   permissions: { log?: boolean };
   created_at: string;
   expires_at: string;
@@ -101,13 +115,15 @@ async function ownerPost(body: unknown): Promise<Response> {
 
 export async function createInvite(
   durationPreset: DurationPreset,
-  opts: { customExpiresAt?: string; dogName?: string } = {},
+  opts: { customExpiresAt?: string; dogName?: string; alias?: string; notes?: string } = {},
 ): Promise<CreatedInvite> {
   const res = await ownerPost({
     action: "create",
     durationPreset,
     customExpiresAt: opts.customExpiresAt,
     dogName: opts.dogName,
+    alias: opts.alias,
+    notes: opts.notes,
   });
   if (!res.ok) throw new Error((await errText(res)) || "Could not create invite.");
   return (await res.json()) as CreatedInvite;
@@ -116,6 +132,27 @@ export async function createInvite(
 export async function revokeInvite(inviteId: string): Promise<void> {
   const res = await ownerPost({ action: "revoke", inviteId });
   if (!res.ok) throw new Error((await errText(res)) || "Could not revoke invite.");
+}
+
+/** Update an existing invite's alias and/or expiry (owner only). */
+export async function updateInvite(
+  inviteId: string,
+  opts: {
+    alias?: string | null;
+    notes?: string | null;
+    durationPreset?: DurationPreset;
+    customExpiresAt?: string;
+  },
+): Promise<void> {
+  const res = await ownerPost({
+    action: "update",
+    inviteId,
+    alias: opts.alias,
+    notes: opts.notes,
+    durationPreset: opts.durationPreset,
+    customExpiresAt: opts.customExpiresAt,
+  });
+  if (!res.ok) throw new Error((await errText(res)) || "Could not update invite.");
 }
 
 /** List the owner's invites directly (RLS restricts to their own rows). */
@@ -129,7 +166,23 @@ export async function listInvites(): Promise<InviteRow[]> {
     { headers: { apikey: cfg.key, Authorization: `Bearer ${token}` } },
   );
   if (!res.ok) return [];
-  return (await res.json()) as InviteRow[];
+  const rows = (await res.json()) as InviteRow[];
+  // Cache the active sitter's display name so owner notifications can be
+  // personalised ("Update from Alex"). Cleared when no active invite remains.
+  try {
+    const activeName = rows
+      .filter((inv) => inviteStatus(inv) === "active" && inv.alias?.trim())
+      .sort(
+        (a, b) =>
+          new Date(b.claimed_at ?? 0).getTime() - new Date(a.claimed_at ?? 0).getTime(),
+      )[0]
+      ?.alias?.trim();
+    if (activeName) localStorage.setItem(ACTIVE_SITTER_KEY, activeName);
+    else localStorage.removeItem(ACTIVE_SITTER_KEY);
+  } catch {
+    /* ignore storage errors */
+  }
+  return rows;
 }
 
 // ── Sitter ──────────────────────────────────────────────────────────────────
@@ -139,6 +192,7 @@ export interface SitterSession {
   expiresAt: string;
   permissions: { log?: boolean };
   dogName: string | null;
+  notes: string | null;
   ownerRowKey: string;
 }
 
@@ -173,6 +227,7 @@ export async function claimInvite(
     expiresAt: string;
     permissions: { log?: boolean };
     dogName: string | null;
+    notes?: string | null;
     ownerRowKey: string;
     snapshot: Database | null;
   };
@@ -182,6 +237,7 @@ export async function claimInvite(
       expiresAt: out.expiresAt,
       permissions: out.permissions,
       dogName: out.dogName,
+      notes: out.notes ?? null,
       ownerRowKey: out.ownerRowKey,
     },
     snapshot: out.snapshot ?? ({} as Database),

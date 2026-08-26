@@ -19,7 +19,7 @@ export function CloudSyncScreen({ onBack }: { onBack: () => void }): React.React
         return;
       }
       replace({ ...db, ...payload });
-      toast("Data pulled ✓");
+      toast("Data pulled");
     } catch (e) {
       toast("Pull failed: " + (e instanceof Error ? e.message.slice(0, 40) : "error"));
     }

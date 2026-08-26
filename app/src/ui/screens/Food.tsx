@@ -91,7 +91,7 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
     update((d) => {
       d.meals.push(meal);
     });
-    toast(`${names[slot]} — ${portion}g logged ✓`);
+    toast(`${names[slot]} — ${portion}g logged`);
   };
 
   const undo = (slot: number): void => {

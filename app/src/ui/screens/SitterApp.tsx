@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "@astryxdesign/core/Icon";
 import { useToast } from "../lib/toast";
 import { Icons } from "../lib/icons";
 import { DogFace } from "../avatar/DogAvatar";
+import { useLiveWalk, type TrackedWalk } from "../components/LiveWalk";
 import {
   clearSitterSession,
   saveSitterSession,
@@ -19,10 +20,11 @@ interface SitterAppProps {
 }
 
 const HERO = "var(--color-pawpal-hero)";
-const DARK = "var(--color-pawpal-page)";
 const WALK = "var(--color-dash-walk)"; // blue
 const MEAL = "var(--color-dash-trained)"; // yellow
 const POOP = "var(--color-dash-pooped)"; // purple
+
+const ORDINALS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th"];
 
 function localISO(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -75,6 +77,8 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
   const todayISO = localISO(new Date());
   const endsAt = fmtTime(state.session.expiresAt);
 
+  const { active: walkActive, start: startWalk, openSheet, registerExternalSave } = useLiveWalk();
+
   const today = useMemo(() => {
     const walks = (snapshot.walks ?? []).filter((w) => w.date === todayISO);
     const steps = walks.reduce((a, w) => a + (parseInt(String(w.steps)) || 0), 0);
@@ -87,7 +91,23 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
     return { walks: walks.length, steps, mealSlots, poops };
   }, [snapshot, todayISO]);
 
+  // What this sitter has logged today (server-tagged `by: "sitter"`) — the
+  // "your shift" view of the time spent with the dog.
+  const mine = useMemo(() => {
+    const walks = (snapshot.walks ?? []).filter((w) => w.date === todayISO && w.by === "sitter").length;
+    const meals = (snapshot.meals ?? []).filter((m) => m.date === todayISO && m.by === "sitter").length;
+    const poops = (snapshot.bathroom ?? []).filter((b) => b.date === todayISO && b.by === "sitter").length;
+    return { walks, meals, poops, total: walks + meals + poops };
+  }, [snapshot, todayISO]);
+
   const mealsPerDay = snapshot.profile?.mealsPerDay || 4;
+
+  const eatenSlots = useMemo(() => {
+    const slots = (snapshot.meals ?? [])
+      .filter((m) => m.date === todayISO && m.mealSlot != null)
+      .map((m) => m.mealSlot as number);
+    return new Set(slots);
+  }, [snapshot, todayISO]);
 
   const log = async (kind: string, entry: SitterEntry): Promise<void> => {
     if (busy) return;
@@ -111,24 +131,16 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
     }
   };
 
+  // Quick manual walk (no tracking) — a single tap logs "went on a walk".
   const logWalk = (): Promise<void> =>
     log("walk", {
       type: "walk",
       data: { date: todayISO, time: fmtTime(new Date().toISOString()), pipi: false, popo: false },
     });
 
-  const logMeal = (): Promise<void> => {
-    const eaten = new Set(
-      (snapshot.meals ?? [])
-        .filter((m) => m.date === todayISO && m.mealSlot != null)
-        .map((m) => m.mealSlot as number),
-    );
-    let slot = 0;
-    while (slot < mealsPerDay && eaten.has(slot)) slot++;
-    if (slot >= mealsPerDay) {
-      toast("All of today's meals are already logged \u{1F35A}");
-      return Promise.resolve();
-    }
+  // Log a specific meal slot (empty slots only — owner logs stay read-only).
+  const logMealSlot = (slot: number): Promise<void> => {
+    if (eatenSlots.has(slot)) return Promise.resolve();
     return log("meal", {
       type: "meal",
       data: {
@@ -146,6 +158,29 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
       type: "bathroom",
       data: { date: todayISO, time: fmtTime(new Date().toISOString()), type: "popo" },
     });
+
+  // Persist a GPS/pedometer-tracked walk to the owner via the server broker.
+  const saveTrackedWalk = useCallback(
+    async (walk: TrackedWalk): Promise<void> => {
+      try {
+        const next = await sitterLog(state.session.token, { type: "walk", data: walk });
+        setSnapshot(next);
+        saveSitterSession({ ...state, snapshot: next });
+        toast(`Walk logged \u2014 thanks for walking ${dog}! \u{1F43E}`);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Couldn't save the walk.";
+        toast(msg);
+      }
+    },
+    [state, dog, toast],
+  );
+
+  // Route the live tracker's "Save walk" through the sitter broker (and show
+  // the sat-for dog on the map) for as long as this session is on screen.
+  useEffect(() => {
+    registerExternalSave(saveTrackedWalk, avatar ?? null);
+    return () => registerExternalSave(null, null);
+  }, [registerExternalSave, saveTrackedWalk, avatar]);
 
   const end = (): void => {
     clearSitterSession();
@@ -178,48 +213,145 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
           </h1>
         </div>
 
-        {/* Today so far */}
+        {/* Your shift — the time you've spent with the dog */}
+        <div className="sit-shift">
+          <div className="sit-shift-head">
+            <span className="sit-shift-title">Your shift</span>
+            <span className="sit-shift-end">until {endsAt}</span>
+          </div>
+          <p className="sit-shift-sub">
+            {mine.total > 0
+              ? `You've logged ${mine.total} thing${mine.total === 1 ? "" : "s"} for ${dog} today.`
+              : `Nothing logged yet \u2014 start by taking ${dog} for a walk.`}
+          </p>
+          <div className="sit-shift-stats">
+            <ShiftStat label="Walks" value={mine.walks} tone={WALK} />
+            <ShiftStat label="Meals" value={mine.meals} tone={MEAL} />
+            <ShiftStat label="Poops" value={mine.poops} tone={POOP} />
+          </div>
+        </div>
+
+        {/* Today so far — the dog's full day (owner + sitter) */}
         <div className="sit-summary">
           <SummaryStat label="Walks" value={String(today.walks)} tone={WALK} />
           <SummaryStat label="Meals" value={`${today.mealSlots}/${mealsPerDay}`} tone={MEAL} />
           <SummaryStat label="Poops" value={String(today.poops)} tone={POOP} />
         </div>
 
-        {/* Quick actions */}
-        <div className="sit-actions">
-          <SitButton
-            label="Log a walk"
-            icon={Icons.pawPrint}
-            bg={WALK}
-            busy={busy === "walk"}
+        {/* Walk — start a tracked walk or log one quickly */}
+        <div className="sit-walk-card">
+          <div className="sit-walk-head">
+            <span className="sit-walk-title">
+              {walkActive ? "Walk in progress" : "Ready for a walk?"}
+            </span>
+            <span className="sit-walk-sub">GPS &amp; step tracking</span>
+          </div>
+          <button
+            type="button"
+            className="sit-walk-start"
+            aria-label={walkActive ? "Open the walk in progress" : `Start a tracked walk with ${dog}`}
+            onClick={() => (walkActive ? openSheet() : startWalk())}
+          >
+            {walkActive ? (
+              <span>In progress</span>
+            ) : (
+              <>
+                <span>Start</span>
+                <span className="sit-walk-play">
+                  <Icon icon={Icons.play} color="inherit" />
+                </span>
+              </>
+            )}
+          </button>
+          <button
+            type="button"
+            className="sit-walk-log"
+            disabled={busy === "walk"}
             onClick={() => void logWalk()}
-          />
-          <SitButton
-            label="Log a meal"
-            icon={Icons.forkKnife}
-            bg={MEAL}
-            busy={busy === "meal"}
-            onClick={() => void logMeal()}
-          />
-          <SitButton
-            label="Mark a poop"
-            icon={Icons.toilet}
-            bg={POOP}
-            busy={busy === "poop"}
-            onClick={() => void logPoop()}
-          />
+          >
+            {busy === "walk" ? "Saving\u2026" : "Log a walk without tracking"}
+          </button>
         </div>
+
+        {/* Meals — mirrors the owner's dashboard widget; owner logs are read-only */}
+        <div className="sit-meals-card">
+          <div className="sit-meals-head">
+            <span className="sit-meals-title">Meals</span>
+            <span className="sit-meals-count">
+              {today.mealSlots}/{mealsPerDay}
+            </span>
+          </div>
+          <div className="sit-meals-row">
+            {Array.from({ length: mealsPerDay }, (_, slot) => {
+              const done = eatenSlots.has(slot);
+              return (
+                <div key={slot} className="sit-meal-slot">
+                  <button
+                    type="button"
+                    className={"sit-meal-dot" + (done ? " is-done" : "")}
+                    aria-pressed={done}
+                    disabled={done || busy === "meal"}
+                    aria-label={
+                      done
+                        ? `${ORDINALS[slot] ?? `Meal ${slot + 1}`} meal already logged`
+                        : `Log the ${ORDINALS[slot] ?? `${slot + 1}th`} meal`
+                    }
+                    onClick={() => void logMealSlot(slot)}
+                  >
+                    {done && <Icon icon={Icons.checkCircle} color="inherit" />}
+                  </button>
+                  <span className="sit-meal-label">{ORDINALS[slot] ?? slot + 1}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Bathroom — quick poop logger */}
+        <button
+          type="button"
+          className="sit-bath-card"
+          disabled={busy === "poop"}
+          onClick={() => void logPoop()}
+        >
+          <span className="sit-bath-title">{busy === "poop" ? "Saving\u2026" : "Mark a poop"}</span>
+          <span className="sit-bath-icon">
+            <Icon icon={Icons.toilet} color="inherit" />
+          </span>
+        </button>
 
         {/* Emergency / owner info */}
         <div className="sit-info">
           <InfoRow label="Feeding" value={`${mealsPerDay} meals \u00b7 ${snapshot.profile?.foodGoal || "—"} g/day`} />
           <InfoRow label="Vet" value={snapshot.profile?.vet || "Not provided"} />
           <InfoRow label="Vet phone" value={snapshot.profile?.vetPhone || "Not provided"} />
+          {state.session.notes?.trim() ? (
+            <InfoRow label="From the owner" value={state.session.notes} />
+          ) : null}
           {snapshot.vetRecords?.notes ? (
             <InfoRow label="Notes" value={snapshot.vetRecords.notes} />
           ) : null}
         </div>
       </div>
+    </div>
+  );
+}
+
+function ShiftStat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone: string;
+}): React.ReactElement {
+  return (
+    <div className="sit-shift-stat">
+      <span className="sit-shift-stat-value" style={{ color: tone }}>
+        {value}
+      </span>
+      <span className="sit-shift-stat-label">{label}</span>
     </div>
   );
 }
@@ -240,29 +372,6 @@ function SummaryStat({
       </span>
       <span className="sit-stat-label">{label}</span>
     </div>
-  );
-}
-
-function SitButton({
-  label,
-  icon,
-  bg,
-  busy,
-  onClick,
-}: {
-  label: string;
-  icon: (typeof Icons)[keyof typeof Icons];
-  bg: string;
-  busy: boolean;
-  onClick: () => void;
-}): React.ReactElement {
-  return (
-    <button type="button" className="sit-action" style={{ background: bg }} onClick={onClick} disabled={busy}>
-      <span className="sit-action-icon" style={{ color: DARK }}>
-        <Icon icon={icon} color="inherit" />
-      </span>
-      <span>{busy ? "Saving\u2026" : label}</span>
-    </button>
   );
 }
 

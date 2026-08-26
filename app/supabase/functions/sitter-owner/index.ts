@@ -3,8 +3,10 @@
 //
 // POST body:
 //   { action: "create", durationPreset: "tonight"|"24h"|"3d"|"custom",
-//     customExpiresAt?: ISO, dogName?: string }
+//     customExpiresAt?: ISO, dogName?: string, alias?: string, notes?: string }
 //     → { inviteId, code, expiresAt, permissions }
+//   { action: "update", inviteId: string, alias?: string|null, notes?: string|null,
+//     durationPreset?: ..., customExpiresAt?: ISO } → { ok: true }
 //   { action: "revoke", inviteId: string } → { ok: true }
 import {
   durationToExpiry,
@@ -51,6 +53,8 @@ Deno.serve(async (req) => {
           owner_user_id: user.id,
           owner_row_key: ownerRowKey,
           dog_name: body.dogName ? String(body.dogName) : null,
+          alias: body.alias ? String(body.alias) : null,
+          notes: body.notes ? String(body.notes) : null,
           code,
           permissions,
           expires_at: expiresAt,
@@ -65,6 +69,50 @@ Deno.serve(async (req) => {
       }
     }
     return json({ error: "create_failed" }, 500);
+  }
+
+  if (action === "update") {
+    const inviteId = body.inviteId ? String(body.inviteId) : "";
+    if (!inviteId) return json({ error: "bad_request" }, 400);
+
+    const patch: Record<string, unknown> = {};
+    if ("alias" in body) {
+      patch.alias = body.alias ? String(body.alias) : null;
+    }
+    if ("notes" in body) {
+      patch.notes = body.notes ? String(body.notes) : null;
+    }
+    if (body.durationPreset || body.customExpiresAt) {
+      const expiresAt = durationToExpiry(
+        String(body.durationPreset ?? ""),
+        body.customExpiresAt ? String(body.customExpiresAt) : undefined,
+      );
+      if (!expiresAt) return json({ error: "invalid_duration" }, 400);
+      patch.expires_at = expiresAt;
+    }
+    if (Object.keys(patch).length === 0) return json({ error: "bad_request" }, 400);
+
+    // Only the owner may update their own invite.
+    const res = await sb(
+      `sitter_invites?id=eq.${inviteId}&owner_user_id=eq.${user.id}`,
+      {
+        method: "PATCH",
+        prefer: "return=representation",
+        body: JSON.stringify(patch),
+      },
+    );
+    if (!res.ok) return json({ error: "update_failed" }, 500);
+    const rows = (await res.json()) as unknown[];
+    if (rows.length === 0) return json({ error: "not_found" }, 404);
+
+    // Keep any live session in sync with a new expiry (extend or shorten).
+    if (patch.expires_at) {
+      await sb(`sitter_sessions?invite_id=eq.${inviteId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ expires_at: patch.expires_at }),
+      });
+    }
+    return json({ ok: true });
   }
 
   if (action === "revoke") {

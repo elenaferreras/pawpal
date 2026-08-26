@@ -42,7 +42,7 @@ export function AccountScreen({ onBack, onSignedOut }: { onBack: () => void; onS
     try {
       if (mode === "signup") {
         const { needsConfirmation } = await signUp(email.trim(), password);
-        toast(needsConfirmation ? "Account created — check your email ✉️" : "Account created 🎉");
+        toast(needsConfirmation ? "Account created — check your email" : "Account created");
       } else {
         await signIn(email.trim(), password);
         try {
@@ -53,7 +53,7 @@ export function AccountScreen({ onBack, onSignedOut }: { onBack: () => void; onS
         }
         // Register this device for sitter push notifications (best-effort).
         void subscribeToPush();
-        toast("Signed in ✓");
+        toast("Signed in");
       }
       setEmail("");
       setPassword("");

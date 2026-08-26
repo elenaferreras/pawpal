@@ -3,13 +3,14 @@
 // a signed-in user's email is recorded as the claimant label when provided.
 //
 // POST body: { code: string, claimant?: string }
-//   → { token, expiresAt, permissions, dogName, ownerRowKey, snapshot }
+//   → { token, expiresAt, permissions, dogName, notes, ownerRowKey, snapshot }
 import { getUser, json, preflight, randomToken, sb } from "../_shared/util.ts";
 
 interface InviteRow {
   id: string;
   owner_row_key: string;
   dog_name: string | null;
+  notes: string | null;
   permissions: Record<string, unknown>;
   expires_at: string;
   claimed_at: string | null;
@@ -32,7 +33,7 @@ Deno.serve(async (req) => {
 
   // Look up the invite by code.
   const lookup = await sb(
-    `sitter_invites?code=eq.${code}&select=id,owner_row_key,dog_name,permissions,expires_at,claimed_at,revoked_at&limit=1`,
+    `sitter_invites?code=eq.${code}&select=id,owner_row_key,dog_name,notes,permissions,expires_at,claimed_at,revoked_at&limit=1`,
   );
   if (!lookup.ok) return json({ error: "lookup_failed" }, 500);
   const [invite] = (await lookup.json()) as InviteRow[];
@@ -96,6 +97,7 @@ Deno.serve(async (req) => {
     expiresAt: invite.expires_at,
     permissions: invite.permissions,
     dogName: invite.dog_name,
+    notes: invite.notes,
     ownerRowKey: invite.owner_row_key,
     snapshot,
   });

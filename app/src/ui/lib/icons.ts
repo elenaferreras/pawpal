@@ -47,6 +47,10 @@ import {
   Thermometer,
   CloudFog,
   CloudLightning,
+  EllipsisVertical,
+  Copy,
+  Link,
+  QrCode,
 } from "lucide-react";
 
 export const Icons = {
@@ -95,6 +99,10 @@ export const Icons = {
   thermometer: Thermometer,
   cloudFog: CloudFog,
   cloudLightning: CloudLightning,
+  moreVertical: EllipsisVertical,
+  copy: Copy,
+  link: Link,
+  qrCode: QrCode,
 } as const;
 
 export type AppIconName = keyof typeof Icons;

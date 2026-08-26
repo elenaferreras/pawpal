@@ -1,6 +1,7 @@
 import type { Database } from "../types";
 import { getCurrentUserId, getValidAccessToken } from "./auth";
 import { sendNotification } from "./notifications";
+import { getActiveSitterName } from "./sitter";
 
 // Supabase cloud sync. The anon publishable key is safe to expose — row-level
 // security scopes each device's data. Ported from the original hardcoded setup.
@@ -238,14 +239,15 @@ function notifySitterActivity(
   const total = nWalks + nMeals + nBath;
   if (total === 0) return;
 
+  const name = getActiveSitterName();
   const dog = db.profile?.name?.trim();
-  const who = dog ? `${dog}'s sitter` : "Your sitter";
+  const who = name || (dog ? `${dog}'s sitter` : "Your sitter");
 
   let what: string;
   if (total === 1) {
-    if (nWalks) what = "logged a walk 🐾";
-    else if (nMeals) what = "logged a meal 🍖";
-    else what = "logged a bathroom break 💩";
+    if (nWalks) what = "logged a walk";
+    else if (nMeals) what = "logged a meal";
+    else what = "logged a bathroom break";
   } else {
     const parts: string[] = [];
     if (nWalks) parts.push(`${nWalks} walk${nWalks > 1 ? "s" : ""}`);
@@ -254,5 +256,6 @@ function notifySitterActivity(
     what = `logged ${parts.join(", ")}`;
   }
 
-  sendNotification("Sitter update 🐾", `${who} ${what}.`, "sitter-activity");
+  const title = name ? `Update from ${name}` : "Sitter update";
+  sendNotification(title, `${who} ${what}.`, "sitter-activity");
 }

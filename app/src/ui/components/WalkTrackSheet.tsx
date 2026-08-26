@@ -12,6 +12,8 @@ interface WalkTrackSheetProps {
   onClose: () => void;
   /** When set, the sheet edits this existing walk instead of adding a new one. */
   editIndex?: number | null;
+  /** Pre-fills the date for a new walk (e.g. the selected calendar day). */
+  prefillDate?: string | null;
 }
 
 const DARK = "var(--color-pawpal-page)"; // #352B25
@@ -38,7 +40,7 @@ function localISO(d: Date): string {
  * Orange sheet that slides up when logging a walk in the new design. Dark fields
  * on the orange surface; selected toggles invert to a dark fill with a check.
  */
-export function WalkTrackSheet({ open, onClose, editIndex }: WalkTrackSheetProps): React.ReactElement {
+export function WalkTrackSheet({ open, onClose, editIndex, prefillDate }: WalkTrackSheetProps): React.ReactElement {
   const { db, update } = useDb();
   const toast = useToast();
 
@@ -70,7 +72,7 @@ export function WalkTrackSheet({ open, onClose, editIndex }: WalkTrackSheetProps
       setNotes(editWalk.notes ?? "");
       setSendToVet(!!editWalk.sentToVet);
     } else {
-      setDateISO(localISO(new Date()));
+      setDateISO(prefillDate || localISO(new Date()));
       setDuration("");
       setSteps("");
       setDistance("");

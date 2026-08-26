@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { QRCodeSVG } from "qrcode.react";
-import { HStack, VStack } from "@astryxdesign/core/Stack";
+import { VStack } from "@astryxdesign/core/Stack";
 import { Icon } from "@astryxdesign/core/Icon";
 import { Button } from "./Button";
 import { useDb } from "../lib/store";
@@ -15,6 +16,7 @@ import {
   listInvites,
   revokeInvite,
   sitterLink,
+  updateInvite,
   type DurationPreset,
   type InviteRow,
 } from "../lib/sitter";
@@ -34,23 +36,38 @@ function fmtWhen(iso: string): string {
   });
 }
 
+/** ISO timestamp → value for a <input type="datetime-local"> (local time). */
+function toLocalDatetime(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number): string => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
+    d.getHours(),
+  )}:${pad(d.getMinutes())}`;
+}
+
 /** Owner control to create, display and revoke dog-sitter invites. */
 export function InviteSitter(): React.ReactElement {
   const { db } = useDb();
   const toast = useToast();
+  const reduceMotion = useReducedMotion();
   const [loggedIn, setLoggedIn] = useState(() => !!getCurrentUser());
 
   const [invites, setInvites] = useState<InviteRow[]>([]);
   const [choosing, setChoosing] = useState(false);
+  const [editing, setEditing] = useState<InviteRow | null>(null);
   const [preset, setPreset] = useState<DurationPreset>("tonight");
+  const [alias, setAlias] = useState("");
+  const [notes, setNotes] = useState("");
   const [customAt, setCustomAt] = useState("");
   const [busy, setBusy] = useState(false);
   const [detailInvite, setDetailInvite] = useState<InviteRow | null>(null);
   const [showQr, setShowQr] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  // Collapse the QR whenever a different code's detail sheet opens.
+  // Collapse the QR (and any open action menu) when a different code opens.
   useEffect(() => {
     setShowQr(false);
+    setMenuOpen(false);
   }, [detailInvite?.id]);
 
   // Stay in sync with sign in / sign out (auth.ts dispatches "pawpal:auth").
@@ -76,9 +93,26 @@ export function InviteSitter(): React.ReactElement {
   const create = async (): Promise<void> => {
     setBusy(true);
     try {
+      if (editing) {
+        await updateInvite(editing.id, {
+          alias: alias.trim(),
+          notes: notes.trim() || null,
+          durationPreset: preset,
+          customExpiresAt:
+            preset === "custom" ? new Date(customAt).toISOString() : undefined,
+        });
+        setChoosing(false);
+        setEditing(null);
+        const rows = await listInvites();
+        setInvites(rows);
+        toast("Invite updated");
+        return;
+      }
       const inv = await createInvite(preset, {
         customExpiresAt: preset === "custom" ? new Date(customAt).toISOString() : undefined,
         dogName: db.profile.name || undefined,
+        alias: alias.trim() || undefined,
+        notes: notes.trim() || undefined,
       });
       setChoosing(false);
       const rows = await listInvites();
@@ -87,10 +121,21 @@ export function InviteSitter(): React.ReactElement {
       setShowQr(false);
       setDetailInvite(rows.find((r) => r.id === inv.inviteId) ?? null);
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Could not create invite.");
+      toast(e instanceof Error ? e.message : "Could not save invite.");
     } finally {
       setBusy(false);
     }
+  };
+
+  // Open the chooser sheet pre-filled to edit an existing invite's name/expiry.
+  const openEdit = (inv: InviteRow): void => {
+    setEditing(inv);
+    setAlias(inv.alias ?? "");
+    setNotes(inv.notes ?? "");
+    setPreset("custom");
+    setCustomAt(toLocalDatetime(inv.expires_at));
+    setDetailInvite(null);
+    setChoosing(true);
   };
 
   const revoke = async (id: string): Promise<void> => {
@@ -154,6 +199,7 @@ export function InviteSitter(): React.ReactElement {
                 <span className="invite-row-info">
                   <PanelTitle>{formatCode(inv.code)}</PanelTitle>
                   <PanelText>
+                    {inv.alias ? `${inv.alias} · ` : ""}
                     {inviteStatus(inv) === "active"
                       ? `In use${inv.claimed_by ? ` · ${inv.claimed_by}` : ""}`
                       : "Not used yet"}{" "}
@@ -173,7 +219,10 @@ export function InviteSitter(): React.ReactElement {
           label={active.length > 0 ? "New invite" : "Invite a sitter"}
           variant={active.length > 0 ? "secondary" : "primary"}
           onClick={() => {
+            setEditing(null);
             setPreset("tonight");
+            setAlias("");
+            setNotes("");
             setChoosing(true);
           }}
           fullWidth
@@ -202,7 +251,7 @@ export function InviteSitter(): React.ReactElement {
             />
             <VStack gap={2}>
               <VStack gap={0.5}>
-                <PanelTitle>Sitter code</PanelTitle>
+                <PanelTitle>{detailInvite.alias || "Sitter code"}</PanelTitle>
                 <PanelText>
                   {inviteStatus(detailInvite) === "active"
                     ? `In use${detailInvite.claimed_by ? ` · ${detailInvite.claimed_by}` : ""}`
@@ -211,8 +260,93 @@ export function InviteSitter(): React.ReactElement {
                 </PanelText>
               </VStack>
 
-              <div className="invite-code" style={{ alignSelf: "center" }}>
-                {formatCode(detailInvite.code)}
+              {detailInvite.notes?.trim() && (
+                <div className="invite-notes">
+                  <PanelText style={{ opacity: 0.8, marginBottom: 4 }}>
+                    Notes for the sitter
+                  </PanelText>
+                  <PanelText style={{ whiteSpace: "pre-wrap" }}>
+                    {detailInvite.notes}
+                  </PanelText>
+                </div>
+              )}
+
+              <div
+                style={{
+                  alignSelf: "center",
+                  position: "relative",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <div className="invite-code">{formatCode(detailInvite.code)}</div>
+                <button
+                  type="button"
+                  className="invite-kebab"
+                  aria-label="Code actions"
+                  aria-haspopup="menu"
+                  aria-expanded={menuOpen}
+                  onClick={() => setMenuOpen((v) => !v)}
+                >
+                  <Icon icon={Icons.moreVertical} color="inherit" />
+                </button>
+
+                <AnimatePresence>
+                  {menuOpen && (
+                    <>
+                      <div
+                        className="ios-menu-scrim"
+                        onClick={() => setMenuOpen(false)}
+                      />
+                      <motion.div
+                        className="ios-menu"
+                        role="menu"
+                        initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.85 }}
+                        animate={reduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1 }}
+                        exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.85 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 32 }}
+                      >
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="ios-menu-item"
+                          onClick={() => {
+                            setMenuOpen(false);
+                            void copy(formatCode(detailInvite.code), "Code");
+                          }}
+                        >
+                          <span>Copy code</span>
+                          <Icon icon={Icons.copy} color="inherit" />
+                        </button>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="ios-menu-item"
+                          onClick={() => {
+                            setMenuOpen(false);
+                            void copy(sitterLink(detailInvite.code), "Link");
+                          }}
+                        >
+                          <span>Copy link</span>
+                          <Icon icon={Icons.link} color="inherit" />
+                        </button>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="ios-menu-item"
+                          onClick={() => {
+                            setMenuOpen(false);
+                            setShowQr((v) => !v);
+                          }}
+                        >
+                          <span>{showQr ? "Hide QR code" : "Show QR code"}</span>
+                          <Icon icon={Icons.qrCode} color="inherit" />
+                        </button>
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
               </div>
 
               {showQr && (
@@ -228,24 +362,10 @@ export function InviteSitter(): React.ReactElement {
                 </div>
               )}
 
-              <HStack gap={2} style={{ width: "100%" }}>
-                <Button
-                  label="Copy code"
-                  variant="secondary"
-                  onClick={() => void copy(formatCode(detailInvite.code), "Code")}
-                  style={{ flex: 1, minWidth: 0 }}
-                />
-                <Button
-                  label="Copy link"
-                  variant="secondary"
-                  onClick={() => void copy(sitterLink(detailInvite.code), "Link")}
-                  style={{ flex: 1, minWidth: 0 }}
-                />
-              </HStack>
               <Button
-                label={showQr ? "Hide QR code" : "Show QR code"}
+                label="Edit name & duration"
                 variant="secondary"
-                onClick={() => setShowQr((v) => !v)}
+                onClick={() => openEdit(detailInvite)}
                 fullWidth
               />
               <Button
@@ -259,14 +379,20 @@ export function InviteSitter(): React.ReactElement {
         </div>
       )}
 
-      {/* Duration chooser — bottom sheet */}
+      {/* Duration chooser — bottom sheet (create or edit) */}
       {choosing && (
-        <div className="walk-sheet-scrim" onClick={() => setChoosing(false)}>
+        <div
+          className="walk-sheet-scrim"
+          onClick={() => {
+            setChoosing(false);
+            setEditing(null);
+          }}
+        >
           <div
             className="chooser-sheet"
             role="dialog"
             aria-modal="true"
-            aria-label="Choose invite duration"
+            aria-label={editing ? "Edit invite" : "Choose invite duration"}
             onClick={(e) => e.stopPropagation()}
           >
             <span
@@ -282,9 +408,38 @@ export function InviteSitter(): React.ReactElement {
             />
             <VStack gap={2}>
               <VStack gap={0.5}>
-                <PanelTitle>How long?</PanelTitle>
-                <PanelText>Pick how long the sitter's access should last.</PanelText>
+                <PanelTitle>{editing ? "Edit invite" : "How long?"}</PanelTitle>
+                <PanelText>
+                  {editing
+                    ? "Update the sitter's name or when their access ends."
+                    : "Pick how long the sitter's access should last."}
+                </PanelText>
               </VStack>
+
+              <div className="oba-input-wrap">
+                <input
+                  type="text"
+                  className="oba-input"
+                  value={alias}
+                  onChange={(e) => setAlias(e.target.value)}
+                  placeholder="Sitter's name (optional)"
+                  aria-label="Sitter's name"
+                  maxLength={40}
+                  autoComplete="off"
+                />
+              </div>
+
+              <div className="oba-input-wrap oba-input-wrap--textarea">
+                <textarea
+                  className="oba-input oba-textarea"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Notes for the sitter (feeding quirks, house rules, emergencies…)"
+                  aria-label="Notes for the sitter"
+                  maxLength={600}
+                  rows={3}
+                />
+              </div>
 
               <div className="invite-durations">
                 {DURATIONS.map((d) => (
@@ -310,7 +465,15 @@ export function InviteSitter(): React.ReactElement {
 
               <VStack gap={1.5}>
                 <Button
-                  label={busy ? "Creating…" : "Create invite"}
+                  label={
+                    editing
+                      ? busy
+                        ? "Saving…"
+                        : "Save changes"
+                      : busy
+                        ? "Creating…"
+                        : "Create invite"
+                  }
                   variant="primary"
                   onClick={() => void create()}
                   isDisabled={busy || (preset === "custom" && !customAt)}
@@ -319,7 +482,10 @@ export function InviteSitter(): React.ReactElement {
                 <Button
                   label="Cancel"
                   variant="ghost"
-                  onClick={() => setChoosing(false)}
+                  onClick={() => {
+                    setChoosing(false);
+                    setEditing(null);
+                  }}
                   fullWidth
                 />
               </VStack>

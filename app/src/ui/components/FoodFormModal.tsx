@@ -100,7 +100,7 @@ export function FoodFormModal({ open, onClose }: FoodFormModalProps): React.Reac
       d.meals.push(meal);
       syncVetNote(d);
     });
-    toast("Meal logged! 🍖");
+    toast("Meal logged");
     onClose();
   };
 

@@ -80,18 +80,26 @@ sw.addEventListener("push", (event) => {
   event.waitUntil(sw.registration.showNotification(title, options));
 });
 
-// Focus (or open) the app when a notification is clicked.
+// Focus (or open) the app when a notification is clicked. In production the app
+// shell is served as index.html at the registration scope root (there is no
+// ./ui.html on the deployed site), so route through the scope to avoid a 404.
 sw.addEventListener("notificationclick", (event) => {
   event.notification.close();
   event.waitUntil(
     (async () => {
-      const list = await sw.clients.matchAll({ type: "window" });
+      const home = sw.registration.scope;
+      const list = await sw.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
       const client = list[0];
       if (client) {
         await client.focus();
+        // Ask the app to jump to the home screen so the owner lands on stats.
+        client.postMessage({ type: "notification-open", screen: "home" });
         return;
       }
-      await sw.clients.openWindow(APP_SHELL);
+      await sw.clients.openWindow(home);
     })(),
   );
 });

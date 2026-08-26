@@ -17,8 +17,9 @@ import type { Walk } from "../types";
 interface WalksStatsProps {
   /** Optional back affordance; omitted when shown as a tab. */
   onBack?: () => void;
-  /** Opens the add-walk flow from the header plus button. */
-  onAdd?: () => void;
+  /** Opens the add-walk flow from the header plus button. When a calendar day
+   * is selected, its ISO date is passed so the walk pre-fills that date. */
+  onAdd?: (dateISO?: string) => void;
   /** Opens the edit-walk flow for a given walk index (swipe → Edit). */
   onEdit?: (index: number) => void;
 }
@@ -184,7 +185,7 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
           <button
             type="button"
             aria-label="Add walk"
-            onClick={onAdd}
+            onClick={() => onAdd(selectedDay ? localISO(selectedDay.date) : undefined)}
             style={{
               flexShrink: 0,
               display: "flex",

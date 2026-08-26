@@ -17,9 +17,12 @@ import { RouteMap } from "./RouteMap";
 import { Icons, type AppIconName } from "../lib/icons";
 import { buildDogSVG, buildDogFace } from "../avatar/build";
 import { stickerUrl } from "../avatar/stickers";
-import type { GpsCoord } from "../types";
+import type { Avatar, GpsCoord, Walk } from "../types";
 
 type Phase = "idle" | "active" | "summary";
+
+/** A completed walk as produced by the tracker (before it is persisted). */
+export type TrackedWalk = Omit<Walk, "assignee" | "sentToVet" | "by">;
 
 interface LiveWalkContextValue {
   active: boolean;
@@ -34,6 +37,17 @@ interface LiveWalkContextValue {
   markerHtml: string;
   /** Latest GPS accuracy in metres (for the accuracy ring), or null. */
   accuracy: number | null;
+  /**
+   * Register a custom save handler for the next completed walk (e.g. a
+   * dog-sitter that persists to the owner's data through the server instead of
+   * this device's local DB). Pass `null` to clear. An optional avatar overrides
+   * the live map marker so it shows the sat-for dog. Registering also swaps the
+   * "Save walk" button copy for the handler's own toast/feedback.
+   */
+  registerExternalSave: (
+    handler: ((walk: TrackedWalk) => void | Promise<void>) | null,
+    avatar?: Avatar | null,
+  ) => void;
 }
 
 const LiveWalkContext = createContext<LiveWalkContextValue | null>(null);
@@ -116,6 +130,19 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
   const [coords, setCoords] = useState<GpsCoord[]>([]);
   const [accuracy, setAccuracy] = useState<number | null>(null);
 
+  // Optional external save handler + avatar (dog-sitter mode). When present,
+  // completed walks are handed to the sitter broker instead of the local DB,
+  // and the live map marker shows the sat-for dog.
+  const externalSaveRef = useRef<((walk: TrackedWalk) => void | Promise<void>) | null>(null);
+  const [externalAvatar, setExternalAvatar] = useState<Avatar | null>(null);
+  const registerExternalSave = useCallback(
+    (handler: ((walk: TrackedWalk) => void | Promise<void>) | null, avatar: Avatar | null = null) => {
+      externalSaveRef.current = handler;
+      setExternalAvatar(avatar);
+    },
+    [],
+  );
+
   // Summary form state.
   const [weather, setWeather] = useState("");
   const [pipi, setPipi] = useState(false);
@@ -129,6 +156,7 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
   const motionHandler = useRef<((e: DeviceMotionEvent) => void) | null>(null);
   const lastAccel = useRef<number | null>(null);
   const lastStep = useRef(0);
+  const stepArmed = useRef(true);
   const coordsRef = useRef<GpsCoord[]>([]);
   const stepsRef = useRef(0);
   const distRef = useRef(0);
@@ -199,15 +227,23 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
       if (!a || a.x === null || a.y === null || a.z === null) return;
       const mag = Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
       const now = Date.now();
-      if (lastAccel.current !== null) {
-        const delta = Math.abs(mag - lastAccel.current);
-        if (delta > 12 && now - lastStep.current > 300) {
-          stepsRef.current += 1;
-          lastStep.current = now;
-          setSteps(stepsRef.current);
-        }
+      // Low-pass filter tracks the slow-moving baseline (gravity + posture).
+      // Subtracting it leaves the walking bounce oscillating around zero, so a
+      // fixed threshold works regardless of how the phone is held.
+      if (lastAccel.current === null) lastAccel.current = mag;
+      lastAccel.current = lastAccel.current * 0.8 + mag * 0.2;
+      const dynamic = mag - lastAccel.current;
+      // Count one step per upward peak, then wait for the signal to dip back
+      // below the baseline (hysteresis) before arming the next one. The 250ms
+      // refractory guard caps cadence at ~4 steps/s and rejects double counts.
+      if (stepArmed.current && dynamic > 1.2 && now - lastStep.current > 250) {
+        stepsRef.current += 1;
+        lastStep.current = now;
+        setSteps(stepsRef.current);
+        stepArmed.current = false;
+      } else if (dynamic < 0) {
+        stepArmed.current = true;
       }
-      lastAccel.current = mag;
     };
     motionHandler.current = handleMotion;
 
@@ -241,6 +277,7 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
     distRef.current = 0;
     lastAccel.current = null;
     lastStep.current = 0;
+    stepArmed.current = true;
     setPhase("active");
     setOpen(true);
     setElapsed(0);
@@ -288,6 +325,17 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
       gpsRoute: coordsRef.current.slice(0, 500),
       created: new Date().toISOString(),
     };
+    // Dog-sitter mode: hand the walk to the external broker (which shows its
+    // own confirmation) rather than writing to this device's local DB.
+    const external = externalSaveRef.current;
+    if (external) {
+      setPhase("idle");
+      setOpen(false);
+      void Promise.resolve(external(walk)).catch(() => {
+        /* the handler surfaces its own error */
+      });
+      return;
+    }
     update((d) => {
       d.walks.push(walk);
     });
@@ -362,7 +410,7 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
   // full standing dog. The inner art is kept smaller than the circle (~the same
   // 112/136 ratio as the avatar editor) so the round mask never clips it.
   const markerHtml = useMemo(() => {
-    const av = db.profile.avatar;
+    const av = externalAvatar ?? db.profile.avatar;
     const bg = av?.bg ?? "var(--color-data-yellow-3)";
     const sticker = stickerUrl(av?.sticker);
     const inner = sticker
@@ -371,10 +419,10 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
         ? buildDogSVG(av, 28)
         : buildDogFace(undefined, 26);
     return `<div class="lw-pin-inner" style="background:${bg}">${inner}</div>`;
-  }, [db.profile.avatar]);
+  }, [db.profile.avatar, externalAvatar]);
 
   return (
-    <LiveWalkContext.Provider value={{ active: phase !== "idle", start, openSheet: () => setOpen(true), coords, elapsed, markerHtml, accuracy }}>
+    <LiveWalkContext.Provider value={{ active: phase !== "idle", start, openSheet: () => setOpen(true), coords, elapsed, markerHtml, accuracy, registerExternalSave }}>
       {children}
 
       {phase !== "idle" && !open && (

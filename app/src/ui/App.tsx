@@ -86,6 +86,8 @@ function Shell(): React.ReactElement {
   const [modal, setModal] = useState<QuickModal>("none");
   const [trackOpen, setTrackOpen] = useState(false);
   const [editWalkIndex, setEditWalkIndex] = useState<number | null>(null);
+  // Date to pre-fill when logging a new walk (e.g. the selected calendar day).
+  const [walkPrefillDate, setWalkPrefillDate] = useState<string | null>(null);
   const [editReminderIndex, setEditReminderIndex] = useState<number | null>(null);
   const [editBathroomIndex, setEditBathroomIndex] = useState<number | null>(null);
   // Origin of the circular Settings reveal (set from the tapped avatar).
@@ -130,6 +132,20 @@ function Shell(): React.ReactElement {
   useEffect(() => {
     setupReminderChecks(getDb);
   }, [getDb]);
+
+  // When a native notification is tapped and the app is already open, the
+  // service worker posts a message asking us to surface the home screen.
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    const onMessage = (e: MessageEvent): void => {
+      if (e.data?.type === "notification-open") {
+        setScreen((e.data.screen as ScreenId) ?? "home");
+      }
+    };
+    navigator.serviceWorker.addEventListener("message", onMessage);
+    return () =>
+      navigator.serviceWorker.removeEventListener("message", onMessage);
+  }, []);
 
   // Re-register this device for sitter push notifications when signed in and
   // permission is already granted (no-op otherwise). Also re-runs on sign-in.
@@ -186,6 +202,7 @@ function Shell(): React.ReactElement {
   // "Log walk" opens the Track-walk sheet.
   const logWalk = (): void => {
     setEditWalkIndex(null);
+    setWalkPrefillDate(null);
     setModal("walk-track");
   };
 
@@ -240,7 +257,13 @@ function Shell(): React.ReactElement {
         onLogBathroom={() => setModal("poop")}
       />
     ) : tabKey === "walks" ? (
-      <WalksStats onAdd={() => setModal("walk-choose")} onEdit={(i) => openTrackWalk(i)} />
+      <WalksStats
+        onAdd={(dateISO) => {
+          setWalkPrefillDate(dateISO ?? null);
+          setModal("walk-choose");
+        }}
+        onEdit={(i) => openTrackWalk(i)}
+      />
     ) : tabKey === "food" ? (
       <Food onAdd={() => setModal("food")} />
     ) : tabKey === "bathroom" ? (
@@ -385,9 +408,11 @@ function Shell(): React.ReactElement {
           <WalkTrackSheet
             open={modal === "walk-track"}
             editIndex={editWalkIndex}
+            prefillDate={walkPrefillDate}
             onClose={() => {
               setModal("none");
               setEditWalkIndex(null);
+              setWalkPrefillDate(null);
             }}
           />
         </>

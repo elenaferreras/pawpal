@@ -78,7 +78,7 @@ function checkReminders(db: Database): void {
         const walks = db.walks.filter((w) => w.date === todayStr);
         if (walks.length === 0) {
           sendNotification(
-            "Time for a walk! 🐾",
+            "Time for a walk!",
             db.profile.name ? db.profile.name + " is waiting!" : "Your pup needs some exercise!",
             "walk-reminder",
           );
@@ -99,7 +99,7 @@ function checkReminders(db: Database): void {
         const given = meals.reduce((a, meal) => a + (meal.amount || 0), 0);
         if (given < goal) {
           sendNotification(
-            "Feeding time! 🍖",
+            "Feeding time!",
             db.profile.name ? db.profile.name + " hasn’t had their full meal yet." : "Time to feed your pup!",
             "feed-reminder",
           );
@@ -125,7 +125,7 @@ function checkReminders(db: Database): void {
       const logged = db.meals.some((meal) => meal.date === todayStr && meal.mealSlot === slot);
       if (!logged) {
         sendNotification(
-          "Feeding time! 🍖",
+          "Feeding time!",
           db.profile.name
             ? `Time for ${db.profile.name}’s meal ${slot + 1}.`
             : "Time to feed your pup!",
@@ -149,7 +149,7 @@ function checkReminders(db: Database): void {
       });
       active.forEach((med) => {
         sendNotification(
-          "Medication reminder 💊",
+          "Medication reminder",
           med.name + (med.dose ? " — " + med.dose : ""),
           "med-" + med.name,
         );
@@ -172,7 +172,7 @@ function checkReminders(db: Database): void {
       });
       dueSoon.forEach((v) => {
         sendNotification(
-          "Vaccination due 💉",
+          "Vaccination due",
           v.name + (v.nextDue ? " — due " + v.nextDue : ""),
           "vacc-" + v.name,
         );
@@ -192,7 +192,7 @@ function checkReminders(db: Database): void {
       return diff >= 0 && diff <= 1;
     });
     upcoming.forEach((r) => {
-      sendNotification("Vet reminder 🏥", r.title + (r.date ? " — " + r.date : ""), "vet-" + r.title);
+      sendNotification("Vet reminder", r.title + (r.date ? " — " + r.date : ""), "vet-" + r.title);
     });
     if (upcoming.length > 0) {
       fired[vetKey] = true;

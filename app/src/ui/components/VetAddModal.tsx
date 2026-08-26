@@ -185,7 +185,7 @@ export function VetAddModal({ open, onClose, editReminderIndex }: VetAddModalPro
             existing.priority = rPriority;
           }
         });
-        toast("Reminder updated! 📋");
+        toast("Reminder updated");
         onClose();
         return;
       }
@@ -221,7 +221,7 @@ export function VetAddModal({ open, onClose, editReminderIndex }: VetAddModalPro
         }
       });
     }
-    toast("Record saved! 📋");
+    toast("Record saved");
     onClose();
   };
 
