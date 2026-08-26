@@ -1,13 +1,16 @@
 import type { CSSProperties, ReactNode } from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Icon } from "@astryxdesign/core/Icon";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { useConfirm } from "../components/ConfirmDialog";
 import { SwipeableRow } from "../components/SwipeableRow";
 import { RevealItem } from "../components/Reveal";
+import { BathReminder } from "../components/BathReminder";
 import { PageTitle, Eyebrow, Headline, Footnote } from "../components/Typography";
 import { Icons } from "../lib/icons";
+import { useScrollLock } from "../lib/scrollLock";
 import { fmtDate } from "../lib/date";
 import type { Priority, VetNote } from "../types";
 
@@ -49,6 +52,7 @@ export function Vet({ onAdd, onEditReminder }: VetProps): React.ReactElement {
 
   const noteItems = db.vetRecords.noteItems ?? [];
   const [draft, setDraft] = useState("");
+  const [notesOpen, setNotesOpen] = useState(false);
 
   // One-time migration: seed the checklist from any legacy free-text notes.
   useEffect(() => {
@@ -192,81 +196,107 @@ export function Vet({ onAdd, onEditReminder }: VetProps): React.ReactElement {
           )}
         </div>
 
-        <div style={{ padding: "12px 16px 16px", display: "flex", flexDirection: "column", gap: 6 }}>
-          {noteItems.length === 0 && (
-            <Footnote color={DARK} style={{ opacity: 0.55, padding: "4px 8px" }}>
-              Add topics to raise at your next visit, then tick them off as you discuss them.
-            </Footnote>
-          )}
-
-          {noteItems.map((item, index) => (
-            <NoteRow
-              key={index}
-              item={item}
-              onToggle={() => toggleNote(index)}
-              onEdit={(text) => editNote(index, text)}
-              onDelete={() => deleteNote(index)}
-            />
-          ))}
-
-          {/* Add a new topic */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "8px 10px",
-              borderRadius: 16,
-              color: DARK,
-              border: "1.5px dashed rgba(53, 43, 37, 0.35)",
-            }}
-          >
-            <Icon icon={Icons.plusCircle} color="inherit" />
-            <input
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addNote();
-                }
-              }}
-              placeholder="Add a topic…"
+        <div style={{ padding: "12px 16px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+          {noteItems.length === 0 ? (
+            <button
+              type="button"
+              onClick={() => setNotesOpen(true)}
               style={{
-                flex: 1,
-                minWidth: 0,
+                textAlign: "left",
                 border: "none",
-                outline: "none",
                 background: "transparent",
-                fontFamily: "var(--font-ui)",
-                fontSize: 16,
-                color: DARK,
+                cursor: "pointer",
+                padding: "4px 8px",
               }}
-            />
-            {draft.trim() && (
+            >
+              <Footnote color={DARK} style={{ opacity: 0.55 }}>
+                Add topics to raise at your next visit, then tick them off as you discuss them.
+              </Footnote>
+            </button>
+          ) : (
+            <>
+              {/* Latest note preview — full list lives on the detail screen */}
               <button
                 type="button"
-                aria-label="Add topic"
-                onClick={addNote}
+                onClick={() => setNotesOpen(true)}
+                aria-label="Open notes for the vet"
                 style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 10,
+                  padding: "8px 10px",
                   border: "none",
+                  background: "transparent",
                   cursor: "pointer",
-                  background: DARK,
-                  color: HERO,
-                  borderRadius: 100,
-                  padding: "6px 14px",
-                  fontFamily: "var(--font-ui)",
-                  fontWeight: 600,
-                  fontSize: 14,
-                  flexShrink: 0,
+                  textAlign: "left",
+                  width: "100%",
                 }}
               >
-                Add
+                <span style={{ display: "flex", height: 21, flexShrink: 0, color: DARK }}>
+                  {noteItems[noteItems.length - 1].done ? (
+                    <Icon icon={Icons.checkCircle} color="inherit" />
+                  ) : (
+                    <span
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: "50%",
+                        border: `2px solid ${DARK}`,
+                        opacity: 0.5,
+                      }}
+                    />
+                  )}
+                </span>
+                <span
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    fontFamily: "var(--font-ui)",
+                    fontWeight: 500,
+                    fontSize: 16,
+                    lineHeight: "21px",
+                    color: DARK,
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                    textDecoration: noteItems[noteItems.length - 1].done ? "line-through" : "none",
+                    opacity: noteItems[noteItems.length - 1].done ? 0.55 : 1,
+                  }}
+                >
+                  {noteItems[noteItems.length - 1].text}
+                </span>
               </button>
-            )}
-          </div>
+
+              <button
+                type="button"
+                onClick={() => setNotesOpen(true)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  alignSelf: "flex-start",
+                  border: "none",
+                  cursor: "pointer",
+                  background: "transparent",
+                  color: DARK,
+                  opacity: 0.7,
+                  fontFamily: "var(--font-ui)",
+                  fontWeight: 600,
+                  fontSize: 13,
+                  padding: "2px 8px",
+                }}
+              >
+                View all {noteItems.length} note{noteItems.length !== 1 ? "s" : ""}
+                <Icon icon={Icons.caretRight} color="inherit" />
+              </button>
+            </>
+          )}
         </div>
       </div>
+
+      {/* Bath time — soft reminder that learns the bathing rhythm */}
+      <BathReminder />
 
       {/* Reminders */}
       <SectionLabel>Reminders</SectionLabel>
@@ -421,7 +451,209 @@ export function Vet({ onAdd, onEditReminder }: VetProps): React.ReactElement {
           ))
         )}
       </GroupCard>
+
+      <VetNotesScreen
+        open={notesOpen}
+        onClose={() => setNotesOpen(false)}
+        name={name}
+        noteItems={noteItems}
+        draft={draft}
+        setDraft={setDraft}
+        onAdd={addNote}
+        onToggle={toggleNote}
+        onEdit={editNote}
+        onDelete={deleteNote}
+      />
     </div>
+  );
+}
+
+/**
+ * Full-screen "Notes for the vet" detail screen. Reads and manages the whole
+ * checklist — toggle discussed, edit inline, swipe to remove, and add topics —
+ * while the Health-tab card only previews the latest note. Slides up over the
+ * app like a pushed detail screen.
+ */
+function VetNotesScreen({
+  open,
+  onClose,
+  name,
+  noteItems,
+  draft,
+  setDraft,
+  onAdd,
+  onToggle,
+  onEdit,
+  onDelete,
+}: {
+  open: boolean;
+  onClose: () => void;
+  name: string;
+  noteItems: VetNote[];
+  draft: string;
+  setDraft: (v: string) => void;
+  onAdd: () => void;
+  onToggle: (index: number) => void;
+  onEdit: (index: number, text: string) => void;
+  onDelete: (index: number) => void;
+}): React.ReactElement {
+  const reduceMotion = useReducedMotion();
+  useScrollLock(open);
+  const openCount = noteItems.filter((n) => !n.done).length;
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="vet-notes-scrim"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${name}'s notes for the vet`}
+          initial={reduceMotion ? { opacity: 0 } : { y: "100%" }}
+          animate={reduceMotion ? { opacity: 1 } : { y: 0 }}
+          exit={reduceMotion ? { opacity: 0 } : { y: "100%" }}
+          transition={{ type: "spring", damping: 34, stiffness: 320 }}
+        >
+          {/* Header */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "calc(12px + env(safe-area-inset-top, 0px)) 8px 12px",
+            }}
+          >
+            <button
+              type="button"
+              aria-label="Back"
+              onClick={onClose}
+              style={{
+                width: 44,
+                height: 44,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: "none",
+                background: "none",
+                cursor: "pointer",
+                color: HERO,
+                flexShrink: 0,
+              }}
+            >
+              <Icon icon={Icons.caretLeft} color="inherit" />
+            </button>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <span
+                style={{
+                  display: "block",
+                  fontFamily: "var(--font-brand)",
+                  fontWeight: 700,
+                  fontSize: 20,
+                  color: HERO,
+                }}
+              >
+                Notes for the vet
+              </span>
+              {noteItems.length > 0 && (
+                <span
+                  style={{
+                    fontFamily: "var(--font-ui)",
+                    fontWeight: 500,
+                    fontSize: 12,
+                    color: MUTED,
+                  }}
+                >
+                  {openCount} open · {noteItems.length} total
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div
+            style={{
+              padding: "8px 16px calc(32px + env(safe-area-inset-bottom, 20px))",
+              display: "flex",
+              flexDirection: "column",
+              gap: 6,
+            }}
+          >
+            {/* Add a new topic */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "10px 12px",
+                borderRadius: 16,
+                color: HERO,
+                border: "1.5px dashed rgba(233, 228, 196, 0.35)",
+                marginBottom: 6,
+              }}
+            >
+              <Icon icon={Icons.plusCircle} color="inherit" />
+              <input
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    onAdd();
+                  }
+                }}
+                placeholder="Add a topic…"
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  border: "none",
+                  outline: "none",
+                  background: "transparent",
+                  fontFamily: "var(--font-ui)",
+                  fontSize: 16,
+                  color: HERO,
+                }}
+              />
+              {draft.trim() && (
+                <button
+                  type="button"
+                  aria-label="Add topic"
+                  onClick={onAdd}
+                  style={{
+                    border: "none",
+                    cursor: "pointer",
+                    background: HERO,
+                    color: DARK,
+                    borderRadius: 100,
+                    padding: "6px 14px",
+                    fontFamily: "var(--font-ui)",
+                    fontWeight: 600,
+                    fontSize: 14,
+                    flexShrink: 0,
+                  }}
+                >
+                  Add
+                </button>
+              )}
+            </div>
+
+            {noteItems.length === 0 && (
+              <Footnote color={MUTED} style={{ padding: "8px 8px 0" }}>
+                Add topics to raise at your next visit, then tick them off as you discuss them.
+              </Footnote>
+            )}
+
+            {noteItems.map((item, index) => (
+              <NoteRow
+                key={index}
+                item={item}
+                onToggle={() => onToggle(index)}
+                onEdit={(text) => onEdit(index, text)}
+                onDelete={() => onDelete(index)}
+              />
+            ))}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 

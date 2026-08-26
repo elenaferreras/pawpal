@@ -5,7 +5,7 @@ import { TextInput } from "@astryxdesign/core/TextInput";
 import { useDb } from "../../lib/store";
 import { useToast } from "../../lib/toast";
 import { syncFromSupabase } from "../../lib/supabase";
-import { getCurrentUser, signIn, signOut, signUp, type AuthUser } from "../../lib/auth";
+import { getCurrentUser, signIn, signOut, signUp, changePassword, type AuthUser } from "../../lib/auth";
 import { subscribeToPush, unsubscribeFromPush } from "../../lib/push";
 import { SettingsPage, Panel, PanelTitle, PanelText } from "./shared";
 
@@ -31,6 +31,42 @@ export function AccountScreen({ onBack, onSignedOut }: { onBack: () => void; onS
 
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const canSubmit = emailOk && password.length >= 6 && !busy;
+
+  // Change-password sub-form (signed-in view).
+  const [pwOpen, setPwOpen] = useState(false);
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [pwBusy, setPwBusy] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
+
+  const resetPwForm = (): void => {
+    setPwOpen(false);
+    setNewPw("");
+    setConfirmPw("");
+    setPwError(null);
+  };
+
+  const submitPassword = async (): Promise<void> => {
+    if (newPw.length < 6) {
+      setPwError("Password must be at least 6 characters");
+      return;
+    }
+    if (newPw !== confirmPw) {
+      setPwError("Passwords don't match");
+      return;
+    }
+    setPwBusy(true);
+    setPwError(null);
+    try {
+      await changePassword(newPw);
+      toast("Password updated");
+      resetPwForm();
+    } catch (e) {
+      setPwError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setPwBusy(false);
+    }
+  };
 
   const submit = async (): Promise<void> => {
     if (!canSubmit) {
@@ -83,6 +119,52 @@ export function AccountScreen({ onBack, onSignedOut }: { onBack: () => void; onS
               <PanelTitle>Signed in</PanelTitle>
               <PanelText>{user.email}</PanelText>
             </VStack>
+            {pwOpen ? (
+              <VStack gap={2}>
+                <TextInput
+                  label="New password"
+                  type="password"
+                  value={newPw}
+                  placeholder="At least 6 characters"
+                  onChange={(v: string) => {
+                    setNewPw(v);
+                    setPwError(null);
+                  }}
+                />
+                <TextInput
+                  label="Confirm new password"
+                  type="password"
+                  value={confirmPw}
+                  placeholder="Re-enter new password"
+                  onChange={(v: string) => {
+                    setConfirmPw(v);
+                    setPwError(null);
+                  }}
+                  status={pwError ? { type: "error", message: pwError } : undefined}
+                />
+                <Button
+                  label={pwBusy ? "Please wait…" : "Update password"}
+                  variant="primary"
+                  onClick={() => void submitPassword()}
+                  isDisabled={pwBusy}
+                  style={{ width: "100%" }}
+                />
+                <Button
+                  label="Cancel"
+                  variant="ghost"
+                  onClick={resetPwForm}
+                  isDisabled={pwBusy}
+                  style={{ width: "100%" }}
+                />
+              </VStack>
+            ) : (
+              <Button
+                label="Change password"
+                variant="secondary"
+                onClick={() => setPwOpen(true)}
+                style={{ width: "100%" }}
+              />
+            )}
             <Button
               label="Sign out"
               variant="secondary"

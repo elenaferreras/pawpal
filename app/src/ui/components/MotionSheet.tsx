@@ -1,4 +1,5 @@
 import { AnimatePresence, motion, useDragControls, useReducedMotion } from "motion/react";
+import { createPortal } from "react-dom";
 import { useScrollLock } from "../lib/scrollLock";
 
 interface MotionSheetProps {
@@ -55,7 +56,7 @@ export function MotionSheet({
   const draggable = !reduceMotion;
   useScrollLock(open);
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
@@ -111,6 +112,7 @@ export function MotionSheet({
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

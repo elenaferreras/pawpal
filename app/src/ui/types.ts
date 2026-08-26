@@ -77,6 +77,15 @@ export interface Meal {
   by?: "sitter";
 }
 
+/** A grooming bath (washing the dog) — distinct from the pipi/popo `bathroom` log. */
+export interface BathLog {
+  /** Day the bath happened (YYYY-MM-DD). */
+  date: string;
+  /** Optional free-text note (e.g. shampoo used, groomer). */
+  notes?: string;
+  created: string;
+}
+
 export type BathroomType = "pipi" | "popo" | "both";
 
 export interface BathroomLog {
@@ -158,6 +167,8 @@ export interface Database {
   walks: Walk[];
   meals: Meal[];
   bathroom: BathroomLog[];
+  /** Grooming baths — powers the soft "due for a bath" reminder. */
+  baths: BathLog[];
   vetRecords: VetRecords;
 }
 

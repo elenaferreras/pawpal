@@ -225,6 +225,25 @@ export async function requestPasswordReset(email: string): Promise<void> {
   if (!res.ok) throw new Error(await readError(res));
 }
 
+// Change the signed-in user's password via GoTrue's user-update endpoint. Uses
+// a fresh access token so the request survives a near-expiry session, and
+// stores the rotated session GoTrue returns so the user stays signed in.
+export async function changePassword(password: string): Promise<void> {
+  const token = await getValidAccessToken();
+  if (!token) throw new Error("You need to be signed in to change your password");
+  const { url, key } = getSBConfig();
+  const res = await fetch(`${url}/auth/v1/user`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: key,
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ password }),
+  });
+  if (!res.ok) throw new Error(await readError(res));
+}
+
 export async function signOut(): Promise<void> {
   const session = readSession();
   const { url, key } = getSBConfig();

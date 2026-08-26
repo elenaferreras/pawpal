@@ -19,6 +19,7 @@ export function defaultDatabase(): Database {
     walks: [],
     meals: [],
     bathroom: [],
+    baths: [],
     vetRecords: { checkups: [], vaccines: [], reminders: [], medications: [], notes: "" },
   };
 }

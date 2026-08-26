@@ -786,6 +786,44 @@ body.modal-open {
   border-radius: 40px 40px 0 0;
   overflow: hidden;
 }
+/* Bath-time timeline strip (Health tab) — hide the horizontal scrollbar. */
+.bath-strip::-webkit-scrollbar {
+  display: none;
+}
+
+/* Full-screen bath-history detail screen (slides up over the app). */
+.bath-history-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--color-pawpal-page);
+}
+
+/* Full-screen "Notes for the vet" detail screen (slides up over the app). */
+.vet-notes-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--color-pawpal-page);
+}
+
+/* "Add a bath" bottom sheet — teal water surface (--color-bath). */
+.bath-sheet {
+  position: relative;
+  width: min(560px, 100%);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  --sheet-surface: var(--color-bath);
+  background: var(--sheet-surface);
+  border-radius: 40px 40px 0 0;
+  overflow: hidden;
+}
+
 /* "Bathroom log" bottom sheet — green surface (#A9E7A7). */
 .bathroom-sheet {
   position: relative;

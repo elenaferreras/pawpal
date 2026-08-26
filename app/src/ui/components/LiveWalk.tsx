@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { haversine } from "../lib/geo";
 import { Icon } from "@astryxdesign/core/Icon";
 import { useDb } from "../lib/store";
@@ -74,6 +75,9 @@ const WEATHERS: { value: string; icon: AppIconName; label: string }[] = [
 const LW_KEY = "pawpal-live-walk";
 // Ignore a persisted walk older than this (stale/forgotten session).
 const LW_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+// Average adult walking stride in metres. Steps are estimated from GPS distance
+// (distance / stride) because a PWA can't read the accelerometer while locked.
+const STRIDE_M = 0.75;
 
 interface PersistedWalk {
   startTime: number;
@@ -120,6 +124,7 @@ function clearPersistedWalk(): void {
 export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNode {
   const { db, update } = useDb();
   const toast = useToast();
+  const reduceMotion = useReducedMotion();
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [open, setOpen] = useState(false);
@@ -153,10 +158,6 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
   const startTime = useRef(0);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const watchId = useRef<number | null>(null);
-  const motionHandler = useRef<((e: DeviceMotionEvent) => void) | null>(null);
-  const lastAccel = useRef<number | null>(null);
-  const lastStep = useRef(0);
-  const stepArmed = useRef(true);
   const coordsRef = useRef<GpsCoord[]>([]);
   const stepsRef = useRef(0);
   const distRef = useRef(0);
@@ -166,12 +167,8 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
     if (watchId.current !== null && navigator.geolocation) {
       navigator.geolocation.clearWatch(watchId.current);
     }
-    if (motionHandler.current) {
-      window.removeEventListener("devicemotion", motionHandler.current);
-    }
     timer.current = null;
     watchId.current = null;
-    motionHandler.current = null;
   }, []);
 
   useEffect(() => stopSensors, [stopSensors]);
@@ -184,9 +181,15 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
     return () => document.body.classList.remove("has-live-bar");
   }, [phase, open]);
 
-  // Attach the elapsed-timer, GPS watch and step counter. Shared by a fresh
-  // `start()` and by resuming a persisted walk, so it never resets progress —
-  // it appends onto whatever is already in the *Ref accumulators.
+  // Attach the elapsed-timer and GPS watch. Shared by a fresh `start()` and by
+  // resuming a persisted walk, so it never resets progress — it appends onto
+  // whatever is already in the *Ref accumulators.
+  //
+  // Steps are DERIVED from GPS distance (≈ distance / average stride), not read
+  // from the accelerometer. A PWA can't receive `devicemotion` events while the
+  // phone is locked or the app is backgrounded — the OS suspends the page — so
+  // an accelerometer pedometer only ran while the screen was on. Deriving from
+  // distance gives a believable count that survives the screen turning off.
   const startSensors = useCallback(() => {
     timer.current = setInterval(() => {
       setElapsed(Math.floor((Date.now() - startTime.current) / 1000));
@@ -206,6 +209,10 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
             if (prev) {
               distRef.current += haversine(prev.lat, prev.lng, coord.lat, coord.lng);
               setDistanceKm(distRef.current);
+              // Estimate steps from distance walked. STRIDE_M is an average adult
+              // walking stride; ≈ 1 step every 0.75 m (~1333 steps/km).
+              stepsRef.current = Math.round((distRef.current * 1000) / STRIDE_M);
+              setSteps(stepsRef.current);
             }
             coordsRef.current = [...coordsRef.current, coord];
             setCoords(coordsRef.current);
@@ -221,53 +228,6 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
     } else {
       setGpsStatus("GPS not supported on this device");
     }
-
-    const handleMotion = (e: DeviceMotionEvent): void => {
-      const a = e.accelerationIncludingGravity;
-      if (!a || a.x === null || a.y === null || a.z === null) return;
-      const mag = Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
-      const now = Date.now();
-      // Low-pass filter tracks the slow-moving baseline (gravity + posture).
-      // Subtracting it leaves the walking bounce oscillating around zero, so a
-      // fixed threshold works regardless of how the phone is held.
-      if (lastAccel.current === null) lastAccel.current = mag;
-      lastAccel.current = lastAccel.current * 0.8 + mag * 0.2;
-      const dynamic = mag - lastAccel.current;
-      // Count one step per upward peak, then wait for the signal to dip back
-      // below the baseline (hysteresis) before arming the next one. The 250ms
-      // refractory guard caps cadence at ~4 steps/s and rejects double counts.
-      if (stepArmed.current && dynamic > 1.2 && now - lastStep.current > 250) {
-        stepsRef.current += 1;
-        lastStep.current = now;
-        setSteps(stepsRef.current);
-        stepArmed.current = false;
-      } else if (dynamic < 0) {
-        stepArmed.current = true;
-      }
-    };
-    motionHandler.current = handleMotion;
-
-    // iOS 13+ requires an explicit, user-gesture-triggered permission grant
-    // before `devicemotion` events fire. Without it the listener attaches but
-    // never receives a single event, so the step count stays stuck at 0 while
-    // GPS (a separate permission) keeps working. `requestPermission` only
-    // exists on iOS Safari; elsewhere we attach the listener directly.
-    const DME = window.DeviceMotionEvent as unknown as {
-      requestPermission?: () => Promise<"granted" | "denied">;
-    };
-    if (typeof DME?.requestPermission === "function") {
-      DME.requestPermission()
-        .then((state) => {
-          if (state === "granted") {
-            window.addEventListener("devicemotion", handleMotion);
-          }
-        })
-        .catch(() => {
-          /* permission dialog dismissed — steps just won't be tracked */
-        });
-    } else {
-      window.addEventListener("devicemotion", handleMotion);
-    }
   }, []);
 
   const start = useCallback(() => {
@@ -275,9 +235,6 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
     coordsRef.current = [];
     stepsRef.current = 0;
     distRef.current = 0;
-    lastAccel.current = null;
-    lastStep.current = 0;
-    stepArmed.current = true;
     setPhase("active");
     setOpen(true);
     setElapsed(0);
@@ -425,17 +382,31 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
     <LiveWalkContext.Provider value={{ active: phase !== "idle", start, openSheet: () => setOpen(true), coords, elapsed, markerHtml, accuracy, registerExternalSave }}>
       {children}
 
-      {phase !== "idle" && !open && (
-        <div className="live-walk-bar" onClick={() => setOpen(true)}>
-          <span className="lw-label">
-            <span className="live-dot" />
-            <span className="lw-bar-title">On a walk</span>
-            <span className="lw-bar-time">{mm}:{ss}</span>
-            {distanceKm > 0 && <span className="lw-bar-dist">{distanceKm.toFixed(2)} km</span>}
-          </span>
-          <span className="lw-bar-open">Tap to open</span>
-        </div>
-      )}
+      <AnimatePresence>
+        {phase !== "idle" && !open && (
+          <motion.div
+            key="live-walk-bar"
+            className="live-walk-bar"
+            onClick={() => setOpen(true)}
+            initial={reduceMotion ? { opacity: 0, x: "-50%" } : { x: "-50%", y: "-100%", opacity: 0 }}
+            animate={reduceMotion ? { opacity: 1, x: "-50%" } : { x: "-50%", y: 0, opacity: 1 }}
+            exit={reduceMotion ? { opacity: 0, x: "-50%" } : { x: "-50%", y: "-100%", opacity: 0 }}
+            transition={
+              reduceMotion
+                ? { duration: 0.15 }
+                : { type: "spring", stiffness: 520, damping: 34, mass: 0.9 }
+            }
+          >
+            <span className="lw-label">
+              <span className="live-dot" />
+              <span className="lw-bar-title">On a walk</span>
+              <span className="lw-bar-time">{mm}:{ss}</span>
+              {distanceKm > 0 && <span className="lw-bar-dist">{distanceKm.toFixed(2)} km</span>}
+            </span>
+            <span className="lw-bar-open">Tap to open</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <MotionSheet
         open={open && phase === "active"}

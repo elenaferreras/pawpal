@@ -37,6 +37,7 @@ const pawpalTokens: Record<string, [light: string, dark: string]> = {
   "--color-track-vet": ["#8592E0", "#8592E0"], // blue
   "--color-track-meds": ["#9DBA9C", "#9DBA9C"], // green (vet medications card)
   "--color-track-notes": ["#C4DFFE", "#C4DFFE"], // light blue (vet "Notes" card)
+  "--color-bath": ["#79C7D4", "#79C7D4"], // teal — grooming-bath reminder accent (water)
 
   // Meals widget (Figma node 12:659). Pacman reuses --color-pawpal-fab.
   "--color-meal-widget-bg": ["#1E1C1E", "#1E1C1E"], // dark pill

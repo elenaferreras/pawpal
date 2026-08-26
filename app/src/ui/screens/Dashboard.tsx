@@ -500,52 +500,65 @@ export function Dashboard({
                 Tap to add notes for your next vet visit.
               </Callout>
             ) : (
-              vetNoteList.map((item, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: 10,
-                    padding: "8px 10px",
-                  }}
-                >
-                  <span
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: DARK,
-                      height: 21,
-                      flexShrink: 0,
-                    }}
-                  >
-                    {item.done ? (
-                      <Icon icon={Icons.checkCircle} color="inherit" />
-                    ) : (
+              (() => {
+                const latest = vetNoteList[vetNoteList.length - 1];
+                const extra = vetNoteList.length - 1;
+                return (
+                  <>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 10,
+                        padding: "8px 10px",
+                      }}
+                    >
                       <span
                         style={{
-                          width: 22,
-                          height: 22,
-                          borderRadius: "50%",
-                          border: `2px solid ${DARK}`,
-                          opacity: 0.5,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: DARK,
+                          height: 21,
+                          flexShrink: 0,
                         }}
-                      />
+                      >
+                        {latest.done ? (
+                          <Icon icon={Icons.checkCircle} color="inherit" />
+                        ) : (
+                          <span
+                            style={{
+                              width: 22,
+                              height: 22,
+                              borderRadius: "50%",
+                              border: `2px solid ${DARK}`,
+                              opacity: 0.5,
+                            }}
+                          />
+                        )}
+                      </span>
+                      <Callout
+                        color={DARK}
+                        style={{
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden",
+                          textDecoration: latest.done ? "line-through" : "none",
+                          opacity: latest.done ? 0.5 : 1,
+                        }}
+                      >
+                        {latest.text}
+                      </Callout>
+                    </div>
+                    {extra > 0 && (
+                      <Callout color={DARK} style={{ opacity: 0.55, padding: "0 10px 0 42px" }}>
+                        +{extra} more note{extra !== 1 ? "s" : ""}
+                      </Callout>
                     )}
-                  </span>
-                  <Callout
-                    color={DARK}
-                    style={{
-                      whiteSpace: "pre-wrap",
-                      textDecoration: item.done ? "line-through" : "none",
-                      opacity: item.done ? 0.5 : 1,
-                    }}
-                  >
-                    {item.text}
-                  </Callout>
-                </div>
-              ))
+                  </>
+                );
+              })()
             )}
           </div>
         </button>
