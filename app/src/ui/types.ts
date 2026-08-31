@@ -35,6 +35,8 @@ export interface Profile {
   emoji: string;
   avatar?: Avatar;
   onboarded?: boolean;
+  /** Pet's microchip / transponder number, shown on the Health identity card. */
+  microchip?: string;
 }
 
 export interface GpsCoord {
@@ -53,6 +55,7 @@ export interface Walk {
   popo: boolean;
   friends: boolean;
   weather: string;
+  terrain?: string;
   notes: string;
   assignee?: string;
   gpsRoute?: GpsCoord[];
@@ -82,6 +85,17 @@ export interface BathLog {
   /** Day the bath happened (YYYY-MM-DD). */
   date: string;
   /** Optional free-text note (e.g. shampoo used, groomer). */
+  notes?: string;
+  created: string;
+}
+
+export type GroomingType = "haircut" | "nails";
+
+/** A dated grooming event (haircut or nail trim). */
+export interface GroomingLog {
+  type: GroomingType;
+  /** Day it happened (YYYY-MM-DD). */
+  date: string;
   notes?: string;
   created: string;
 }
@@ -116,8 +130,44 @@ export interface Checkup {
 
 export interface Vaccine {
   name: string;
+  /** Manufacturer / brand of the vaccine. */
+  manufacturer?: string;
+  /** Date the vaccine was administered. */
   date: string;
-  nextDue: string;
+  /** Date the protection starts (from the pet passport). */
+  validFrom?: string;
+  /** Date the protection expires — drives the auto booster reminder. */
+  validUntil?: string;
+  /** Vet or clinic that administered it. */
+  clinic?: string;
+  notes?: string;
+  /** Legacy expiry field; migrated to validUntil. */
+  nextDue?: string;
+  created: string;
+}
+
+export interface WeightEntry {
+  /** Day the weight was recorded (YYYY-MM-DD). */
+  date: string;
+  /** Weight in kilograms. */
+  kg: number;
+  note?: string;
+  created: string;
+}
+
+export interface HealthDocument {
+  /** Display name (e.g. "Pet insurance"). */
+  name: string;
+  /** Grouping used to surface insurance on the identity card. */
+  kind: "insurance" | "other";
+  /** MIME type of the stored file. */
+  mime: string;
+  fileName: string;
+  /** Base64 data URL of the file (kept small — see the ~2MB cap on upload). */
+  data: string;
+  /** File size in bytes. */
+  size: number;
+  notes?: string;
   created: string;
 }
 
@@ -160,6 +210,8 @@ export interface VetRecords {
   notes?: string;
   /** Checklist of topics to discuss with the vet. */
   noteItems?: VetNote[];
+  /** Uploaded documents (insurance PDF, etc.), stored inline as base64. */
+  documents?: HealthDocument[];
 }
 
 export interface Database {
@@ -170,6 +222,10 @@ export interface Database {
   /** Grooming baths — powers the soft "due for a bath" reminder. */
   baths: BathLog[];
   vetRecords: VetRecords;
+  /** Dated weight measurements powering the weight-evolution graph. */
+  weightLog?: WeightEntry[];
+  /** Haircut & nail-trim grooming events. */
+  grooming?: GroomingLog[];
 }
 
 export type ScreenId =

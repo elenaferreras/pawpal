@@ -10,7 +10,7 @@ import type { Checkup, Medication, Priority, Reminder, Vaccine } from "../types"
 type RecordType = "checkup" | "vaccine" | "reminder" | "medication";
 
 const DARK = "var(--color-pawpal-page)"; // #352B25
-const VET = "#8592E0"; // blue health accent (matches the sheet surface)
+const VET = "var(--color-dash-walk)"; // blue sheet surface — used for button copy & selected chips
 
 const RECORD_TYPES: { value: RecordType; label: string }[] = [
   { value: "checkup", label: "Checkup" },
@@ -50,6 +50,8 @@ interface VetAddModalProps {
   onClose: () => void;
   /** When set, the sheet edits this existing reminder instead of adding a new record. */
   editReminderIndex?: number | null;
+  /** When set, the sheet edits this existing vaccine instead of adding a new record. */
+  editVaccineIndex?: number | null;
 }
 
 /**
@@ -60,7 +62,12 @@ interface VetAddModalProps {
  * that invert to a dark fill when selected, and a pinned dark save action.
  */
 
-export function VetAddModal({ open, onClose, editReminderIndex }: VetAddModalProps): React.ReactElement {
+export function VetAddModal({
+  open,
+  onClose,
+  editReminderIndex,
+  editVaccineIndex,
+}: VetAddModalProps): React.ReactElement {
   const { db, update } = useDb();
   const toast = useToast();
   const [type, setType] = useState<RecordType>("checkup");
@@ -72,6 +79,16 @@ export function VetAddModal({ open, onClose, editReminderIndex }: VetAddModalPro
       ? db.vetRecords.reminders[editReminderIndex]
       : null;
 
+  const editVaccine =
+    editVaccineIndex != null &&
+    editVaccineIndex >= 0 &&
+    editVaccineIndex < db.vetRecords.vaccines.length
+      ? db.vetRecords.vaccines[editVaccineIndex]
+      : null;
+
+  const isEdit = Boolean(editReminder || editVaccine);
+  const sheetLabel = editReminder ? "Edit reminder" : editVaccine ? "Edit vaccine" : "Add health record";
+
   // Checkup
   const [reason, setReason] = useState("");
   const [cDate, setCDate] = useState("");
@@ -81,8 +98,11 @@ export function VetAddModal({ open, onClose, editReminderIndex }: VetAddModalPro
 
   // Vaccine
   const [vName, setVName] = useState("");
+  const [vManufacturer, setVManufacturer] = useState("");
   const [vDate, setVDate] = useState("");
-  const [vNext, setVNext] = useState("");
+  const [vValidFrom, setVValidFrom] = useState("");
+  const [vValidUntil, setVValidUntil] = useState("");
+  const [vClinic, setVClinic] = useState("");
 
   // Reminder
   const [rTitle, setRTitle] = useState("");
@@ -107,8 +127,11 @@ export function VetAddModal({ open, onClose, editReminderIndex }: VetAddModalPro
     setCNotes("");
     setFileName("");
     setVName("");
+    setVManufacturer("");
     setVDate(today);
-    setVNext("");
+    setVValidFrom("");
+    setVValidUntil("");
+    setVClinic("");
     setRTitle("");
     setRDate(today);
     setRPriority("Medium");
@@ -125,8 +148,18 @@ export function VetAddModal({ open, onClose, editReminderIndex }: VetAddModalPro
       setRDate(editReminder.date || today);
       setRPriority(editReminder.priority);
     }
+    // Editing an existing vaccine: lock the sheet to the vaccine form and prefill.
+    if (editVaccine) {
+      setType("vaccine");
+      setVName(editVaccine.name);
+      setVManufacturer(editVaccine.manufacturer ?? "");
+      setVDate(editVaccine.date || today);
+      setVValidFrom(editVaccine.validFrom ?? "");
+      setVValidUntil(editVaccine.validUntil ?? editVaccine.nextDue ?? "");
+      setVClinic(editVaccine.clinic ?? "");
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, editReminderIndex]);
+  }, [open, editReminderIndex, editVaccineIndex]);
 
   const medEnd = useMemo<string | null>(() => {
     if (mDays === 0 || !mStart) return null;
@@ -159,13 +192,56 @@ export function VetAddModal({ open, onClose, editReminderIndex }: VetAddModalPro
         toast("Enter a vaccine name");
         return;
       }
-      const rec: Vaccine = { name: vName, date: vDate, nextDue: vNext, created: new Date().toISOString() };
+      if (editVaccine && editVaccineIndex != null) {
+        const oldBoosterTitle = editVaccine.name + " booster due";
+        update((d) => {
+          const existing = d.vetRecords.vaccines[editVaccineIndex];
+          if (existing) {
+            existing.name = vName;
+            existing.manufacturer = vManufacturer || undefined;
+            existing.date = vDate;
+            existing.validFrom = vValidFrom || undefined;
+            existing.validUntil = vValidUntil || undefined;
+            existing.clinic = vClinic || undefined;
+          }
+          // Keep the auto booster reminder in sync with the new expiry date.
+          const newBoosterTitle = vName + " booster due";
+          const idx = d.vetRecords.reminders.findIndex((r) => r.title === oldBoosterTitle);
+          if (vValidUntil) {
+            if (idx >= 0) {
+              d.vetRecords.reminders[idx].title = newBoosterTitle;
+              d.vetRecords.reminders[idx].date = vValidUntil;
+            } else {
+              d.vetRecords.reminders.push({
+                title: newBoosterTitle,
+                date: vValidUntil,
+                priority: "High",
+                created: new Date().toISOString(),
+              });
+            }
+          } else if (idx >= 0) {
+            d.vetRecords.reminders.splice(idx, 1);
+          }
+        });
+        toast("Vaccine updated");
+        onClose();
+        return;
+      }
+      const rec: Vaccine = {
+        name: vName,
+        manufacturer: vManufacturer || undefined,
+        date: vDate,
+        validFrom: vValidFrom || undefined,
+        validUntil: vValidUntil || undefined,
+        clinic: vClinic || undefined,
+        created: new Date().toISOString(),
+      };
       update((d) => {
         d.vetRecords.vaccines.push(rec);
-        if (vNext) {
+        if (vValidUntil) {
           d.vetRecords.reminders.push({
             title: vName + " booster due",
-            date: vNext,
+            date: vValidUntil,
             priority: "High",
             created: new Date().toISOString(),
           });
@@ -229,13 +305,13 @@ export function VetAddModal({ open, onClose, editReminderIndex }: VetAddModalPro
     <MotionSheet
       open={open}
       onClose={onClose}
-      ariaLabel={editReminder ? "Edit reminder" : "Add health record"}
+      ariaLabel={sheetLabel}
       scrimClassName="walk-sheet-scrim"
       sheetClassName="walk-sheet"
-      title={editReminder ? "Edit reminder" : "Add health record"}
+      title={sheetLabel}
       body={
         <>
-        {!editReminder && (
+        {!isEdit && (
           <Field label="Record type">
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {RECORD_TYPES.map((t) => (
@@ -275,11 +351,20 @@ export function VetAddModal({ open, onClose, editReminderIndex }: VetAddModalPro
             <Field label="Vaccine name">
               <SheetInput value={vName} onChange={setVName} placeholder="Rabies" />
             </Field>
-            <Field label="Given">
+            <Field label="Manufacturer">
+              <SheetInput value={vManufacturer} onChange={setVManufacturer} placeholder="e.g. Nobivac" />
+            </Field>
+            <Field label="Vaccination date">
               <SheetInput value={vDate} onChange={setVDate} type="date" />
             </Field>
-            <Field label="Next due">
-              <SheetInput value={vNext} onChange={setVNext} type="date" />
+            <Field label="Valid from">
+              <SheetInput value={vValidFrom} onChange={setVValidFrom} type="date" />
+            </Field>
+            <Field label="Valid until">
+              <SheetInput value={vValidUntil} onChange={setVValidUntil} type="date" />
+            </Field>
+            <Field label="Vet / clinic">
+              <SheetInput value={vClinic} onChange={setVClinic} placeholder="Clinic name" />
             </Field>
           </>
         )}
@@ -407,7 +492,7 @@ export function VetAddModal({ open, onClose, editReminderIndex }: VetAddModalPro
             fontSize: 16,
           }}
         >
-          {editReminder ? "Save changes" : "Save record"}
+          {isEdit ? "Save changes" : "Save record"}
         </button>
       }
     />

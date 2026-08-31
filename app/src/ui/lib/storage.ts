@@ -20,7 +20,9 @@ export function defaultDatabase(): Database {
     meals: [],
     bathroom: [],
     baths: [],
-    vetRecords: { checkups: [], vaccines: [], reminders: [], medications: [], notes: "" },
+    vetRecords: { checkups: [], vaccines: [], reminders: [], medications: [], notes: "", documents: [] },
+    weightLog: [],
+    grooming: [],
   };
 }
 

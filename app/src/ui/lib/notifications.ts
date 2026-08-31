@@ -166,14 +166,16 @@ function checkReminders(db: Database): void {
     const key = "vacc_" + todayStr;
     if (!fired[key]) {
       const dueSoon = db.vetRecords.vaccines.filter((v) => {
-        if (!v.nextDue) return false;
-        const diff = (new Date(v.nextDue).getTime() - now.getTime()) / 86400000;
+        const due = v.validUntil ?? v.nextDue;
+        if (!due) return false;
+        const diff = (new Date(due).getTime() - now.getTime()) / 86400000;
         return diff >= 0 && diff <= 1;
       });
       dueSoon.forEach((v) => {
+        const due = v.validUntil ?? v.nextDue;
         sendNotification(
           "Vaccination due",
-          v.name + (v.nextDue ? " — due " + v.nextDue : ""),
+          v.name + (due ? " — due " + due : ""),
           "vacc-" + v.name,
         );
       });

@@ -56,6 +56,14 @@ import {
   ShieldCheck,
   IdCard,
   Paperclip,
+  Scissors,
+  StickyNote,
+  Building2,
+  Trees,
+  TreePine,
+  Mountain,
+  Waves,
+  Footprints,
 } from "lucide-react";
 
 export const Icons = {
@@ -113,6 +121,14 @@ export const Icons = {
   shieldCheck: ShieldCheck,
   idCard: IdCard,
   paperclip: Paperclip,
+  scissors: Scissors,
+  note: StickyNote,
+  building: Building2,
+  trees: Trees,
+  treePine: TreePine,
+  mountain: Mountain,
+  waves: Waves,
+  footprints: Footprints,
 } as const;
 
 export type AppIconName = keyof typeof Icons;
