@@ -36,6 +36,58 @@ export function setDataOwner(key: string): void {
   }
 }
 
+// ── Co-owner shared row ──────────────────────────────────────────────────────
+// A co-owner is a second account with a membership row granting full access to
+// the PRIMARY owner's pawpal_data row. When set, the co-owner's whole sync is
+// repointed at that shared row instead of their own `user_<uid>` row. The
+// mapping is stamped with the member's uid so a stale value never leaks to a
+// different account signed in on the same device (it only applies to its owner).
+const SHARED_ROW_KEY = "pawpal_shared_row";
+
+interface SharedRow {
+  /** The uid of the co-owner this mapping belongs to. */
+  memberUid: string;
+  /** The shared pawpal_data row id, e.g. `user_<primaryOwnerUid>`. */
+  rowKey: string;
+}
+
+function readSharedRow(): SharedRow | null {
+  try {
+    const raw = localStorage.getItem(SHARED_ROW_KEY);
+    return raw ? (JSON.parse(raw) as SharedRow) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The shared row id for the signed-in co-owner, or null when not a co-owner. */
+export function getSharedRowKey(): string | null {
+  const shared = readSharedRow();
+  if (!shared) return null;
+  // Only honour the mapping for the account it was recorded for.
+  return shared.memberUid === getCurrentUserId() ? shared.rowKey : null;
+}
+
+/** Record that the signed-in account co-owns `rowKey` (the primary's row). */
+export function setSharedRow(rowKey: string): void {
+  const memberUid = getCurrentUserId();
+  if (!memberUid) return;
+  try {
+    localStorage.setItem(SHARED_ROW_KEY, JSON.stringify({ memberUid, rowKey }));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Forget any co-owner mapping (e.g. access revoked, or sign-out). */
+export function clearSharedRow(): void {
+  try {
+    localStorage.removeItem(SHARED_ROW_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 export interface SBConfig {
   url: string;
   key: string;
@@ -56,9 +108,11 @@ export function getDeviceId(): string {
 
 // The row key scopes cloud data: to the signed-in account when logged in, and
 // to the anonymous device otherwise. Optional accounts, one row per identity.
+// A co-owner is repointed at the primary owner's shared row instead.
 export function getRowKey(): string {
   const uid = getCurrentUserId();
-  return uid ? `user_${uid}` : getDeviceId();
+  if (!uid) return getDeviceId();
+  return getSharedRowKey() ?? `user_${uid}`;
 }
 
 // Authenticated requests carry the user's access token so row-level security
@@ -90,7 +144,13 @@ export function autoSyncToSupabase(db: Database): void {
         // reconciled yet), don't push it into this identity's cloud row.
         const owner = getDataOwner();
         if (owner !== null && owner !== rowKey) return;
-        const userId = getCurrentUserId();
+        // A shared (co-owned) row keeps the PRIMARY owner's user_id — the RLS
+        // trigger forbids a co-owner from rewriting it. Derive it from the row
+        // key (`user_<ownerUid>`); anonymous device rows carry a null user_id.
+        const shared = getSharedRowKey();
+        const userId = shared
+          ? shared.replace(/^user_/, "")
+          : getCurrentUserId();
         const payload = JSON.parse(JSON.stringify(db)) as Database;
         // Strip photos to avoid hitting row-size limits.
         payload.bathroom = payload.bathroom.map((b) => ({ ...b, photos: [] }));

@@ -311,6 +311,25 @@ button {
 .pills::-webkit-scrollbar {
   display: none;
 }
+
+/* Dashboard hero weekly-steps carousel — snaps one Mon→Sun week per panel. */
+.week-scroller {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+.week-scroller::-webkit-scrollbar {
+  display: none;
+}
+.week-panel {
+  flex: 0 0 100%;
+  min-width: 100%;
+  scroll-snap-align: start;
+}
+
 .pill {
   flex-shrink: 0;
   padding: 7px 16px;
@@ -802,7 +821,8 @@ body.modal-open {
 }
 
 /* Full-screen "Notes for the vet" detail screen (slides up over the app). */
-.vet-notes-scrim {
+.vet-notes-scrim,
+.health-detail-scrim {
   position: fixed;
   inset: 0;
   z-index: 1200;
@@ -3294,6 +3314,140 @@ input.wts-field[type="time"] {
   text-align: center;
   font-size: 14px;
   color: #ffb4a1;
+}
+
+.sitclaim-info {
+  margin: 0;
+  text-align: center;
+  font-size: 14px;
+  color: var(--color-pawpal-hero);
+  opacity: 0.85;
+}
+
+/* ── Co-owner join (invite accept — visual hero + minimal actions) ───────── */
+.cojoin-close {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 14px);
+  right: 14px;
+  z-index: 2;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--color-pawpal-hero);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.cojoin-close:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.cojoin-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.cojoin-pair {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.cojoin-avatar {
+  width: 104px;
+  height: 104px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  box-shadow: 0 0 0 4px var(--color-pawpal-page), 0 0 0 6px
+    color-mix(in srgb, var(--color-data-yellow-3) 55%, transparent);
+}
+.cojoin-avatar--dog {
+  background: radial-gradient(
+    circle at 50% 40%,
+    color-mix(in srgb, var(--color-data-yellow-3) 34%, transparent),
+    rgba(255, 255, 255, 0.05)
+  );
+}
+.cojoin-avatar--you {
+  background: rgba(255, 255, 255, 0.06);
+  color: color-mix(in srgb, var(--color-pawpal-hero) 70%, transparent);
+}
+.cojoin-avatar--you svg {
+  width: 44px;
+  height: 44px;
+}
+.cojoin-dogimg {
+  width: 116%;
+  height: 116%;
+  object-fit: contain;
+  transform: translateY(4px);
+}
+.cojoin-dogface {
+  width: 104px;
+  height: 104px;
+  display: block;
+}
+/* Paw badge bridging the two avatars, echoing the Flighty "shared" motif. */
+.cojoin-link {
+  position: relative;
+  z-index: 1;
+  margin: 0 -10px;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--color-data-yellow-3);
+  color: #352b25;
+  box-shadow: 0 0 0 5px var(--color-pawpal-page);
+}
+.cojoin-link svg {
+  width: 22px;
+  height: 22px;
+}
+.cojoin-labels {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 240px;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--color-pawpal-hero) 80%, transparent);
+}
+.cojoin-labels span {
+  width: 104px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Text-link toggle (replaces the extra full-width buttons). */
+.cojoin-alt {
+  margin: 2px auto 0;
+  padding: 6px 8px;
+  border: none;
+  background: none;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-data-yellow-3);
+  cursor: pointer;
+}
+/* Field-level validation message, aligned under its input. */
+.cojoin-field-error {
+  margin: -8px 0 0;
+  padding: 0 4px;
+  text-align: left;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  color: #ff9d84;
 }
 
 /* ── Sitter mode (ephemeral guest experience) ───────────────────────────── */

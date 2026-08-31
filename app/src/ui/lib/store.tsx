@@ -10,6 +10,7 @@ import {
 } from "react";
 import type { Database } from "../types";
 import { defaultDatabase, loadDatabase, persistDatabase } from "./storage";
+import { resolveMembership } from "./coowner";
 import {
   getDataOwner,
   getRowKey,
@@ -62,6 +63,10 @@ export function DbProvider({ children }: { children: ReactNode }): ReactNode {
     if (getDataOwner() === null) setDataOwner(getRowKey());
 
     const reconcile = async (): Promise<void> => {
+      // Resolve co-owner membership first so getRowKey() points at the shared
+      // row before we compare identities (a co-owner adopts the primary's row).
+      await resolveMembership();
+
       const newKey = getRowKey();
       const prevOwner = getDataOwner();
       if (prevOwner === newKey) return; // same identity — nothing to do
@@ -98,6 +103,9 @@ export function DbProvider({ children }: { children: ReactNode }): ReactNode {
 
     const onAuth = (): void => void reconcile();
     window.addEventListener("pawpal:auth", onAuth);
+    // Also resolve on mount: an already-signed-in co-owner on a fresh device
+    // gets no auth event, but still needs to adopt the shared row.
+    void reconcile();
     return () => window.removeEventListener("pawpal:auth", onAuth);
   }, [replace]);
 

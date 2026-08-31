@@ -178,6 +178,13 @@ export function Settings({ onNavigate, onBack }: SettingsProps): React.ReactElem
             onClick={() => onNavigate("settings-sitting")}
           />
           <SettingsRow
+            icon={Icons.users}
+            iconBg="var(--color-dash-walk)"
+            label="Co-owners"
+            subtitle="Share full access with another owner"
+            onClick={() => onNavigate("settings-coowners")}
+          />
+          <SettingsRow
             icon={Icons.refresh}
             iconBg="var(--color-track-notes)"
             label="Cloud sync"

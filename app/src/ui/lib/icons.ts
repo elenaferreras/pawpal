@@ -51,6 +51,11 @@ import {
   Copy,
   Link,
   QrCode,
+  UsersRound,
+  FileText,
+  ShieldCheck,
+  IdCard,
+  Paperclip,
 } from "lucide-react";
 
 export const Icons = {
@@ -103,6 +108,11 @@ export const Icons = {
   copy: Copy,
   link: Link,
   qrCode: QrCode,
+  users: UsersRound,
+  fileText: FileText,
+  shieldCheck: ShieldCheck,
+  idCard: IdCard,
+  paperclip: Paperclip,
 } as const;
 
 export type AppIconName = keyof typeof Icons;

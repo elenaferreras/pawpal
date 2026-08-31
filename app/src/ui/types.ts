@@ -185,6 +185,7 @@ export type ScreenId =
   | "settings-notifications"
   | "settings-account"
   | "settings-sitting"
+  | "settings-coowners"
   | "settings-sync"
   | "settings-data";
 

@@ -3,13 +3,18 @@ import { Theme } from "@astryxdesign/core/theme";
 import { LayerProvider } from "@astryxdesign/core/Layer";
 import { AnimatePresence } from "motion/react";
 import { pawpalTheme } from "./lib/theme";
-import type { ScreenId } from "./types";
+import type { Avatar, ScreenId } from "./types";
 import { DbProvider, useDb } from "./lib/store";
 import { ToastProvider, useToast } from "./lib/toast";
 import { ConfirmProvider } from "./components/ConfirmDialog";
 import { setupReminderChecks } from "./lib/notifications";
 import { completeOAuthRedirect, hasPendingOAuth, isSignedIn } from "./lib/auth";
-import { reconcileFromCloud, syncFromSupabase } from "./lib/supabase";
+import {
+  getRowKey,
+  reconcileFromCloud,
+  setDataOwner,
+  syncFromSupabase,
+} from "./lib/supabase";
 import { LiveWalkProvider } from "./components/LiveWalk";
 import { BottomNav } from "./components/BottomNav";
 import { GooeyFab } from "./components/GooeyFab";
@@ -33,16 +38,20 @@ import { ProfileDetails } from "./screens/settings/ProfileDetails";
 import { NotificationsScreen } from "./screens/settings/NotificationsScreen";
 import { AccountScreen } from "./screens/settings/AccountScreen";
 import { DogSittingScreen } from "./screens/settings/DogSittingScreen";
+import { CoOwnersScreen } from "./screens/settings/CoOwnersScreen";
 import { CloudSyncScreen } from "./screens/settings/CloudSyncScreen";
 import { DataScreen } from "./screens/settings/DataScreen";
 import { OnboardingProposal } from "./screens/OnboardingProposal";
 import { SitterApp } from "./screens/SitterApp";
 import { SitterClaim } from "./screens/SitterClaim";
+import { CoOwnerJoin } from "./screens/CoOwnerJoin";
 import {
   loadSitterSession,
   saveSitterSession,
   type SitterState,
 } from "./lib/sitter";
+import { parseAvatarParam, type JoinResult } from "./lib/coowner";
+import { defaultDatabase } from "./lib/storage";
 import { subscribeToPush } from "./lib/push";
 
 export function App(): React.ReactElement {
@@ -89,6 +98,7 @@ function Shell(): React.ReactElement {
   // Date to pre-fill when logging a new walk (e.g. the selected calendar day).
   const [walkPrefillDate, setWalkPrefillDate] = useState<string | null>(null);
   const [editReminderIndex, setEditReminderIndex] = useState<number | null>(null);
+  const [editVaccineIndex, setEditVaccineIndex] = useState<number | null>(null);
   const [editBathroomIndex, setEditBathroomIndex] = useState<number | null>(null);
   // Origin of the circular Settings reveal (set from the tapped avatar).
   const [settingsOrigin, setSettingsOrigin] = useState<{ x: number; y: number } | null>(null);
@@ -101,6 +111,72 @@ function Shell(): React.ReactElement {
     const c = new URLSearchParams(window.location.search).get("sit");
     return c ? { open: true, code: c } : { open: false };
   });
+
+  // Co-owner join mode. The code is persisted so it survives the Google OAuth
+  // round-trip (which strips the query string on the redirect back).
+  const [joinCode, setJoinCode] = useState<string | null>(() => {
+    const fromUrl = new URLSearchParams(window.location.search).get("join");
+    let pending: string | null = fromUrl;
+    try {
+      pending = fromUrl ?? localStorage.getItem("pawpal_pending_join");
+      if (pending) localStorage.setItem("pawpal_pending_join", pending);
+    } catch {
+      /* ignore */
+    }
+    return pending;
+  });
+
+  // Dog name carried by the invite link, shown on the join screen (persisted
+  // alongside the code so it survives the OAuth round-trip).
+  const [joinDog, setJoinDog] = useState<string | null>(() => {
+    const fromUrl = new URLSearchParams(window.location.search).get("dog");
+    let dog: string | null = fromUrl;
+    try {
+      dog = fromUrl ?? localStorage.getItem("pawpal_pending_join_dog");
+      if (dog) localStorage.setItem("pawpal_pending_join_dog", dog);
+    } catch {
+      /* ignore */
+    }
+    return dog;
+  });
+
+  // Dog avatar carried by the invite link (JSON), so the join hero shows the
+  // real pup. Persisted as a JSON string to survive the OAuth round-trip.
+  const [joinAvatar, setJoinAvatar] = useState<Avatar | null>(() => {
+    const fromUrl = new URLSearchParams(window.location.search).get("av");
+    let raw: string | null = fromUrl;
+    try {
+      raw = fromUrl ?? localStorage.getItem("pawpal_pending_join_avatar");
+      if (raw) localStorage.setItem("pawpal_pending_join_avatar", raw);
+    } catch {
+      /* ignore */
+    }
+    return parseAvatarParam(raw) ?? null;
+  });
+
+  const clearJoin = (): void => {
+    setJoinCode(null);
+    setJoinDog(null);
+    setJoinAvatar(null);
+    try {
+      localStorage.removeItem("pawpal_pending_join");
+      localStorage.removeItem("pawpal_pending_join_dog");
+      localStorage.removeItem("pawpal_pending_join_avatar");
+    } catch {
+      /* ignore */
+    }
+    window.history.replaceState({}, "", window.location.pathname);
+  };
+
+  // Adopt the primary owner's data after joining as a co-owner, then drop into
+  // the normal app pointed at the shared row.
+  const onCoOwnerJoined = (result: JoinResult): void => {
+    replace({ ...defaultDatabase(), ...(result.snapshot ?? {}) });
+    setDataOwner(getRowKey());
+    setOnboarding(false);
+    clearJoin();
+    navigate("home");
+  };
 
   // Finish the Google OAuth redirect: read the tokens out of the URL, store the
   // session, then pull the account's cloud profile. If they've already
@@ -236,6 +312,18 @@ function Shell(): React.ReactElement {
       />
     );
   }
+  // Co-owner join takes over the screen until the invite is redeemed (or closed).
+  if (joinCode !== null) {
+    return (
+      <CoOwnerJoin
+        initialCode={joinCode || undefined}
+        dogName={joinDog || undefined}
+        dogAvatar={joinAvatar || undefined}
+        onClose={clearJoin}
+        onJoined={onCoOwnerJoined}
+      />
+    );
+  }
 
   // The four main tabs share one animated slot so switching between them fades
   // instead of cutting. Settings maps to the "home" key so opening the Settings
@@ -281,10 +369,17 @@ function Shell(): React.ReactElement {
       <Vet
         onAdd={() => {
           setEditReminderIndex(null);
+          setEditVaccineIndex(null);
           setModal("vet");
         }}
         onEditReminder={(i) => {
+          setEditVaccineIndex(null);
           setEditReminderIndex(i);
+          setModal("vet");
+        }}
+        onEditVaccine={(i) => {
+          setEditReminderIndex(null);
+          setEditVaccineIndex(i);
           setModal("vet");
         }}
       />
@@ -350,6 +445,8 @@ function Shell(): React.ReactElement {
                   />
                 ) : screen === "settings-sitting" ? (
                   <DogSittingScreen onBack={() => navigate("settings")} />
+                ) : screen === "settings-coowners" ? (
+                  <CoOwnersScreen onBack={() => navigate("settings")} />
                 ) : screen === "settings-sync" ? (
                   <CloudSyncScreen onBack={() => navigate("settings")} />
                 ) : screen === "settings-data" ? (
@@ -400,9 +497,11 @@ function Shell(): React.ReactElement {
           <VetAddModal
             open={modal === "vet"}
             editReminderIndex={editReminderIndex}
+            editVaccineIndex={editVaccineIndex}
             onClose={() => {
               setModal("none");
               setEditReminderIndex(null);
+              setEditVaccineIndex(null);
             }}
           />
           <WalkTrackSheet
