@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@astryxdesign/core/Icon";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
@@ -28,6 +28,8 @@ const MUTED = "var(--color-pawpal-muted)"; // #8C8976
 
 // Monday → Sunday letters for the hero week chart.
 const WEEK_LETTERS = ["M", "T", "W", "T", "F", "S", "S"];
+// Blank space between adjacent week panels so Sunday↔Monday bars don't touch.
+const WEEK_GAP = 24;
 const ORDINALS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th"];
 
 /** Local YYYY-MM-DD (avoids UTC off-by-one from toISOString). */
@@ -56,38 +58,89 @@ export function Dashboard({
   const p = db.profile;
   const todayISO = localISO(new Date());
 
-  // Full current week (Monday → Sunday) of walk steps for the hero chart.
-  const { bars, average } = useMemo(() => {
+  // Every Monday → Sunday week from the earliest walk up to the current week.
+  // Ordered oldest → newest so the current week is the last (rightmost) panel.
+  const weeks = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const dow = (today.getDay() + 6) % 7; // 0 = Monday
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - dow);
+    const currentMonday = new Date(today);
+    currentMonday.setDate(today.getDate() - dow);
 
-    const days: { iso: string; letter: string; steps: number; future: boolean }[] = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
-      const iso = localISO(d);
-      const steps = db.walks
-        .filter((w) => w.date === iso)
-        .reduce((a, w) => a + (parseInt(String(w.steps)) || 0), 0);
-      days.push({ iso, letter: WEEK_LETTERS[i], steps, future: d > today });
+    // How many weeks back the earliest walk sits (capped so we never render an
+    // unbounded number of panels).
+    let weeksBack = 0;
+    if (db.walks.length) {
+      let earliest = Infinity;
+      for (const w of db.walks) {
+        const t = new Date(`${w.date}T00:00:00`).getTime();
+        if (!Number.isNaN(t) && t < earliest) earliest = t;
+      }
+      if (Number.isFinite(earliest)) {
+        const diffDays = Math.floor((currentMonday.getTime() - earliest) / 86_400_000);
+        weeksBack = Math.max(0, Math.min(52, Math.ceil(diffDays / 7)));
+      }
     }
-    const max = Math.max(1, ...days.map((d) => d.steps));
-    const chart: (WalksBar & { letter: string })[] = days.map((d) => ({
-      label: d.future ? `${d.letter}: upcoming` : `${d.letter}: ${d.steps} steps`,
-      // Future days render as a circle (fraction 0 → min height = width).
-      fraction: d.future ? 0 : d.steps / max,
-      color: d.future ? FUTURE_COLOR : BAR_COLOR,
-      letter: d.letter,
-    }));
-    const withSteps = days.filter((d) => !d.future && d.steps > 0);
-    const avg = withSteps.length
-      ? Math.round(withSteps.reduce((a, d) => a + d.steps, 0) / withSteps.length)
-      : 0;
-    return { bars: chart, average: avg };
+
+    const result: { bars: (WalksBar & { letter: string })[]; average: number; offset: number }[] = [];
+    for (let wk = weeksBack; wk >= 0; wk--) {
+      const monday = new Date(currentMonday);
+      monday.setDate(currentMonday.getDate() - wk * 7);
+
+      const days: { iso: string; letter: string; steps: number; future: boolean }[] = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        const iso = localISO(d);
+        const steps = db.walks
+          .filter((w) => w.date === iso)
+          .reduce((a, w) => a + (parseInt(String(w.steps)) || 0), 0);
+        days.push({ iso, letter: WEEK_LETTERS[i], steps, future: d > today });
+      }
+      const max = Math.max(1, ...days.map((d) => d.steps));
+      const chart: (WalksBar & { letter: string })[] = days.map((d) => ({
+        label: d.future ? `${d.letter}: upcoming` : `${d.letter}: ${d.steps} steps`,
+        // Future days render as a circle (fraction 0 → min height = width).
+        fraction: d.future ? 0 : d.steps / max,
+        color: d.future ? FUTURE_COLOR : BAR_COLOR,
+        letter: d.letter,
+      }));
+      const withSteps = days.filter((d) => !d.future && d.steps > 0);
+      const avg = withSteps.length
+        ? Math.round(withSteps.reduce((a, d) => a + d.steps, 0) / withSteps.length)
+        : 0;
+      result.push({ bars: chart, average: avg, offset: -wk });
+    }
+    return result;
   }, [db.walks]);
+
+  // Horizontal scroll carousel state — one snap panel per week.
+  const weekScrollRef = useRef<HTMLDivElement>(null);
+  const [activeWeek, setActiveWeek] = useState(0);
+
+  // Land on the current week (rightmost panel) whenever the week set changes.
+  useLayoutEffect(() => {
+    const el = weekScrollRef.current;
+    if (!el) return;
+    el.scrollLeft = el.scrollWidth;
+    setActiveWeek(weeks.length - 1);
+  }, [weeks.length]);
+
+  const onWeekScroll = (): void => {
+    const el = weekScrollRef.current;
+    if (!el || el.clientWidth === 0) return;
+    const idx = Math.round(el.scrollLeft / (el.clientWidth + WEEK_GAP));
+    setActiveWeek(Math.max(0, Math.min(weeks.length - 1, idx)));
+  };
+
+  const current = weeks[activeWeek] ?? weeks[weeks.length - 1];
+  const average = current?.average ?? 0;
+  const averageLabel =
+    current?.offset === 0
+      ? "This week's average"
+      : current?.offset === -1
+        ? "Last week's average"
+        : `${Math.abs(current?.offset ?? 0)} weeks ago`;
 
   const mealsPerDay = p.mealsPerDay || 4;
   const eatenSlots = useMemo(() => {
@@ -230,29 +283,41 @@ export function Dashboard({
         </button>
       </div>
 
-      {/* Hero card — last 5 days of walks + weekly average */}
+      {/* Hero card — weekly walks (swipe horizontally for previous weeks) */}
       <div style={{ padding: "0 16px" }}>
         <div style={{ background: HERO, borderRadius: 32, padding: 24 }}>
-          {/* Weekday labels */}
-          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-            {bars.map((b, i) => (
-              <span
-                key={i}
-                style={{
-                  flex: 1,
-                  textAlign: "center",
-                  fontFamily: "var(--font-ui)",
-                  fontWeight: 600,
-                  fontSize: 18,
-                  color: MUTED,
-                }}
-              >
-                {b.letter}
-              </span>
+          {/* Week carousel — each panel is one Monday → Sunday week. */}
+          <div
+            ref={weekScrollRef}
+            className="week-scroller"
+            onScroll={onWeekScroll}
+            style={{ gap: WEEK_GAP }}
+          >
+            {weeks.map((week, wi) => (
+              <div key={wi} className="week-panel">
+                {/* Weekday labels */}
+                <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                  {week.bars.map((b, i) => (
+                    <span
+                      key={i}
+                      style={{
+                        flex: 1,
+                        textAlign: "center",
+                        fontFamily: "var(--font-ui)",
+                        fontWeight: 600,
+                        fontSize: 18,
+                        color: MUTED,
+                      }}
+                    >
+                      {b.letter}
+                    </span>
+                  ))}
+                </div>
+
+                <WalksBarChart data={week.bars} height={131} gap={8} />
+              </div>
             ))}
           </div>
-
-          <WalksBarChart data={bars} height={131} gap={8} />
 
           <button
             type="button"
@@ -270,7 +335,7 @@ export function Dashboard({
             }}
           >
             <Eyebrow color={MUTED} size={13} tracking={0.6} style={{ paddingLeft: 0 }}>
-              This week&rsquo;s average
+              {averageLabel}
             </Eyebrow>
             <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
               <StatNumber color={DARK} style={{ fontSize: "clamp(30px, 9.5vw, 44px)" }}>

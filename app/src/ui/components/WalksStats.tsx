@@ -1,4 +1,4 @@
-import { useMemo, useState, Fragment } from "react";
+import { useMemo, useState, useRef, useLayoutEffect, Fragment } from "react";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { useConfirm } from "./ConfirmDialog";
@@ -26,6 +26,8 @@ interface WalksStatsProps {
 
 const WEEKDAYS = ["M", "T", "W", "T", "F", "S", "S"];
 const WEEKS = 5;
+// How many 5-week windows to keep loaded, newest last. Scroll left for older.
+const PAGES = 6;
 
 type WalkFilter = "today" | "month" | "all";
 
@@ -67,6 +69,23 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
   const [selected, setSelected] = useState<number | null>(null);
   const [filter, setFilter] = useState<WalkFilter>("today");
   const [mapWalk, setMapWalk] = useState<Walk | null>(null);
+  const calRef = useRef<HTMLDivElement>(null);
+  // Which month window is currently in view (defaults to the newest).
+  const [visiblePage, setVisiblePage] = useState(PAGES - 1);
+
+  // Open on the current window (rightmost); the user scrolls left for older.
+  useLayoutEffect(() => {
+    const el = calRef.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, []);
+
+  const onCalScroll = (): void => {
+    const el = calRef.current;
+    if (!el) return;
+    const stride = (el.scrollWidth - el.clientWidth) / (PAGES - 1);
+    const p = stride > 0 ? Math.round(el.scrollLeft / stride) : PAGES - 1;
+    setVisiblePage(Math.max(0, Math.min(PAGES - 1, p)));
+  };
 
   const delWalk = async (index: number): Promise<void> => {
     const ok = await confirm({
@@ -86,7 +105,7 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
     toast("Walk deleted");
   };
 
-  const { days, maxSteps, avg } = useMemo(() => {
+  const { pages, days } = useMemo(() => {
     const stepsByDay = new Map<string, number>();
     for (const w of db.walks) {
       const s = parseInt(String(w.steps)) || 0;
@@ -96,27 +115,38 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const dow = (today.getDay() + 6) % 7; // 0 = Monday
-    const start = new Date(today);
-    start.setDate(today.getDate() - dow - (WEEKS - 1) * 7);
+    // Start of the current (rightmost) window: this week's Monday, WEEKS-1 back.
+    const currentStart = new Date(today);
+    currentStart.setDate(today.getDate() - dow - (WEEKS - 1) * 7);
+    // Oldest window starts PAGES-1 windows earlier.
+    const firstStart = new Date(currentStart);
+    firstStart.setDate(currentStart.getDate() - (PAGES - 1) * WEEKS * 7);
 
     const list: DayInfo[] = [];
-    for (let i = 0; i < WEEKS * 7; i++) {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
+    for (let i = 0; i < PAGES * WEEKS * 7; i++) {
+      const d = new Date(firstStart);
+      d.setDate(firstStart.getDate() + i);
       list.push({ date: d, steps: stepsByDay.get(localISO(d)) || 0, future: d > today });
     }
 
-    const max = Math.max(0, ...list.map((d) => d.steps));
-    const active = list.filter((d) => !d.future && d.steps > 0);
-    const average = active.length
-      ? Math.round(active.reduce((a, d) => a + d.steps, 0) / active.length)
-      : 0;
+    // Chunk into pages; each window is normalised to its own busiest day so the
+    // dot sizes stay readable month-to-month, and carries its own step average.
+    const pageList: { days: DayInfo[]; max: number; avg: number }[] = [];
+    for (let p = 0; p < PAGES; p++) {
+      const slice = list.slice(p * WEEKS * 7, (p + 1) * WEEKS * 7);
+      const activeDays = slice.filter((d) => !d.future && d.steps > 0);
+      const average = activeDays.length
+        ? Math.round(activeDays.reduce((a, d) => a + d.steps, 0) / activeDays.length)
+        : 0;
+      pageList.push({ days: slice, max: Math.max(0, ...slice.map((d) => d.steps)), avg: average });
+    }
 
-    return { days: list, maxSteps: max, avg: average };
+    return { pages: pageList, days: list };
   }, [db.walks]);
 
   const name = db.profile.name.trim() || "Zipi";
   const selectedDay = selected !== null ? days[selected] : null;
+  const avg = pages[visiblePage]?.avg ?? 0;
 
   // Tapping a calendar day selects it and focuses the "Day" segment on that
   // date; tapping the same day again clears the selection (back to today).
@@ -296,17 +326,28 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
           ))}
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
-          {days.map((day, i) => (
-            <DayCell
-              key={i}
-              date={day.date}
-              steps={day.steps}
-              max={maxSteps}
-              future={day.future}
-              selected={selected === i}
-              onSelect={() => selectDay(i)}
-            />
+        <div className="week-scroller" ref={calRef} onScroll={onCalScroll} style={{ gap: 16 }}>
+          {pages.map((page, p) => (
+            <div
+              key={p}
+              className="week-panel"
+              style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}
+            >
+              {page.days.map((day, i) => {
+                const gi = p * WEEKS * 7 + i;
+                return (
+                  <DayCell
+                    key={i}
+                    date={day.date}
+                    steps={day.steps}
+                    max={page.max}
+                    future={day.future}
+                    selected={selected === gi}
+                    onSelect={() => selectDay(gi)}
+                  />
+                );
+              })}
+            </div>
           ))}
         </div>
       </div>
@@ -323,7 +364,7 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
                 color: "var(--color-pawpal-hero)",
               }}
             >
-              {selectedDay.date.toLocaleDateString(undefined, {
+              {selectedDay.date.toLocaleDateString("en-US", {
                 weekday: "long",
                 day: "numeric",
                 month: "long",
@@ -734,7 +775,7 @@ function DayCell({
   const dotPct = active ? 22 + ratio * 42 : 26;
   const label = future
     ? "Upcoming day"
-    : `${date.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}, ${steps > 0 ? `${steps} steps` : "no walk"}`;
+    : `${date.toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long" })}, ${steps > 0 ? `${steps} steps` : "no walk"}`;
 
   return (
     <button

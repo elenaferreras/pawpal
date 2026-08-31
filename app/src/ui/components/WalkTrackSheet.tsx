@@ -30,6 +30,15 @@ const WEATHERS: { value: string; icon: AppIconName; label: string }[] = [
   { value: "stormy", icon: "cloudLightning", label: "Stormy" },
 ];
 
+const TERRAINS: { value: string; icon: AppIconName; label: string }[] = [
+  { value: "city", icon: "building", label: "City" },
+  { value: "park", icon: "trees", label: "Park" },
+  { value: "forest", icon: "treePine", label: "Forest" },
+  { value: "mountain", icon: "mountain", label: "Mountain" },
+  { value: "beach", icon: "waves", label: "Beach" },
+  { value: "trail", icon: "footprints", label: "Trail" },
+];
+
 function localISO(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
@@ -55,6 +64,8 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate }: WalkTr
   const [socialised, setSocialised] = useState(false);
   const [assignee, setAssignee] = useState<string | null>(null);
   const [weather, setWeather] = useState("");
+  const [showTerrain, setShowTerrain] = useState(false);
+  const [terrain, setTerrain] = useState("");
   const [notes, setNotes] = useState("");
   const [sendToVet, setSendToVet] = useState(false);
 
@@ -69,6 +80,8 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate }: WalkTr
       setSocialised(!!editWalk.friends);
       setAssignee(editWalk.assignee ?? null);
       setWeather(editWalk.weather ?? "");
+      setTerrain(editWalk.terrain ?? "");
+      setShowTerrain(!!editWalk.terrain);
       setNotes(editWalk.notes ?? "");
       setSendToVet(!!editWalk.sentToVet);
     } else {
@@ -80,6 +93,8 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate }: WalkTr
       setSocialised(false);
       setAssignee(null);
       setWeather("");
+      setTerrain("");
+      setShowTerrain(false);
       setNotes("");
       setSendToVet(false);
     }
@@ -119,7 +134,7 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate }: WalkTr
       const items = (d.vetRecords.noteItems ??= []);
       const idx = items.findIndex((n) => n.source === walkCreated);
       if (sendToVet && trimmedNotes) {
-        const stamp = new Date(dateISO + "T12:00:00").toLocaleDateString(undefined, {
+        const stamp = new Date(dateISO + "T12:00:00").toLocaleDateString("en-US", {
           day: "numeric",
           month: "short",
         });
@@ -144,6 +159,7 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate }: WalkTr
           friends: socialised,
           assignee: assignee ?? undefined,
           weather,
+          terrain: showTerrain ? terrain : "",
           notes: notes.trim(),
           sentToVet: sendToVet && trimmedNotes !== "",
         };
@@ -162,6 +178,7 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate }: WalkTr
       popo: pooped,
       friends: socialised,
       weather,
+      terrain: showTerrain ? terrain : "",
       notes: notes.trim(),
       assignee: assignee ?? undefined,
       sentToVet: sendToVet && trimmedNotes !== "",
@@ -264,6 +281,74 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate }: WalkTr
               );
             })}
           </div>
+        </Field>
+
+        {/* Terrain picker — toggle reveals a segmented grid like the weather one */}
+        <Field label="Terrain">
+          <ChoiceButton
+            label="Add terrain"
+            selected={showTerrain}
+            onClick={() =>
+              setShowTerrain((v) => {
+                if (v) setTerrain("");
+                return !v;
+              })
+            }
+          />
+          {showTerrain && (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: 6,
+                padding: 6,
+                borderRadius: 16,
+                background: DARK,
+                overflow: "hidden",
+              }}
+            >
+              {TERRAINS.map((t) => {
+                const active = terrain === t.value;
+                return (
+                  <button
+                    key={t.value}
+                    type="button"
+                    onClick={() => setTerrain(active ? "" : t.value)}
+                    aria-pressed={active}
+                    aria-label={t.label}
+                    title={t.label}
+                    style={{
+                      minWidth: 0,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 4,
+                      padding: "8px 2px",
+                      borderRadius: 12,
+                      border: "none",
+                      cursor: "pointer",
+                      lineHeight: 1,
+                      color: active ? DARK : WALK,
+                      background: active ? WALK : "transparent",
+                    }}
+                  >
+                    <Icon icon={Icons[t.icon]} color="inherit" />
+                    <span
+                      style={{
+                        fontFamily: "var(--font-ui)",
+                        fontWeight: 500,
+                        fontSize: 10,
+                        lineHeight: 1,
+                      }}
+                    >
+                      {t.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </Field>
 
         <Field label="Duration">

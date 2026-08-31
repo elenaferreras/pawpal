@@ -101,7 +101,7 @@ export function PoopFormModal({ open, onClose, editIndex }: PoopFormModalProps):
       const items = (d.vetRecords.noteItems ??= []);
       const idx = items.findIndex((n) => n.source === entry.created);
       if (sendToVet && trimmedNotes) {
-        const stamp = new Date(entry.date + "T12:00:00").toLocaleDateString(undefined, {
+        const stamp = new Date(entry.date + "T12:00:00").toLocaleDateString("en-US", {
           day: "numeric",
           month: "short",
         });

@@ -85,7 +85,7 @@ export function FoodFormModal({ open, onClose }: FoodFormModalProps): React.Reac
       const items = (d.vetRecords.noteItems ??= []);
       const idx = items.findIndex((n) => n.source === created);
       if (sendToVet && trimmedNotes) {
-        const stamp = new Date(dateISO + "T12:00:00").toLocaleDateString(undefined, {
+        const stamp = new Date(dateISO + "T12:00:00").toLocaleDateString("en-US", {
           day: "numeric",
           month: "short",
         });
