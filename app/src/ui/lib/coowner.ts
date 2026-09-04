@@ -20,6 +20,7 @@ export interface CoOwnerInviteRow {
   owner_user_id: string;
   owner_row_key: string;
   dog_name: string | null;
+  label: string | null;
   code: string;
   created_at: string;
   claimed_at: string | null;
@@ -108,10 +109,17 @@ export interface CreatedCoOwnerInvite {
 
 export async function createCoOwnerInvite(
   dogName?: string,
+  label?: string,
 ): Promise<CreatedCoOwnerInvite> {
-  const res = await ownerPost({ action: "create", dogName });
+  const res = await ownerPost({ action: "create", dogName, label });
   if (!res.ok) throw new Error((await errText(res)) || "Could not create invite.");
   return (await res.json()) as CreatedCoOwnerInvite;
+}
+
+/** Set (or clear, with an empty string) the owner-chosen name for a co-owner. */
+export async function renameCoOwner(inviteId: string, label: string): Promise<void> {
+  const res = await ownerPost({ action: "rename", inviteId, label });
+  if (!res.ok) throw new Error((await errText(res)) || "Could not update the name.");
 }
 
 export async function revokeCoOwnerInvite(inviteId: string): Promise<void> {

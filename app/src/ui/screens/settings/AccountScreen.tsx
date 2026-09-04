@@ -5,7 +5,7 @@ import { TextInput } from "@astryxdesign/core/TextInput";
 import { useDb } from "../../lib/store";
 import { useToast } from "../../lib/toast";
 import { syncFromSupabase } from "../../lib/supabase";
-import { getCurrentUser, signIn, signOut, signUp, changePassword, type AuthUser } from "../../lib/auth";
+import { getCurrentUser, getOwnerName, setOwnerName, signIn, signOut, signUp, changePassword, type AuthUser } from "../../lib/auth";
 import { subscribeToPush, unsubscribeFromPush } from "../../lib/push";
 import { SettingsPage, Panel, PanelTitle, PanelText } from "./shared";
 
@@ -22,6 +22,7 @@ export function AccountScreen({ onBack, onSignedOut }: { onBack: () => void; onS
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ownerName, setOwnerNameState] = useState(getOwnerName);
 
   useEffect(() => {
     const onAuth = (): void => setUser(getCurrentUser());
@@ -119,6 +120,15 @@ export function AccountScreen({ onBack, onSignedOut }: { onBack: () => void; onS
               <PanelTitle>Signed in</PanelTitle>
               <PanelText>{user.email}</PanelText>
             </VStack>
+            <TextInput
+              label="Your name"
+              value={ownerName}
+              placeholder="e.g. Alex"
+              onChange={(v: string) => {
+                setOwnerNameState(v);
+                setOwnerName(v);
+              }}
+            />
             {pwOpen ? (
               <VStack gap={2}>
                 <TextInput

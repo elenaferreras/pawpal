@@ -106,6 +106,28 @@ export function getCurrentUser(): AuthUser | null {
   return readSession()?.user ?? null;
 }
 
+const OWNER_NAME_KEY = "pawpal_owner_name";
+
+/** The owner's chosen display name (device-local; not synced, so co-owners
+ * don't overwrite each other's name). Empty string when unset. */
+export function getOwnerName(): string {
+  try {
+    return localStorage.getItem(OWNER_NAME_KEY)?.trim() || "";
+  } catch {
+    return "";
+  }
+}
+
+export function setOwnerName(name: string): void {
+  try {
+    const v = name.trim();
+    if (v) localStorage.setItem(OWNER_NAME_KEY, v);
+    else localStorage.removeItem(OWNER_NAME_KEY);
+  } catch {
+    // Storage unavailable — ignore.
+  }
+}
+
 export function isSignedIn(): boolean {
   return readSession() !== null;
 }

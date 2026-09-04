@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Icon } from "@astryxdesign/core/Icon";
 import { Icons } from "../lib/icons";
 import type { Avatar } from "../types";
-import { MotionSheet } from "../components/MotionSheet";
 import { DogAvatar } from "./DogAvatar";
 import {
   AVATAR_BG_COLORS,
@@ -25,7 +24,7 @@ interface AvatarSheetProps {
  * "Profile picture" bottom sheet (Figma node 180:3718). Pick a background
  * colour and a preset dog, then confirm with ✓ or cancel with ✕.
  */
-export function AvatarSheet({ open, value, onConfirm, onClose }: AvatarSheetProps): React.ReactElement {
+export function AvatarSheet({ open, value, onConfirm, onClose }: AvatarSheetProps): React.ReactElement | null {
   const [parts, setParts] = useState<AvatarParts>(() => toParts(value));
   const [bg, setBg] = useState<string>(value.bg ?? DEFAULT_AVATAR_BG);
   const [sticker, setSticker] = useState<string | undefined>(value.sticker);
@@ -40,14 +39,16 @@ export function AvatarSheet({ open, value, onConfirm, onClose }: AvatarSheetProp
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  if (!open) return null;
+
   const preview: Avatar = { ...parts, bg, sticker };
 
   return (
-    <MotionSheet
-      open={open}
-      onClose={onClose}
-      ariaLabel="Profile picture"
-      scrimStyle={{
+    <div
+      role="dialog"
+      aria-label="Profile picture"
+      onClick={onClose}
+      style={{
         position: "fixed",
         inset: 0,
         zIndex: 1000,
@@ -56,23 +57,25 @@ export function AvatarSheet({ open, value, onConfirm, onClose }: AvatarSheetProp
         justifyContent: "center",
         alignItems: "flex-end",
       }}
-      sheetStyle={{
-        width: "100%",
-        maxWidth: 430,
-        background: "rgba(245,245,245,0.96)",
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        borderTopLeftRadius: 34,
-        borderTopRightRadius: 34,
-        boxShadow: "0px -8px 40px rgba(0,0,0,0.18)",
-        paddingBottom: "calc(20px + env(safe-area-inset-bottom, 0px))",
-        maxHeight: "92vh",
-        overflowY: "auto",
-        overflowX: "hidden",
-        boxSizing: "border-box",
-      }}
-      hideHandle
     >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "100%",
+          maxWidth: 430,
+          background: "rgba(245,245,245,0.96)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          borderTopLeftRadius: 34,
+          borderTopRightRadius: 34,
+          boxShadow: "0px -8px 40px rgba(0,0,0,0.18)",
+          paddingBottom: "calc(20px + env(safe-area-inset-bottom, 0px))",
+          maxHeight: "92vh",
+          overflowY: "auto",
+          overflowX: "hidden",
+          boxSizing: "border-box",
+        }}
+      >
         {/* Grabber */}
         <div style={{ display: "flex", justifyContent: "center", paddingTop: 8 }}>
           <div style={{ width: 36, height: 5, borderRadius: 100, background: "rgba(0,0,0,0.2)" }} />
@@ -193,7 +196,8 @@ export function AvatarSheet({ open, value, onConfirm, onClose }: AvatarSheetProp
             );
           })}
         </div>
-    </MotionSheet>
+      </div>
+    </div>
   );
 }
 

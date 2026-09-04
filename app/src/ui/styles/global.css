@@ -55,6 +55,17 @@
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+/* Text stays selectable only where the user is meant to edit or copy it. */
+input,
+textarea,
+select,
+[contenteditable="true"],
+[contenteditable=""] {
+  -webkit-user-select: text;
+  user-select: text;
 }
 html {
   overflow-x: hidden;
@@ -805,6 +816,113 @@ body.modal-open {
   border-radius: 40px 40px 0 0;
   overflow: hidden;
 }
+/* Meal-history matrix (Food tab): rows = days grouped by week, columns = slots. */
+.meal-matrix {
+  background: var(--color-dash-surface);
+  border-radius: 24px;
+  padding: 12px 14px 8px;
+}
+.meal-matrix-head,
+.meal-matrix-row {
+  display: grid;
+  align-items: center;
+  column-gap: 6px;
+}
+.meal-matrix-head {
+  padding: 0 2px 8px;
+}
+.meal-matrix-col {
+  text-align: center;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-pawpal-muted);
+}
+.meal-matrix-week {
+  padding-top: 6px;
+}
+.meal-matrix-week-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 8px 2px 4px;
+}
+.meal-matrix-week-label {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-pawpal-hero);
+}
+.meal-matrix-week-count {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-pawpal-muted);
+}
+.meal-matrix-row {
+  padding: 3px 2px;
+  border-radius: 12px;
+}
+.meal-matrix-row.is-today {
+  background: rgba(233, 228, 196, 0.08);
+}
+.meal-matrix-day {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-family: var(--font-ui);
+  color: var(--color-pawpal-hero);
+}
+.meal-matrix-dow {
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.6;
+  width: 10px;
+}
+.meal-matrix-num {
+  font-size: 14px;
+  font-weight: 600;
+}
+.meal-matrix-row.is-today .meal-matrix-day {
+  color: var(--color-food);
+}
+.meal-matrix-cell {
+  justify-self: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  background: transparent;
+  border: 2px solid rgba(233, 228, 196, 0.28);
+  color: #fff;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease;
+}
+.meal-matrix-cell.is-done {
+  background: var(--color-track-poop);
+  border-color: var(--color-track-poop);
+}
+.meal-matrix-extra {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.meal-matrix-extra-chip {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-food);
+  background: rgba(233, 106, 65, 0.16);
+  border-radius: 999px;
+  padding: 1px 6px;
+}
+
 /* Bath-time timeline strip (Health tab) — hide the horizontal scrollbar. */
 .bath-strip::-webkit-scrollbar {
   display: none;
@@ -868,7 +986,7 @@ body.modal-open {
 .confirm-scrim {
   position: fixed;
   inset: 0;
-  z-index: 700;
+  z-index: 2100;
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -3971,6 +4089,8 @@ input.wts-field[type="time"] {
 }
 .invite-datetime {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   padding: 12px 14px;
   border-radius: 12px;
   border: 1px solid rgba(233, 228, 196, 0.25);
@@ -3979,6 +4099,12 @@ input.wts-field[type="time"] {
   font-family: var(--font-ui);
   font-size: 15px;
   color-scheme: dark;
+  text-align: left;
+}
+/* Left-align (not centre) the native value and stop it forcing overflow. */
+.invite-datetime::-webkit-date-and-time-value {
+  text-align: left;
+  margin: 0;
 }
 .invite-row {
   padding: 8px 0;

@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useLayoutEffect, Fragment } from "react";
+import { useMemo, useState, useRef, useLayoutEffect, useEffect, Fragment } from "react";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { useConfirm } from "./ConfirmDialog";
@@ -12,6 +12,8 @@ import { SwipeableRow } from "./SwipeableRow";
 import { PageTitle, StatNumber } from "./Typography";
 import { DogFace } from "../avatar/DogAvatar";
 import { fmtDate } from "../lib/date";
+import { useWalkers, walkerAvatar } from "../lib/walkers";
+import { getSharedRowKey } from "../lib/supabase";
 import type { Walk } from "../types";
 
 interface WalksStatsProps {
@@ -36,12 +38,6 @@ const WALK_FILTERS: { value: WalkFilter; label: string }[] = [
   { value: "month", label: "Month" },
   { value: "all", label: "All" },
 ];
-
-/** Colours for the two walk assignees, keyed off the tracker's Person A/B. */
-const ASSIGNEE_STYLE: Record<string, { bg: string; initials: string }> = {
-  "Person A": { bg: "#9CCFFF", initials: "A" },
-  "Person B": { bg: "#FFFF83", initials: "B" },
-};
 
 /** Local YYYY-MM-DD (avoids UTC off-by-one from toISOString). */
 function localISO(d: Date): string {
@@ -72,6 +68,38 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
   const calRef = useRef<HTMLDivElement>(null);
   // Which month window is currently in view (defaults to the newest).
   const [visiblePage, setVisiblePage] = useState(PAGES - 1);
+
+  // One-time migration: the old tracker stored two hard-coded assignees
+  // ("Person A" / "Person B"). Now that walks are attributed to real people,
+  // remap Person A → the signed-in user and Person B → the (first) co-owner.
+  // Only the primary owner rewrites the shared data; a co-owner must not clobber
+  // the owner's names, and we wait until co-owner/sitter names have loaded.
+  const { walkers, loaded: walkersLoaded } = useWalkers();
+  useEffect(() => {
+    if (getSharedRowKey() || !walkersLoaded) return;
+    try {
+      if (localStorage.getItem("pawpal_assignee_migrated")) return;
+    } catch {
+      /* storage unavailable — skip once */
+      return;
+    }
+    const me = walkers.find((w) => w.kind === "you")?.name ?? "You";
+    const co = walkers.find((w) => w.kind === "coowner")?.name ?? "Co-owner";
+    const needs = db.walks.some((w) => w.assignee === "Person A" || w.assignee === "Person B");
+    if (needs) {
+      update((d) => {
+        for (const w of d.walks) {
+          if (w.assignee === "Person A") w.assignee = me;
+          else if (w.assignee === "Person B") w.assignee = co;
+        }
+      });
+    }
+    try {
+      localStorage.setItem("pawpal_assignee_migrated", "1");
+    } catch {
+      /* ignore */
+    }
+  }, [walkersLoaded, walkers, db.walks, update]);
 
   // Open on the current window (rightmost); the user scrolls left for older.
   useLayoutEffect(() => {
@@ -588,7 +616,7 @@ function WalkEntry({
 }): React.ReactElement {
   const hasRoute = Array.isArray(walk.gpsRoute) && walk.gpsRoute.length > 1;
   const stepsNum = parseInt(String(walk.steps)) || 0;
-  const assignee = walk.assignee ? ASSIGNEE_STYLE[walk.assignee] : undefined;
+  const assignee = walk.assignee ? walkerAvatar(walk.assignee) : undefined;
 
   const thumbStyle: React.CSSProperties = {
     width: 40,

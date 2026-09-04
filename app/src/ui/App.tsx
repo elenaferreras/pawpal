@@ -28,6 +28,7 @@ import { ScreenTransition } from "./components/ScreenTransition";
 import { FoodFormModal } from "./components/FoodFormModal";
 import { PoopFormModal } from "./components/PoopFormModal";
 import { VetAddModal } from "./components/VetAddModal";
+import type { RecordType } from "./components/VetAddModal";
 import { Dashboard } from "./screens/Dashboard";
 import { Food } from "./screens/Food";
 import { Bathroom } from "./screens/Bathroom";
@@ -99,6 +100,8 @@ function Shell(): React.ReactElement {
   const [walkPrefillDate, setWalkPrefillDate] = useState<string | null>(null);
   const [editReminderIndex, setEditReminderIndex] = useState<number | null>(null);
   const [editVaccineIndex, setEditVaccineIndex] = useState<number | null>(null);
+  // Record types the health add-sheet is scoped to (per-category add buttons).
+  const [addRecordTypes, setAddRecordTypes] = useState<RecordType[] | undefined>(undefined);
   const [editBathroomIndex, setEditBathroomIndex] = useState<number | null>(null);
   // Origin of the circular Settings reveal (set from the tapped avatar).
   const [settingsOrigin, setSettingsOrigin] = useState<{ x: number; y: number } | null>(null);
@@ -367,9 +370,10 @@ function Shell(): React.ReactElement {
       />
     ) : tabKey === "vet" ? (
       <Vet
-        onAdd={() => {
+        onAdd={(types) => {
           setEditReminderIndex(null);
           setEditVaccineIndex(null);
+          setAddRecordTypes(types);
           setModal("vet");
         }}
         onEditReminder={(i) => {
@@ -498,6 +502,7 @@ function Shell(): React.ReactElement {
             open={modal === "vet"}
             editReminderIndex={editReminderIndex}
             editVaccineIndex={editVaccineIndex}
+            addTypes={addRecordTypes}
             onClose={() => {
               setModal("none");
               setEditReminderIndex(null);

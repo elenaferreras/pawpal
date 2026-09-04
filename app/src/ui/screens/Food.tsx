@@ -1,11 +1,8 @@
 import { Icon } from "@astryxdesign/core/Icon";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
-import { useConfirm } from "../components/ConfirmDialog";
-import { SwipeableRow } from "../components/SwipeableRow";
 import { MealsWidget } from "../components/MealsWidget";
 import { PageTitle, CardTitle } from "../components/Typography";
-import { RevealItem } from "../components/Reveal";
 import { Icons } from "../lib/icons";
 import { fmtDate } from "../lib/date";
 import type { Meal } from "../types";
@@ -41,14 +38,15 @@ function PlanField({ children }: { children: React.ReactNode }): React.ReactElem
       style={{
         display: "flex",
         alignItems: "center",
-        padding: "8px 12px",
+        minHeight: 54,
+        padding: "8px 20px",
         borderRadius: 46,
         background: DARK,
         width: "100%",
         boxSizing: "border-box",
       }}
     >
-      <span style={{ fontFamily: "var(--font-ui)", fontWeight: 400, fontSize: 16, color: CREAM }}>
+      <span style={{ fontFamily: "var(--font-ui)", fontWeight: 400, fontSize: 20, color: CREAM }}>
         {children}
       </span>
     </div>
@@ -66,7 +64,6 @@ function PlanField({ children }: { children: React.ReactNode }): React.ReactElem
 export function Food({ onAdd }: FoodProps): React.ReactElement {
   const { db, update } = useDb();
   const toast = useToast();
-  const confirm = useConfirm();
   const p = db.profile;
   const name = p.name.trim() || "Zipi";
   const n = p.mealsPerDay || 4;
@@ -91,7 +88,7 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
     update((d) => {
       d.meals.push(meal);
     });
-    toast(`${names[slot]} — ${portion}g logged`);
+    toast(`${names[slot]} — ${portion}g logged ✓`);
   };
 
   const undo = (slot: number): void => {
@@ -101,13 +98,8 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
     });
   };
 
-  const delMeal = async (index: number): Promise<void> => {
-    const ok = await confirm({
-      title: "Delete this meal?",
-      message: "This meal will be permanently removed.",
-      confirmLabel: "Delete Meal",
-    });
-    if (!ok) return;
+  const delMeal = (index: number): void => {
+    if (!window.confirm("Delete this meal?")) return;
     update((d) => {
       d.meals.splice(index, 1);
     });
@@ -167,13 +159,13 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
           gap: 8,
         }}
       >
-        <CardTitle color={DARK} size={20} weight={400} style={{ padding: "0 8px" }}>
+        <CardTitle color={DARK} size={24} weight={400} style={{ padding: "0 8px" }}>
           Current meal plan
         </CardTitle>
         <PlanField>
           {fGoal}g of kibble in {n} servings
         </PlanField>
-        <PlanField>{portion}g per serving</PlanField>
+        <PlanField>{portion}g per meal</PlanField>
       </div>
 
       {/* Meal schedule — orange list over a dark surface with the pacman widget */}
@@ -182,7 +174,7 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
           marginTop: 8,
           background: WIDGET_DARK,
           borderRadius: 40,
-          padding: 0,
+          padding: 8,
           display: "flex",
           flexDirection: "column",
           gap: 4,
@@ -192,7 +184,7 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
           style={{
             background: FOOD,
             borderRadius: 34,
-            padding: "12px 12px",
+            padding: "20px 16px",
             display: "flex",
             flexDirection: "column",
             gap: 8,
@@ -212,7 +204,7 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
                   alignItems: "center",
                   gap: 8,
                   width: "100%",
-                  padding: "4px 12px",
+                  padding: "8px 12px",
                   borderRadius: 46,
                   cursor: "pointer",
                   textAlign: "left",
@@ -229,7 +221,7 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
                   <span
                     style={{
                       fontFamily: "var(--font-ui)",
-                      fontSize: 12,
+                      fontSize: 16,
                       fontWeight: 400,
                       opacity: 0.6,
                     }}
@@ -243,7 +235,7 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
         </div>
 
         {/* Today's progress — the pacman widget, blended into the dark surface */}
-        <div style={{ padding: "0px 8px 4px" }}>
+        <div style={{ padding: "8px 8px 4px" }}>
           <MealsWidget eaten={doneSlots.size} total={n} />
         </div>
       </div>
@@ -267,32 +259,16 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
             }}
           >
             {history.map(({ m, index }, i) => (
-              <RevealItem
+              <div
                 key={index}
-                index={i}
                 style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: 12,
                   borderTop: i === 0 ? undefined : "1px solid rgba(233,228,196,0.12)",
                 }}
               >
-                <SwipeableRow
-                  background="var(--color-dash-surface)"
-                  actions={[
-                    {
-                      label: "Delete",
-                      color: "#ff3b30",
-                      icon: <Icon icon={Icons.trash} color="inherit" />,
-                      onAction: () => delMeal(index),
-                    },
-                  ]}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      padding: 12,
-                    }}
-                  >
                 <span
                   style={{
                     display: "flex",
@@ -340,9 +316,27 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
                 >
                   {m.amount}g
                 </span>
-                  </div>
-                </SwipeableRow>
-              </RevealItem>
+                <button
+                  type="button"
+                  aria-label="Delete meal"
+                  onClick={() => delMeal(index)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 32,
+                    height: 32,
+                    borderRadius: "50%",
+                    border: "none",
+                    background: "transparent",
+                    color: "var(--color-pawpal-muted)",
+                    cursor: "pointer",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Icon icon={Icons.x} color="inherit" size="sm" />
+                </button>
+              </div>
             ))}
           </div>
         </>

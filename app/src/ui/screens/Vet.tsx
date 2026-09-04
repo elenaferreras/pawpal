@@ -8,11 +8,12 @@ import { SwipeableRow } from "../components/SwipeableRow";
 import { RevealItem } from "../components/Reveal";
 import { BathReminder } from "../components/BathReminder";
 import { HealthDetailScreen } from "../components/HealthDetailScreen";
+import type { RecordType } from "../components/VetAddModal";
 import { WeightChart } from "../components/WeightChart";
 import { PageTitle, Eyebrow, Headline, Footnote } from "../components/Typography";
 import { Icons } from "../lib/icons";
 import { fmtDate, today } from "../lib/date";
-import type { GroomingLog, GroomingType, HealthDocument, Priority, Profile, VetNote, WeightEntry } from "../types";
+import type { GroomingLog, GroomingType, HealthDocument, Priority, Profile, Vaccine, VetNote, WeightEntry } from "../types";
 
 type IconComponent = (typeof Icons)[keyof typeof Icons];
 
@@ -54,7 +55,7 @@ function syncProfileWeight(log: WeightEntry[], profile: Profile): void {
 }
 
 interface VetProps {
-  onAdd: () => void;
+  onAdd: (types?: RecordType[]) => void;
   onEditReminder: (index: number) => void;
   onEditVaccine: (index: number) => void;
 }
@@ -73,6 +74,7 @@ export function Vet({ onAdd, onEditReminder, onEditVaccine }: VetProps): React.R
   const [notesOpen, setNotesOpen] = useState(false);
   const [detail, setDetail] = useState<"care" | "vaccines" | "checkups" | null>(null);
   const [docsOpen, setDocsOpen] = useState(false);
+  const [openVaccineGroups, setOpenVaccineGroups] = useState<Set<string>>(new Set());
 
   const documents = db.vetRecords.documents ?? [];
   const insuranceDoc = documents.find((d) => d.kind === "insurance");
@@ -411,59 +413,46 @@ export function Vet({ onAdd, onEditReminder, onEditVaccine }: VetProps): React.R
     </GroupCard>
   );
 
-  const renderVaccines = (): React.ReactElement => (
-    <GroupCard>
-      {sortedVaccines.length === 0 ? (
-        <Empty icon={Icons.syringe} text="No vaccinations recorded." />
-      ) : (
-        sortedVaccines.map(({ v, index }, i) => {
-          const until = v.validUntil ?? v.nextDue;
-          const from = v.validFrom;
-          const validText =
-            from && until
-              ? `Valid ${fmtDate(from)} – ${fmtDate(until)}`
-              : until
-                ? `Valid until ${fmtDate(until)}`
-                : from
-                  ? `Valid from ${fmtDate(from)}`
-                  : null;
-          const daysLeft = until
-            ? Math.ceil((new Date(until + "T12:00:00").getTime() - Date.now()) / 86400000)
-            : null;
-          const expiryColor =
-            daysLeft === null ? MUTED : daysLeft < 0 ? "#E96A41" : daysLeft <= 30 ? "#F2B84B" : MUTED;
-          const expirySuffix =
-            daysLeft === null ? "" : daysLeft < 0 ? " · Expired" : daysLeft <= 30 ? ` · ${daysLeft}d left` : "";
-          return (
-            <RecordRow
-              key={index}
-              index={i}
-              icon={Icons.syringe}
-              accent={ACCENT.vaccine}
-              isFirst={i === 0}
-              title={v.name}
-              meta={v.manufacturer || (v.date ? `Given ${fmtDate(v.date)}` : undefined)}
-              extra={
-                <>
-                  {v.manufacturer && v.date && <Footnote color={MUTED}>Given {fmtDate(v.date)}</Footnote>}
-                  {validText && (
-                    <Footnote color={expiryColor} weight={expirySuffix ? 600 : undefined}>
-                      {validText}
-                      {expirySuffix}
-                    </Footnote>
-                  )}
-                  {v.clinic && <Footnote color={MUTED}>{v.clinic}</Footnote>}
-                  {v.notes && <Footnote color={MUTED}>{v.notes}</Footnote>}
-                </>
-              }
-              onEdit={() => onEditVaccine(index)}
-              onDelete={() => del("vaccines", index)}
-            />
-          );
-        })
-      )}
-    </GroupCard>
-  );
+  const renderVaccines = (): React.ReactElement => {
+    if (sortedVaccines.length === 0) {
+      return (
+        <GroupCard>
+          <Empty icon={Icons.syringe} text="No vaccinations recorded." />
+        </GroupCard>
+      );
+    }
+    // Group boosters by vaccine name; sortedVaccines is date-desc, so within
+    // each group the most recent boost stays first.
+    const groups: { name: string; entries: { v: Vaccine; index: number }[] }[] = [];
+    for (const item of sortedVaccines) {
+      const group = groups.find((g) => g.name === item.v.name);
+      if (group) group.entries.push(item);
+      else groups.push({ name: item.v.name, entries: [item] });
+    }
+    const toggle = (name: string): void =>
+      setOpenVaccineGroups((prev) => {
+        const next = new Set(prev);
+        if (next.has(name)) next.delete(name);
+        else next.add(name);
+        return next;
+      });
+    return (
+      <GroupCard>
+        {groups.map((group, gi) => (
+          <VaccineGroup
+            key={group.name}
+            name={group.name}
+            entries={group.entries}
+            isFirst={gi === 0}
+            open={openVaccineGroups.has(group.name)}
+            onToggle={() => toggle(group.name)}
+            onEdit={onEditVaccine}
+            onDelete={(index) => del("vaccines", index)}
+          />
+        ))}
+      </GroupCard>
+    );
+  };
 
   const renderDocuments = (): React.ReactElement => {
     const ordered = documents
@@ -555,31 +544,11 @@ export function Vet({ onAdd, onEditReminder, onEditVaccine }: VetProps): React.R
           "calc(16px + env(safe-area-inset-top, 0px)) 16px calc(96px + env(safe-area-inset-bottom, 20px))",
       }}
     >
-      {/* Header — title + add button */}
+      {/* Header — title */}
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <PageTitle style={{ margin: "4px 0 0" }}>{name}&rsquo;s Health</PageTitle>
         </div>
-        <button
-          type="button"
-          aria-label="Add record"
-          onClick={onAdd}
-          style={{
-            width: 56,
-            height: 56,
-            borderRadius: "50%",
-            flexShrink: 0,
-            border: "none",
-            cursor: "pointer",
-            background: SURFACE,
-            color: HERO,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Icon icon={Icons.plusCircle} color="inherit" />
-        </button>
       </div>
 
       {/* Overview widgets — Pet ID, Vet notes & Weight */}
@@ -761,7 +730,7 @@ export function Vet({ onAdd, onEditReminder, onEditVaccine }: VetProps): React.R
             ? `${sortedReminders.length} reminder${sortedReminders.length !== 1 ? "s" : ""} · ${medications.length} med${medications.length !== 1 ? "s" : ""}`
             : undefined
         }
-        action={<AddRecordButton onClick={onAdd} />}
+        action={<AddRecordButton onClick={() => onAdd(["reminder", "medication"])} />}
       >
         <SectionLabel>Reminders</SectionLabel>
         {renderReminders()}
@@ -774,7 +743,7 @@ export function Vet({ onAdd, onEditReminder, onEditVaccine }: VetProps): React.R
         onClose={() => setDetail(null)}
         title="Vaccinations"
         subtitle={sortedVaccines.length > 0 ? `${sortedVaccines.length} recorded` : undefined}
-        action={<AddRecordButton onClick={onAdd} />}
+        action={<AddRecordButton onClick={() => onAdd(["vaccine"])} />}
       >
         {renderVaccines()}
       </HealthDetailScreen>
@@ -784,7 +753,7 @@ export function Vet({ onAdd, onEditReminder, onEditVaccine }: VetProps): React.R
         onClose={() => setDetail(null)}
         title="Checkups"
         subtitle={sortedCheckups.length > 0 ? `${sortedCheckups.length} recorded` : undefined}
-        action={<AddRecordButton onClick={onAdd} />}
+        action={<AddRecordButton onClick={() => onAdd(["checkup"])} />}
       >
         {renderCheckups()}
       </HealthDetailScreen>
@@ -1726,6 +1695,181 @@ function RecordRow({
             {meta && <Footnote color={MUTED}>{meta}</Footnote>}
             {extra}
           </div>
+        </div>
+      </SwipeableRow>
+    </RevealItem>
+  );
+}
+
+/** Derives the "valid" label + expiry colour/suffix shown for a vaccine boost. */
+function vaccineExpiry(v: Vaccine): {
+  until?: string;
+  validText: string | null;
+  color: string;
+  suffix: string;
+} {
+  const until = v.validUntil ?? v.nextDue;
+  const from = v.validFrom;
+  const validText =
+    from && until
+      ? `Valid ${fmtDate(from)} – ${fmtDate(until)}`
+      : until
+        ? `Valid until ${fmtDate(until)}`
+        : from
+          ? `Valid from ${fmtDate(from)}`
+          : null;
+  const daysLeft = until
+    ? Math.ceil((new Date(until + "T12:00:00").getTime() - Date.now()) / 86400000)
+    : null;
+  const color =
+    daysLeft === null ? MUTED : daysLeft < 0 ? "#E96A41" : daysLeft <= 30 ? "#F2B84B" : MUTED;
+  const suffix =
+    daysLeft === null ? "" : daysLeft < 0 ? " · Expired" : daysLeft <= 30 ? ` · ${daysLeft}d left` : "";
+  return { until, validText, color, suffix };
+}
+
+/** Collapsible group of one vaccine's boosters; header shows the latest expiry. */
+function VaccineGroup({
+  name,
+  entries,
+  isFirst,
+  open,
+  onToggle,
+  onEdit,
+  onDelete,
+}: {
+  name: string;
+  entries: { v: Vaccine; index: number }[];
+  isFirst: boolean;
+  open: boolean;
+  onToggle: () => void;
+  onEdit: (index: number) => void;
+  onDelete: (index: number) => void;
+}): React.ReactElement {
+  const recent = entries[0].v;
+  const { until, color, suffix } = vaccineExpiry(recent);
+  const headerMeta = until ? `Valid until ${fmtDate(until)}` : "No expiry set";
+  return (
+    <div style={{ borderTop: isFirst ? undefined : "1px solid rgba(255,255,255,0.07)" }}>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={onToggle}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+          padding: 14,
+          width: "100%",
+          border: "none",
+          background: "transparent",
+          cursor: "pointer",
+          textAlign: "left",
+        }}
+      >
+        <IconChip icon={Icons.syringe} accent={ACCENT.vaccine} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0 }}>
+          <Headline color={HERO}>{name}</Headline>
+          <Footnote color={color} weight={suffix ? 600 : undefined}>
+            {headerMeta}
+            {suffix}
+          </Footnote>
+        </div>
+        {entries.length > 1 && (
+          <span
+            style={{
+              fontFamily: "var(--font-ui)",
+              fontWeight: 600,
+              fontSize: 12,
+              color: MUTED,
+              background: "rgba(255,255,255,0.08)",
+              borderRadius: 100,
+              padding: "2px 9px",
+              flexShrink: 0,
+            }}
+          >
+            {entries.length}
+          </span>
+        )}
+        <span
+          aria-hidden
+          style={{
+            display: "flex",
+            color: MUTED,
+            flexShrink: 0,
+            transition: "transform 0.2s ease",
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+          }}
+        >
+          <Icon icon={Icons.chevronDown} color="inherit" size="sm" />
+        </span>
+      </button>
+      {open &&
+        entries.map(({ v, index }, i) => (
+          <VaccineEntryRow
+            key={index}
+            v={v}
+            index={i}
+            onEdit={() => onEdit(index)}
+            onDelete={() => onDelete(index)}
+          />
+        ))}
+    </div>
+  );
+}
+
+/** A single booster inside an expanded vaccine group (indented under the header). */
+function VaccineEntryRow({
+  v,
+  index,
+  onEdit,
+  onDelete,
+}: {
+  v: Vaccine;
+  index: number;
+  onEdit: () => void;
+  onDelete: () => void;
+}): React.ReactElement {
+  const { validText, color, suffix } = vaccineExpiry(v);
+  return (
+    <RevealItem index={index} style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+      <SwipeableRow
+        background={SURFACE}
+        actions={[
+          {
+            label: "Edit",
+            color: "#5B6EE1",
+            icon: <Icon icon={Icons.pencilSimple} color="inherit" />,
+            onAction: onEdit,
+          },
+          {
+            label: "Delete",
+            color: "#ff3b30",
+            icon: <Icon icon={Icons.trash} color="inherit" />,
+            onAction: onDelete,
+          },
+        ]}
+      >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            gap: 2,
+            minHeight: 64,
+            padding: "12px 14px 12px 66px",
+          }}
+        >
+          <Headline color={HERO}>{v.date ? `Given ${fmtDate(v.date)}` : "Given"}</Headline>
+          {v.manufacturer && <Footnote color={MUTED}>{v.manufacturer}</Footnote>}
+          {validText && (
+            <Footnote color={color} weight={suffix ? 600 : undefined}>
+              {validText}
+              {suffix}
+            </Footnote>
+          )}
+          {v.clinic && <Footnote color={MUTED}>{v.clinic}</Footnote>}
+          {v.notes && <Footnote color={MUTED}>{v.notes}</Footnote>}
         </div>
       </SwipeableRow>
     </RevealItem>

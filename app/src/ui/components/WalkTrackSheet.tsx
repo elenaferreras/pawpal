@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MotionSheet } from "./MotionSheet";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { Icon } from "@astryxdesign/core/Icon";
 import { Icons, type AppIconName } from "../lib/icons";
 import { nowTime } from "../lib/date";
+import { useWalkers, walkerAvatar, type Walker } from "../lib/walkers";
 import type { BathroomLog, Database, Walk } from "../types";
 
 interface WalkTrackSheetProps {
@@ -52,6 +53,7 @@ function localISO(d: Date): string {
 export function WalkTrackSheet({ open, onClose, editIndex, prefillDate }: WalkTrackSheetProps): React.ReactElement {
   const { db, update } = useDb();
   const toast = useToast();
+  const { walkers } = useWalkers();
 
   const editWalk =
     editIndex != null && editIndex >= 0 && editIndex < db.walks.length ? db.walks[editIndex] : null;
@@ -370,20 +372,14 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate }: WalkTr
           </div>
         </Field>
 
-        <Field label="Assignee">
-          <div style={{ display: "flex", gap: 8 }}>
-            <ChoiceButton
-              label="Person A"
-              selected={assignee === "Person A"}
-              onClick={() => setAssignee((v) => (v === "Person A" ? null : "Person A"))}
-            />
-            <ChoiceButton
-              label="Person B"
-              selected={assignee === "Person B"}
-              onClick={() => setAssignee((v) => (v === "Person B" ? null : "Person B"))}
-            />
-          </div>
-        </Field>
+        {/* Only meaningful once there's someone other than the user to pick —
+            a co-owner or sitter. Still shown if an entry already has an
+            assignee (e.g. editing after the co-owner/sitter was removed). */}
+        {(walkers.length > 1 || assignee != null) && (
+          <Field label="Walked by">
+            <WalkerSelect walkers={walkers} value={assignee} onChange={setAssignee} />
+          </Field>
+        )}
 
         <Field label="Notes">
           <SheetTextarea value={notes} onChange={setNotes} placeholder="Anything worth remembering?" />
@@ -419,6 +415,196 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate }: WalkTr
           </button>
       }
     />
+  );
+}
+
+const KIND_LABEL: Record<Walker["kind"], string> = {
+  you: "You",
+  coowner: "Co-owner",
+  sitter: "Sitter",
+};
+
+/** Small circular avatar (coloured initial) for a walker. */
+function WalkerDot({ name, size = 26 }: { name: string; size?: number }): React.ReactElement {
+  const { bg, initials } = walkerAvatar(name);
+  return (
+    <span
+      aria-hidden
+      style={{
+        flexShrink: 0,
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        background: bg,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: "var(--font-ui)",
+        fontWeight: 600,
+        fontSize: size * 0.5,
+        color: DARK,
+      }}
+    >
+      {initials}
+    </span>
+  );
+}
+
+/**
+ * Dropdown selecting who walked the dog — the signed-in user, a co-owner, or a
+ * dog-sitter. Replaces the old hard-coded Person A/B toggle.
+ */
+function WalkerSelect({
+  walkers,
+  value,
+  onChange,
+}: {
+  walkers: Walker[];
+  value: string | null;
+  onChange: (v: string | null) => void;
+}): React.ReactElement {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent): void => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
+  }, [open]);
+
+  const selected = value ? walkers.find((w) => w.name === value) : undefined;
+
+  const pick = (name: string | null): void => {
+    onChange(name);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          padding: 16,
+          borderRadius: 16,
+          border: `1px solid ${DARK}`,
+          background: "transparent",
+          color: DARK,
+          cursor: "pointer",
+          fontFamily: "var(--font-ui)",
+          fontWeight: 500,
+          fontSize: 16,
+          textAlign: "left",
+        }}
+      >
+        {value ? (
+          <>
+            <WalkerDot name={value} />
+            <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {value}
+            </span>
+            {selected && (
+              <span style={{ flexShrink: 0, opacity: 0.55, fontSize: 13 }}>{KIND_LABEL[selected.kind]}</span>
+            )}
+          </>
+        ) : (
+          <span style={{ flex: 1, opacity: 0.55 }}>Unassigned</span>
+        )}
+        <Icon
+          icon={Icons.chevronDown}
+          color="inherit"
+          style={{ flexShrink: 0, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
+        />
+      </button>
+
+      {open && (
+        <div
+          role="listbox"
+          style={{
+            position: "absolute",
+            top: "calc(100% + 6px)",
+            left: 0,
+            right: 0,
+            zIndex: 10,
+            borderRadius: 16,
+            background: DARK,
+            padding: 6,
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+            maxHeight: 260,
+            overflowY: "auto",
+            boxShadow: "0 12px 32px rgba(0,0,0,0.28)",
+          }}
+        >
+          <WalkerOption label="Unassigned" active={value == null} onClick={() => pick(null)} />
+          {walkers.map((w) => (
+            <WalkerOption
+              key={`${w.kind}:${w.name}`}
+              name={w.name}
+              tag={KIND_LABEL[w.kind]}
+              active={value === w.name}
+              onClick={() => pick(w.name)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WalkerOption({
+  name,
+  label,
+  tag,
+  active,
+  onClick,
+}: {
+  name?: string;
+  label?: string;
+  tag?: string;
+  active: boolean;
+  onClick: () => void;
+}): React.ReactElement {
+  return (
+    <button
+      type="button"
+      role="option"
+      aria-selected={active}
+      onClick={onClick}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        width: "100%",
+        padding: "10px 12px",
+        borderRadius: 12,
+        border: "none",
+        cursor: "pointer",
+        background: active ? WALK : "transparent",
+        color: active ? DARK : WALK,
+        fontFamily: "var(--font-ui)",
+        fontWeight: 500,
+        fontSize: 15,
+        textAlign: "left",
+      }}
+    >
+      {name && <WalkerDot name={name} />}
+      <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {name ?? label}
+      </span>
+      {tag && <span style={{ flexShrink: 0, opacity: 0.6, fontSize: 12 }}>{tag}</span>}
+      {active && <Icon icon={Icons.check} color="inherit" />}
+    </button>
   );
 }
 

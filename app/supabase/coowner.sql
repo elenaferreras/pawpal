@@ -33,6 +33,8 @@ create table if not exists public.coowner_invites (
   -- The pawpal_data row this invite shares, e.g. 'user_<owner_uid>'.
   owner_row_key   text not null,
   dog_name        text,
+  -- Owner-chosen display name for this co-owner (optional; overrides the email).
+  label           text,
   -- Human, single-claim access code (shown to the invitee).
   code            text not null unique,
   created_at      timestamptz not null default now(),
@@ -42,6 +44,10 @@ create table if not exists public.coowner_invites (
   claimed_user_id uuid references auth.users (id) on delete set null,
   revoked_at      timestamptz
 );
+
+-- Backfill for databases created before the label column existed.
+alter table public.coowner_invites
+  add column if not exists label text;
 
 create index if not exists coowner_invites_owner_idx
   on public.coowner_invites (owner_user_id);

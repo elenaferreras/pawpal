@@ -36,7 +36,7 @@ export function WalkChooserSheet({
       title="Log a walk"
       titleColor={HERO}
     >
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "8px 28px 0" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "8px 0 0" }}>
           <ChooserCard
             bg="var(--color-dash-walk)"
             icon={Icons.mapPin}

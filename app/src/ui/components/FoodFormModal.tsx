@@ -1,11 +1,10 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { Icon } from "@astryxdesign/core/Icon";
 import { Icons } from "../lib/icons";
-import { MotionSheet } from "./MotionSheet";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { nowTime } from "../lib/date";
-import type { Database, Meal } from "../types";
+import type { Meal } from "../types";
 
 interface FoodFormModalProps {
   open: boolean;
@@ -13,12 +12,7 @@ interface FoodFormModalProps {
 }
 
 const DARK = "var(--color-pawpal-page)"; // #352B25
-const FOOD = "var(--color-food)"; // #E96A41 meals accent
 const TYPES = ["Dry kibble", "Wet food", "Raw", "Treats", "Other"];
-
-function localISO(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 const sheetFieldStyle: CSSProperties = {
   width: "100%",
@@ -32,207 +26,138 @@ const sheetFieldStyle: CSSProperties = {
   fontSize: 16,
   outline: "none",
   boxSizing: "border-box",
-  minWidth: 0,
-  maxWidth: "100%",
 };
 
 /**
  * "Log a meal" bottom sheet (new design).
  *
- * Red meals-accent sheet that slides up from the bottom, matching the Track-walk
- * sheet: dark outlined fields on the accent surface, wrapping type chips that
- * invert to a dark fill when selected, and a pinned dark "Save meal" action.
+ * Orange sheet that slides up from the bottom, matching the Track-walk sheet:
+ * dark outlined fields on the orange surface, wrapping type chips that invert to
+ * a dark fill when selected, and a pinned dark "Save meal" action.
  */
-export function FoodFormModal({ open, onClose }: FoodFormModalProps): React.ReactElement {
+export function FoodFormModal({ open, onClose }: FoodFormModalProps): React.ReactElement | null {
   const { update } = useDb();
   const toast = useToast();
-  const [dateISO, setDateISO] = useState(localISO(new Date()));
   const [time, setTime] = useState("");
   const [type, setType] = useState(TYPES[0]);
   const [amount, setAmount] = useState("");
   const [notes, setNotes] = useState("");
-  const [sendToVet, setSendToVet] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setDateISO(localISO(new Date()));
     setTime(nowTime());
     setType(TYPES[0]);
     setAmount("");
     setNotes("");
-    setSendToVet(false);
   }, [open]);
+
+  if (!open) return null;
 
   const save = (): void => {
     if (!amount) {
       toast("Enter an amount");
       return;
     }
-    const trimmedNotes = notes.trim();
-    const created = new Date().toISOString();
     const meal: Meal = {
-      date: dateISO,
+      date: new Date().toISOString().split("T")[0],
       time,
       type,
       amount: parseInt(amount) || 0,
-      notes: trimmedNotes,
-      sentToVet: sendToVet && trimmedNotes !== "",
-      created,
-    };
-    // Keep a linked "Notes for the vet" checklist item in sync with this meal's
-    // note: create it when the toggle is on and the note is non-empty.
-    const syncVetNote = (d: Database): void => {
-      const items = (d.vetRecords.noteItems ??= []);
-      const idx = items.findIndex((n) => n.source === created);
-      if (sendToVet && trimmedNotes) {
-        const stamp = new Date(dateISO + "T12:00:00").toLocaleDateString("en-US", {
-          day: "numeric",
-          month: "short",
-        });
-        const text = `${stamp} (meal): ${trimmedNotes}`;
-        if (idx >= 0) items[idx].text = text;
-        else items.push({ text, done: false, source: created });
-      } else if (idx >= 0) {
-        items.splice(idx, 1);
-      }
+      notes,
+      created: new Date().toISOString(),
     };
     update((d) => {
       d.meals.push(meal);
-      syncVetNote(d);
     });
-    toast("Meal logged");
+    toast("Meal logged! 🍖");
     onClose();
   };
 
   return (
-    <MotionSheet
-      open={open}
-      onClose={onClose}
-      ariaLabel="Log a meal"
-      scrimClassName="walk-sheet-scrim"
-      sheetClassName="meal-sheet"
-      title="Log a meal"
-      body={
-        <>
-        <Field label="Date">
-          <input
-            className="wts-field"
-            type="date"
-            value={dateISO}
-            max={localISO(new Date())}
-            onChange={(e) => setDateISO(e.target.value)}
-            style={{ ...sheetFieldStyle, colorScheme: "light" }}
-          />
-        </Field>
-
-        <Field label="Time">
-          <input
-            className="wts-field"
-            type="time"
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-            style={{ ...sheetFieldStyle, colorScheme: "light" }}
-          />
-        </Field>
-
-        <Field label="Amount">
-          <div
-            className="wts-field"
+    <div className="walk-sheet-scrim" onClick={onClose}>
+      <div
+        className="walk-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Log a meal"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="walk-sheet-body">
+          <p
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              width: "100%",
-              padding: 16,
-              borderRadius: 16,
-              border: `1px solid ${DARK}`,
-              background: "transparent",
-              boxSizing: "border-box",
-              maxWidth: "100%",
+              margin: 0,
+              fontFamily: "var(--font-ui)",
+              fontWeight: 700,
+              fontSize: 32,
+              color: DARK,
             }}
           >
+            Log a meal
+          </p>
+
+          <Field label="Time">
+            <input
+              className="wts-field"
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              style={sheetFieldStyle}
+            />
+          </Field>
+
+          <Field label="Amount (g)">
             <input
               className="wts-field"
               value={amount}
-              placeholder="120"
+              placeholder="120 g"
               inputMode="numeric"
               onChange={(e) => setAmount(e.target.value)}
-              style={{
-                flex: 1,
-                minWidth: 0,
-                padding: 0,
-                border: "none",
-                background: "transparent",
-                color: DARK,
-                fontFamily: "var(--font-ui)",
-                fontWeight: 500,
-                fontSize: 16,
-                outline: "none",
-              }}
+              style={sheetFieldStyle}
             />
-            <span
-              aria-hidden
-              style={{
-                flexShrink: 0,
-                color: "rgba(53, 43, 37, 0.55)",
-                fontFamily: "var(--font-ui)",
-                fontWeight: 500,
-                fontSize: 16,
-              }}
-            >
-              g
-            </span>
-          </div>
-        </Field>
+          </Field>
 
-        <Field label="Type">
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {TYPES.map((t) => (
-              <ChoiceChip key={t} label={t} selected={type === t} onClick={() => setType(t)} />
-            ))}
-          </div>
-        </Field>
+          <Field label="Type">
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {TYPES.map((t) => (
+                <ChoiceChip key={t} label={t} selected={type === t} onClick={() => setType(t)} />
+              ))}
+            </div>
+          </Field>
 
-        <Field label="Notes">
-          <textarea
-            className="wts-field"
-            value={notes}
-            placeholder="Optional"
-            rows={3}
-            onChange={(e) => setNotes(e.target.value)}
-            style={{ ...sheetFieldStyle, resize: "none" }}
-          />
-          {notes.trim() !== "" && (
-            <ChoiceChip
-              label="Send note to vet"
-              selected={sendToVet}
-              onClick={() => setSendToVet((v) => !v)}
+          <Field label="Notes">
+            <textarea
+              className="wts-field"
+              value={notes}
+              placeholder="Optional"
+              rows={3}
+              onChange={(e) => setNotes(e.target.value)}
+              style={{ ...sheetFieldStyle, resize: "none" }}
             />
-          )}
-        </Field>
-        </>
-      }
-      footer={
-        <button
-          type="button"
-          onClick={save}
-          style={{
-            width: "100%",
-            padding: 16,
-            borderRadius: 16,
-            border: "none",
-            cursor: "pointer",
-            background: DARK,
-            color: FOOD,
-            fontFamily: "var(--font-ui)",
-            fontWeight: 700,
-            fontSize: 16,
-          }}
-        >
-          Save meal
-        </button>
-      }
-    />
+          </Field>
+        </div>
+
+        <div className="walk-sheet-footer">
+          <button
+            type="button"
+            onClick={save}
+            style={{
+              width: "100%",
+              padding: 16,
+              borderRadius: 16,
+              border: "none",
+              cursor: "pointer",
+              background: DARK,
+              color: "var(--color-track-poop)",
+              fontFamily: "var(--font-ui)",
+              fontWeight: 700,
+              fontSize: 16,
+            }}
+          >
+            Save meal
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -270,7 +195,7 @@ function ChoiceChip({
         border: `1px solid ${DARK}`,
         cursor: "pointer",
         background: selected ? DARK : "transparent",
-        color: selected ? FOOD : DARK,
+        color: selected ? "var(--color-track-poop)" : DARK,
         fontFamily: "var(--font-ui)",
         fontWeight: 500,
         fontSize: 16,

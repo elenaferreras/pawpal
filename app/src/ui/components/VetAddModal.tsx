@@ -8,6 +8,7 @@ import { fmtDate } from "../lib/date";
 import type { Checkup, Medication, Priority, Reminder, Vaccine } from "../types";
 
 type RecordType = "checkup" | "vaccine" | "reminder" | "medication";
+export type { RecordType };
 
 const DARK = "var(--color-pawpal-page)"; // #352B25
 const VET = "var(--color-dash-walk)"; // blue sheet surface — used for button copy & selected chips
@@ -31,6 +32,10 @@ const DOSES_PER_DAY: Record<string, number> = {
 
 const PRIORITIES: Priority[] = ["High", "Medium", "Low"];
 
+const RABIES = "Rabies";
+const DHPP = "DHPP / DAPP (Combination Vaccine)";
+const OTHER = "Other";
+
 const sheetFieldStyle: CSSProperties = {
   width: "100%",
   padding: 16,
@@ -52,6 +57,12 @@ interface VetAddModalProps {
   editReminderIndex?: number | null;
   /** When set, the sheet edits this existing vaccine instead of adding a new record. */
   editVaccineIndex?: number | null;
+  /**
+   * Restricts the record types this sheet can add. One type hides the picker
+   * entirely (a dedicated sheet); multiple types show a picker limited to them.
+   * Defaults to all record types.
+   */
+  addTypes?: RecordType[];
 }
 
 /**
@@ -67,10 +78,12 @@ export function VetAddModal({
   onClose,
   editReminderIndex,
   editVaccineIndex,
+  addTypes,
 }: VetAddModalProps): React.ReactElement {
   const { db, update } = useDb();
   const toast = useToast();
-  const [type, setType] = useState<RecordType>("checkup");
+  const allowedTypes = addTypes && addTypes.length ? addTypes : RECORD_TYPES.map((t) => t.value);
+  const [type, setType] = useState<RecordType>(allowedTypes[0]);
 
   const editReminder =
     editReminderIndex != null &&
@@ -87,7 +100,11 @@ export function VetAddModal({
       : null;
 
   const isEdit = Boolean(editReminder || editVaccine);
-  const sheetLabel = editReminder ? "Edit reminder" : editVaccine ? "Edit vaccine" : "Add health record";
+  const addLabel =
+    allowedTypes.length === 1
+      ? "Add " + (RECORD_TYPES.find((t) => t.value === allowedTypes[0])?.label.toLowerCase() ?? "record")
+      : "Add health record";
+  const sheetLabel = editReminder ? "Edit reminder" : editVaccine ? "Edit vaccine" : addLabel;
 
   // Checkup
   const [reason, setReason] = useState("");
@@ -97,7 +114,18 @@ export function VetAddModal({
   const [fileName, setFileName] = useState("");
 
   // Vaccine
-  const [vName, setVName] = useState("");
+  const [vNameChoice, setVNameChoice] = useState<string>(RABIES);
+  const [vNameOther, setVNameOther] = useState("");
+  const vName = vNameChoice === OTHER ? vNameOther.trim() : vNameChoice;
+  // Only the fixed combination vaccine hides "Valid from".
+  const showValidFrom = vNameChoice !== DHPP;
+  // Dropdown remembers any custom vaccine names previously saved.
+  const vaccineNameOptions = useMemo(() => {
+    const custom = Array.from(
+      new Set(db.vetRecords.vaccines.map((v) => v.name).filter((n) => n && n !== RABIES && n !== DHPP)),
+    );
+    return [RABIES, DHPP, ...custom, OTHER];
+  }, [db.vetRecords.vaccines]);
   const [vManufacturer, setVManufacturer] = useState("");
   const [vDate, setVDate] = useState("");
   const [vValidFrom, setVValidFrom] = useState("");
@@ -120,13 +148,14 @@ export function VetAddModal({
   useEffect(() => {
     if (!open) return;
     const today = new Date().toISOString().split("T")[0];
-    setType("checkup");
+    setType(allowedTypes[0]);
     setReason("");
     setCDate(today);
     setClinic("");
     setCNotes("");
     setFileName("");
-    setVName("");
+    setVNameChoice(RABIES);
+    setVNameOther("");
     setVManufacturer("");
     setVDate(today);
     setVValidFrom("");
@@ -151,7 +180,14 @@ export function VetAddModal({
     // Editing an existing vaccine: lock the sheet to the vaccine form and prefill.
     if (editVaccine) {
       setType("vaccine");
-      setVName(editVaccine.name);
+      if (editVaccine.name === RABIES || editVaccine.name === DHPP) {
+        setVNameChoice(editVaccine.name);
+        setVNameOther("");
+      } else {
+        // Custom name: show the editable text field so it can be renamed.
+        setVNameChoice(OTHER);
+        setVNameOther(editVaccine.name);
+      }
       setVManufacturer(editVaccine.manufacturer ?? "");
       setVDate(editVaccine.date || today);
       setVValidFrom(editVaccine.validFrom ?? "");
@@ -192,6 +228,10 @@ export function VetAddModal({
         toast("Enter a vaccine name");
         return;
       }
+      if (!vDate) {
+        toast("Enter the vaccination date");
+        return;
+      }
       if (editVaccine && editVaccineIndex != null) {
         const oldBoosterTitle = editVaccine.name + " booster due";
         update((d) => {
@@ -200,7 +240,7 @@ export function VetAddModal({
             existing.name = vName;
             existing.manufacturer = vManufacturer || undefined;
             existing.date = vDate;
-            existing.validFrom = vValidFrom || undefined;
+            existing.validFrom = showValidFrom ? vValidFrom || undefined : undefined;
             existing.validUntil = vValidUntil || undefined;
             existing.clinic = vClinic || undefined;
           }
@@ -231,7 +271,7 @@ export function VetAddModal({
         name: vName,
         manufacturer: vManufacturer || undefined,
         date: vDate,
-        validFrom: vValidFrom || undefined,
+        validFrom: showValidFrom ? vValidFrom || undefined : undefined,
         validUntil: vValidUntil || undefined,
         clinic: vClinic || undefined,
         created: new Date().toISOString(),
@@ -311,10 +351,10 @@ export function VetAddModal({
       title={sheetLabel}
       body={
         <>
-        {!isEdit && (
+        {!isEdit && allowedTypes.length > 1 && (
           <Field label="Record type">
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {RECORD_TYPES.map((t) => (
+              {RECORD_TYPES.filter((t) => allowedTypes.includes(t.value)).map((t) => (
                 <ChoiceChip
                   key={t.value}
                   label={t.label}
@@ -349,17 +389,28 @@ export function VetAddModal({
         {type === "vaccine" && (
           <>
             <Field label="Vaccine name">
-              <SheetInput value={vName} onChange={setVName} placeholder="Rabies" />
+              <SheetSelect
+                value={vNameChoice}
+                onChange={setVNameChoice}
+                options={vaccineNameOptions.map((opt) => ({ value: opt, label: opt }))}
+              />
             </Field>
+            {vNameChoice === OTHER && (
+              <Field label="Vaccine name">
+                <SheetInput value={vNameOther} onChange={setVNameOther} placeholder="Vaccine name" />
+              </Field>
+            )}
             <Field label="Manufacturer">
               <SheetInput value={vManufacturer} onChange={setVManufacturer} placeholder="e.g. Nobivac" />
             </Field>
             <Field label="Vaccination date">
               <SheetInput value={vDate} onChange={setVDate} type="date" />
             </Field>
-            <Field label="Valid from">
-              <SheetInput value={vValidFrom} onChange={setVValidFrom} type="date" />
-            </Field>
+            {showValidFrom && (
+              <Field label="Valid from">
+                <SheetInput value={vValidFrom} onChange={setVValidFrom} type="date" />
+              </Field>
+            )}
             <Field label="Valid until">
               <SheetInput value={vValidUntil} onChange={setVValidUntil} type="date" />
             </Field>
@@ -506,6 +557,54 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
         {label}
       </span>
       {children}
+    </div>
+  );
+}
+
+function SheetSelect({
+  value,
+  onChange,
+  options,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+}): React.ReactElement {
+  return (
+    <div style={{ position: "relative" }}>
+      <select
+        className="wts-field"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          ...sheetFieldStyle,
+          minWidth: 0,
+          paddingRight: 44,
+          WebkitAppearance: "none",
+          appearance: "none",
+          cursor: "pointer",
+        }}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <span
+        aria-hidden
+        style={{
+          position: "absolute",
+          right: 16,
+          top: "50%",
+          transform: "translateY(-50%)",
+          pointerEvents: "none",
+          display: "flex",
+          color: DARK,
+        }}
+      >
+        <Icon icon={Icons.chevronDown} color="inherit" size="sm" />
+      </span>
     </div>
   );
 }

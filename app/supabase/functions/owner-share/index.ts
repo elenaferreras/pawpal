@@ -5,7 +5,8 @@
 // the co-owner's membership (revoking a claimed invite = removing that person).
 //
 // POST body:
-//   { action: "create", dogName?: string } → { inviteId, code }
+//   { action: "create", dogName?: string, label?: string } → { inviteId, code }
+//   { action: "rename", inviteId: string, label?: string } → { ok: true }
 //   { action: "revoke", inviteId: string } → { ok: true }
 import { generateCode, getUser, json, preflight, sb } from "../_shared/util.ts";
 
@@ -37,6 +38,7 @@ Deno.serve(async (req) => {
           owner_user_id: user.id,
           owner_row_key: ownerRowKey,
           dog_name: body.dogName ? String(body.dogName) : null,
+          label: labelValue(body.label),
           code,
         }),
       });
@@ -47,6 +49,24 @@ Deno.serve(async (req) => {
       if (res.status !== 409) return json({ error: "create_failed" }, 500);
     }
     return json({ error: "create_failed" }, 500);
+  }
+
+  if (action === "rename") {
+    const inviteId = body.inviteId ? String(body.inviteId) : "";
+    if (!inviteId) return json({ error: "bad_request" }, 400);
+
+    const res = await sb(
+      `coowner_invites?id=eq.${inviteId}&owner_user_id=eq.${user.id}`,
+      {
+        method: "PATCH",
+        prefer: "return=representation",
+        body: JSON.stringify({ label: labelValue(body.label) }),
+      },
+    );
+    if (!res.ok) return json({ error: "rename_failed" }, 500);
+    const rows = (await res.json()) as Array<unknown>;
+    if (rows.length === 0) return json({ error: "not_found" }, 404);
+    return json({ ok: true });
   }
 
   if (action === "revoke") {
@@ -82,3 +102,10 @@ Deno.serve(async (req) => {
 
   return json({ error: "unknown_action" }, 400);
 });
+
+// Trim an owner-supplied co-owner name, capped, coercing empty → null (clears it).
+function labelValue(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim().slice(0, 60);
+  return trimmed ? trimmed : null;
+}

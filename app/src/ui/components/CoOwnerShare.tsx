@@ -16,9 +16,15 @@ import {
   createCoOwnerInvite,
   formatCode,
   listCoOwnerInvites,
+  renameCoOwner,
   revokeCoOwnerInvite,
   type CoOwnerInviteRow,
 } from "../lib/coowner";
+
+/** Owner-chosen name if set, else the joined account's email, else a fallback. */
+function coownerName(inv: CoOwnerInviteRow): string {
+  return inv.label || inv.claimed_by || "Co-owner";
+}
 
 /** Owner control to invite, list and remove co-owners (full shared access). */
 export function CoOwnerShare(): React.ReactElement {
@@ -33,10 +39,12 @@ export function CoOwnerShare(): React.ReactElement {
   const [detailInvite, setDetailInvite] = useState<CoOwnerInviteRow | null>(null);
   const [showQr, setShowQr] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
 
   useEffect(() => {
     setShowQr(false);
     setMenuOpen(false);
+    setNameDraft(detailInvite?.label ?? "");
   }, [detailInvite?.id]);
 
   useEffect(() => {
@@ -99,6 +107,20 @@ export function CoOwnerShare(): React.ReactElement {
     }
   };
 
+  // Persist the owner-chosen co-owner name (no-op when unchanged).
+  const saveName = async (): Promise<void> => {
+    if (!detailInvite) return;
+    const next = nameDraft.trim();
+    if (next === (detailInvite.label ?? "")) return;
+    try {
+      await renameCoOwner(detailInvite.id, next);
+      setDetailInvite({ ...detailInvite, label: next || null });
+      void refresh();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not update the name.");
+    }
+  };
+
   if (!loggedIn) {
     return (
       <VStack gap={1}>
@@ -152,7 +174,7 @@ export function CoOwnerShare(): React.ReactElement {
               }}
             >
               <span className="invite-row-info">
-                <PanelTitle>{inv.claimed_by || "Co-owner"}</PanelTitle>
+                <PanelTitle>{coownerName(inv)}</PanelTitle>
                 <PanelText>Full access</PanelText>
               </span>
               <span className="invite-row-caret" aria-hidden>
@@ -177,7 +199,7 @@ export function CoOwnerShare(): React.ReactElement {
               }}
             >
               <span className="invite-row-info">
-                <PanelTitle>{formatCode(inv.code)}</PanelTitle>
+                <PanelTitle>{inv.label || formatCode(inv.code)}</PanelTitle>
                 <PanelText>Not accepted yet</PanelText>
               </span>
               <span className="invite-row-caret" aria-hidden>
@@ -206,30 +228,44 @@ export function CoOwnerShare(): React.ReactElement {
             aria-label="Co-owner invite"
             onClick={(e) => e.stopPropagation()}
           >
-            <span
-              aria-hidden
-              style={{
-                width: 36,
-                height: 5,
-                borderRadius: 100,
-                background: "rgba(233,228,196,0.3)",
-                alignSelf: "center",
-                marginBottom: 20,
-              }}
-            />
+            <span className="sheet-grabber" aria-hidden style={{ marginTop: 10, marginBottom: 8 }} />
             <VStack gap={2}>
               <VStack gap={0.5}>
                 <PanelTitle>
                   {coownerStatus(detailInvite) === "active"
-                    ? detailInvite.claimed_by || "Co-owner"
+                    ? coownerName(detailInvite)
                     : "Co-owner invite"}
                 </PanelTitle>
                 <PanelText>
                   {coownerStatus(detailInvite) === "active"
-                    ? "Full access · already joined"
+                    ? detailInvite.label && detailInvite.claimed_by
+                      ? `${detailInvite.claimed_by} · already joined`
+                      : "Full access · already joined"
                     : "Share this link or code. It works once and never expires."}
                 </PanelText>
               </VStack>
+
+              <label style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <PanelText style={{ opacity: 0.8 }}>Name</PanelText>
+                <div className="oba-input-wrap">
+                  <input
+                    className="oba-input"
+                    type="text"
+                    value={nameDraft}
+                    placeholder="Give this co-owner a name"
+                    aria-label="Co-owner name"
+                    maxLength={60}
+                    onChange={(e) => setNameDraft(e.target.value)}
+                    onBlur={() => void saveName()}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        (e.target as HTMLInputElement).blur();
+                      }
+                    }}
+                  />
+                </div>
+              </label>
 
               {coownerStatus(detailInvite) === "pending" && (
                 <>
