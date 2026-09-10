@@ -16,7 +16,8 @@ const TYPES = ["Dry kibble", "Wet food", "Raw", "Treats", "Other"];
 
 const sheetFieldStyle: CSSProperties = {
   width: "100%",
-  padding: 16,
+  height: 28,
+  padding: "0 16px",
   borderRadius: 16,
   border: `1px solid ${DARK}`,
   background: "transparent",
@@ -131,7 +132,7 @@ export function FoodFormModal({ open, onClose }: FoodFormModalProps): React.Reac
               placeholder="Optional"
               rows={3}
               onChange={(e) => setNotes(e.target.value)}
-              style={{ ...sheetFieldStyle, resize: "none" }}
+              style={{ ...sheetFieldStyle, height: "auto", minHeight: 56, padding: "8px 16px", resize: "none" }}
             />
           </Field>
         </div>

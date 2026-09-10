@@ -27,7 +27,8 @@ const TYPES: { value: BathroomType; label: string; icon?: AppIconName }[] = [
 
 const sheetFieldStyle: CSSProperties = {
   width: "100%",
-  padding: 16,
+  height: 28,
+  padding: "0 16px",
   borderRadius: 16,
   border: `1px solid ${DARK}`,
   background: "transparent",
@@ -132,6 +133,8 @@ export function PoopFormModal({ open, onClose, editIndex }: PoopFormModalProps):
       scrimClassName="walk-sheet-scrim"
       sheetClassName="bathroom-sheet"
       title={editIndex != null ? "Edit bathroom log" : "Bathroom log"}
+      confirmLabel={editIndex != null ? "Save changes" : "Save"}
+      onConfirm={save}
       body={
         <>
         <Field label="Type">
@@ -195,26 +198,6 @@ export function PoopFormModal({ open, onClose, editIndex }: PoopFormModalProps):
           )}
         </Field>
         </>
-      }
-      footer={
-        <button
-          type="button"
-          onClick={save}
-          style={{
-            width: "100%",
-            padding: 16,
-            borderRadius: 16,
-            border: "none",
-            cursor: "pointer",
-            background: DARK,
-            color: BATH,
-            fontFamily: "var(--font-ui)",
-            fontWeight: 700,
-            fontSize: 16,
-          }}
-        >
-          {editIndex != null ? "Save changes" : "Save"}
-        </button>
       }
     />
   );
@@ -282,7 +265,7 @@ function SheetTextarea({
       placeholder={placeholder}
       rows={3}
       onChange={(e) => onChange(e.target.value)}
-      style={{ ...sheetFieldStyle, resize: "none" }}
+      style={{ ...sheetFieldStyle, height: "auto", minHeight: 56, padding: "8px 16px", resize: "none" }}
     />
   );
 }

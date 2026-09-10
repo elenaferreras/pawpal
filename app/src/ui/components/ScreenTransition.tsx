@@ -2,11 +2,13 @@ import { motion, useReducedMotion, type Variants } from "motion/react";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
-// Subtle vertical fade — used when switching between the main tabs.
+// Plain cross-fade for switching between the main tabs. Deliberately avoids a
+// transform: a lingering `transform` on this wrapper would make the sticky
+// TopBar stick to it (and scroll away) instead of the viewport.
 const verticalVariants: Variants = {
-  initial: { opacity: 0, y: 12 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -8 },
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
 };
 
 // Directional horizontal slide — used for step-by-step wizards (onboarding),

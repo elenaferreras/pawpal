@@ -203,6 +203,8 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate }: WalkTr
       scrimClassName="walk-sheet-scrim"
       sheetClassName="walk-sheet"
       title={editWalk ? "Edit walk" : "Track walk"}
+      confirmLabel={editWalk ? "Save changes" : "Save walk"}
+      onConfirm={save}
       body={
         <>
         {/* Date picker — native date input */}
@@ -215,7 +217,9 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate }: WalkTr
             onChange={(e) => setDateISO(e.target.value)}
             style={{
               width: "100%",
-              padding: 16,
+              height: 28,
+              boxSizing: "border-box",
+              padding: "0 16px",
               borderRadius: 16,
               border: `1px solid ${DARK}`,
               background: "transparent",
@@ -393,26 +397,6 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate }: WalkTr
         </Field>
 
         </>
-      }
-      footer={
-        <button
-            type="button"
-            onClick={save}
-            style={{
-              width: "100%",
-              padding: "16px",
-              borderRadius: 16,
-              border: "none",
-              cursor: "pointer",
-              background: DARK,
-              color: WALK,
-              fontFamily: "var(--font-ui)",
-              fontWeight: 700,
-              fontSize: 16,
-            }}
-          >
-            {editWalk ? "Save changes" : "Save walk"}
-          </button>
       }
     />
   );
@@ -640,7 +624,9 @@ function SheetInput({
         alignItems: "center",
         gap: 8,
         width: "100%",
-        padding: 16,
+        height: 28,
+        boxSizing: "border-box",
+        padding: "0 16px",
         borderRadius: 16,
         border: `1px solid ${DARK}`,
         background: "transparent",
@@ -701,7 +687,7 @@ function SheetTextarea({
       onChange={(e) => onChange(e.target.value)}
       style={{
         width: "100%",
-        padding: 16,
+        padding: "8px 16px",
         borderRadius: 16,
         border: `1px solid ${DARK}`,
         background: "transparent",

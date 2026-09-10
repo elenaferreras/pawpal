@@ -1,6 +1,7 @@
 import type { ComponentType, CSSProperties, ReactNode } from "react";
 import { Icon } from "@astryxdesign/core/Icon";
 import { Icons } from "../../lib/icons";
+import { TopBar, TopBarAction } from "../../components/TopBar";
 import { Eyebrow, Headline, Footnote } from "../../components/Typography";
 
 // Dashboard design tokens (mirrors screens/Dashboard.tsx).
@@ -36,63 +37,11 @@ export function SettingsPage({
         paddingBottom: "calc(32px + env(safe-area-inset-bottom, 20px))",
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "calc(12px + env(safe-area-inset-top, 0px)) 8px 12px",
-        }}
-      >
-        <button
-          type="button"
-          aria-label="Back"
-          onClick={onBack}
-          style={{
-            width: 44,
-            height: 44,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            border: "none",
-            background: "none",
-            cursor: "pointer",
-            color: HERO,
-            flexShrink: 0,
-          }}
-        >
-          <Icon icon={Icons.caretLeft} color="inherit" />
-        </button>
-        <span
-          style={{
-            flex: 1,
-            minWidth: 0,
-            textAlign: "center",
-            fontFamily: "var(--font-ui)",
-            fontWeight: 600,
-            fontSize: 18,
-            lineHeight: "22px",
-            color: HERO,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {title}
-        </span>
-        <div
-          style={{
-            width: 44,
-            height: 44,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
-        >
-          {action}
-        </div>
-      </div>
+      <TopBar
+        title={title}
+        leading={<TopBarAction icon={Icons.caretLeft} label="Back" onClick={onBack} />}
+        trailing={action}
+      />
       <div style={{ padding: "4px 16px 0" }}>{children}</div>
     </div>
   );

@@ -1,7 +1,7 @@
 import { Icon } from "@astryxdesign/core/Icon";
 import { useDb } from "../lib/store";
 import { Icons } from "../lib/icons";
-import { PageTitle } from "../components/Typography";
+import { TopBar, TopBarAction } from "../components/TopBar";
 import type { ScreenId } from "../types";
 
 type IconComponent = (typeof Icons)[keyof typeof Icons];
@@ -137,38 +137,10 @@ export function Notifications({
         paddingBottom: "calc(32px + env(safe-area-inset-bottom, 20px))",
       }}
     >
-      {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          padding: "calc(16px + env(safe-area-inset-top, 0px)) 16px 8px",
-        }}
-      >
-        <PageTitle style={{ margin: 0 }}>Today</PageTitle>
-        <button
-          type="button"
-          aria-label="Close"
-          onClick={onClose}
-          style={{
-            width: 44,
-            height: 44,
-            marginRight: -8,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            border: "none",
-            background: "none",
-            cursor: "pointer",
-            color: HERO,
-            flexShrink: 0,
-          }}
-        >
-          <Icon icon={Icons.x} color="inherit" />
-        </button>
-      </div>
+      <TopBar
+        title="Today"
+        trailing={<TopBarAction icon={Icons.x} label="Close" onClick={onClose} />}
+      />
 
       <div style={{ padding: "4px 16px 0" }}>
         {items.length === 0 ? (

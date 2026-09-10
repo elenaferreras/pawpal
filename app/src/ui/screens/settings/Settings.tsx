@@ -5,7 +5,7 @@ import { Icon } from "@astryxdesign/core/Icon";
 import { Icons } from "../../lib/icons";
 import { getCurrentUser, type AuthUser } from "../../lib/auth";
 import { getLastSync } from "../../lib/supabase";
-import { PageTitle } from "../../components/Typography";
+import { TopBar, TopBarAction } from "../../components/TopBar";
 import type { ScreenId } from "../../types";
 import { DARK, HERO, MUTED, GroupCard, SectionLabel, SettingsRow } from "./shared";
 
@@ -41,38 +41,10 @@ export function Settings({ onNavigate, onBack }: SettingsProps): React.ReactElem
         paddingBottom: "calc(96px + env(safe-area-inset-bottom, 20px))",
       }}
     >
-      {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          padding: "calc(16px + env(safe-area-inset-top, 0px)) 16px 8px",
-        }}
-      >
-        <PageTitle style={{ margin: 0 }}>Settings</PageTitle>
-        <button
-          type="button"
-          aria-label="Close"
-          onClick={onBack}
-          style={{
-            width: 44,
-            height: 44,
-            marginRight: -8,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            border: "none",
-            background: "none",
-            cursor: "pointer",
-            color: HERO,
-            flexShrink: 0,
-          }}
-        >
-          <Icon icon={Icons.x} color="inherit" />
-        </button>
-      </div>
+      <TopBar
+        title="Settings"
+        trailing={<TopBarAction icon={Icons.x} label="Close" onClick={onBack} />}
+      />
 
       <div style={{ padding: "4px 16px 0" }}>
         {/* Pinned pet header → Profile Details */}

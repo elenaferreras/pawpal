@@ -1,11 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Icon } from "@astryxdesign/core/Icon";
-import { Icons } from "../lib/icons";
 import { MotionSheet } from "./MotionSheet";
 
 const DARK = "var(--color-pawpal-page)"; // #352B25
-const SHEET = "var(--color-pawpal-hero)"; // cream sheet surface
-const PRIMARY = "var(--color-data-yellow-3)"; // #FFFF83 confirm button
 
 export type FieldEditType = "text" | "number" | "decimal" | "tel" | "date";
 
@@ -83,132 +79,74 @@ export function FieldEditSheet({
       ariaLabel={title}
       scrimClassName="walk-sheet-scrim"
       sheetClassName="field-sheet"
-    >
-        {/* Toolbar */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "12px 0 10px" }}>
-          <div
+      title={title}
+      confirmLabel="Save"
+      onConfirm={confirm}
+      body={
+        <label style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <span
+            style={{
+              fontFamily: "var(--font-ui)",
+              fontWeight: 400,
+              fontSize: 16,
+              color: DARK,
+            }}
+          >
+            {title}
+          </span>
+          <span
             style={{
               display: "flex",
               alignItems: "center",
-              justifyContent: "space-between",
-              width: "100%",
+              gap: 8,
+              border: `1px solid ${DARK}`,
+              borderRadius: 16,
+              height: 28,
+              boxSizing: "border-box",
               padding: "0 16px",
             }}
           >
-            <button
-              type="button"
-              aria-label="Cancel"
-              onClick={onClose}
+            <input
+              ref={inputRef}
+              autoFocus
+              type={inputType}
+              inputMode={inputMode}
+              value={draft}
+              placeholder={placeholder}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") confirm();
+              }}
               style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: 12,
-                borderRadius: 100,
+                flex: 1,
+                minWidth: 0,
                 border: "none",
-                background: DARK,
-                color: SHEET,
-                cursor: "pointer",
-              }}
-            >
-              <Icon icon={Icons.x} width={16} height={16} color="inherit" />
-            </button>
-            <span
-              style={{
-                fontFamily: "var(--font-ui)",
-                fontWeight: 590,
-                fontSize: 16,
-                lineHeight: "22px",
-                color: DARK,
-              }}
-            >
-              {title}
-            </span>
-            <button
-              type="button"
-              aria-label="Save"
-              onClick={confirm}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: 12,
-                borderRadius: 100,
-                border: "none",
-                background: PRIMARY,
-                color: DARK,
-                cursor: "pointer",
-              }}
-            >
-              <Icon icon={Icons.check} width={16} height={16} color="inherit" />
-            </button>
-          </div>
-        </div>
-
-        {/* Body */}
-        <div style={{ padding: "8px 16px 16px" }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <span
-              style={{
+                outline: "none",
+                background: "none",
                 fontFamily: "var(--font-ui)",
                 fontWeight: 400,
                 fontSize: 16,
                 color: DARK,
+                padding: 0,
               }}
-            >
-              {title}
-            </span>
-            <span
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                border: `1px solid ${DARK}`,
-                borderRadius: 16,
-                padding: 16,
-              }}
-            >
-              <input
-                ref={inputRef}
-                autoFocus
-                type={inputType}
-                inputMode={inputMode}
-                value={draft}
-                placeholder={placeholder}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") confirm();
-                }}
+            />
+            {unit && (
+              <span
                 style={{
-                  flex: 1,
-                  minWidth: 0,
-                  border: "none",
-                  outline: "none",
-                  background: "none",
                   fontFamily: "var(--font-ui)",
                   fontWeight: 400,
                   fontSize: 16,
                   color: DARK,
-                  padding: 0,
+                  opacity: 0.6,
+                  whiteSpace: "nowrap",
                 }}
-              />
-              {unit && (
-                <span
-                  style={{
-                    fontFamily: "var(--font-ui)",
-                    fontWeight: 400,
-                    fontSize: 16,
-                    color: DARK,
-                    opacity: 0.6,
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {unit}
-                </span>
-              )}
-            </span>
-          </label>
-        </div>
-    </MotionSheet>
+              >
+                {unit}
+              </span>
+            )}
+          </span>
+        </label>
+      }
+    />
   );
 }

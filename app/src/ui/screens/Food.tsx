@@ -2,7 +2,8 @@ import { Icon } from "@astryxdesign/core/Icon";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { MealsWidget } from "../components/MealsWidget";
-import { PageTitle, CardTitle } from "../components/Typography";
+import { CardTitle } from "../components/Typography";
+import { TopBar, TopBarButton } from "../components/TopBar";
 import { Icons } from "../lib/icons";
 import { fmtDate } from "../lib/date";
 import type { Meal } from "../types";
@@ -118,35 +119,21 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
       style={{
         minHeight: "100vh",
         background: DARK,
-        padding:
-          "calc(16px + env(safe-area-inset-top, 0px)) 16px calc(96px + env(safe-area-inset-bottom, 20px))",
+        paddingBottom: "calc(96px + env(safe-area-inset-bottom, 20px))",
       }}
     >
-      {/* Header — title + add button */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <PageTitle style={{ flex: 1, margin: "4px 0" }}>{name}&rsquo;s Meals</PageTitle>
-        <button
-          type="button"
-          aria-label="Log meal"
-          onClick={onAdd}
-          style={{
-            width: 56,
-            height: 56,
-            borderRadius: "50%",
-            flexShrink: 0,
-            border: "none",
-            cursor: "pointer",
-            background: "var(--color-dash-surface)",
-            color: CREAM,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Icon icon={Icons.plusCircle} color="inherit" />
-        </button>
-      </div>
-
+      <TopBar
+        title={`${name}\u2019s Meals`}
+        action={
+          <TopBarButton
+            icon={Icons.plus}
+            label="Log meal"
+            onClick={onAdd}
+            color="var(--color-food)"
+          />
+        }
+      />
+      <div style={{ padding: "0 16px" }}>
       {/* Current meal plan */}
       <div
         style={{
@@ -341,6 +328,7 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
           </div>
         </>
       )}
+      </div>
     </div>
   );
 }

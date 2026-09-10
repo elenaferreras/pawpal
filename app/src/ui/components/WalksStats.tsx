@@ -9,7 +9,8 @@ import { RouteMap } from "./RouteMap";
 import { MotionSheet } from "./MotionSheet";
 import { RevealItem } from "./Reveal";
 import { SwipeableRow } from "./SwipeableRow";
-import { PageTitle, StatNumber } from "./Typography";
+import { StatNumber } from "./Typography";
+import { TopBar, TopBarAction, TopBarButton } from "./TopBar";
 import { DogFace } from "../avatar/DogAvatar";
 import { fmtDate } from "../lib/date";
 import { useWalkers, walkerAvatar } from "../lib/walkers";
@@ -38,6 +39,17 @@ const WALK_FILTERS: { value: WalkFilter; label: string }[] = [
   { value: "month", label: "Month" },
   { value: "all", label: "All" },
 ];
+
+/** Terrain value → icon name, mirroring the picker in WalkTrackSheet. Used as
+ * the thumbnail glyph for walks logged without a GPS route. */
+const TERRAIN_ICON: Record<string, keyof typeof Icons> = {
+  city: "building",
+  park: "trees",
+  forest: "treePine",
+  mountain: "mountain",
+  beach: "waves",
+  trail: "footprints",
+};
 
 /** Local YYYY-MM-DD (avoids UTC off-by-one from toISOString). */
 function localISO(d: Date): string {
@@ -207,60 +219,50 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
     return sorted;
   }, [db.walks, filter, selected, days]);
 
+  // Group the (already newest-first) entries by calendar day so the list can
+  // show a "Today" / "Yesterday" / date header above each day's walks.
+  const groupedEntries = useMemo(() => {
+    const groups: { date: string; items: { w: Walk; index: number }[] }[] = [];
+    const byDate = new Map<string, { w: Walk; index: number }[]>();
+    for (const e of entries) {
+      let arr = byDate.get(e.w.date);
+      if (!arr) {
+        arr = [];
+        byDate.set(e.w.date, arr);
+        groups.push({ date: e.w.date, items: arr });
+      }
+      arr.push(e);
+    }
+    return groups;
+  }, [entries]);
+
   return (
     <div
       style={{
         minHeight: "100vh",
         background: "var(--color-pawpal-page)",
-        padding: "calc(16px + env(safe-area-inset-top, 0px)) 16px calc(96px + env(safe-area-inset-bottom, 20px))",
+        paddingBottom: "calc(96px + env(safe-area-inset-bottom, 20px))",
       }}
     >
-      {onBack && (
-        <button
-          type="button"
-          aria-label="Back"
-          onClick={onBack}
-          style={{
-            width: 48,
-            height: 48,
-            border: "none",
-            background: "none",
-            color: "var(--color-pawpal-hero)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            marginLeft: -8,
-          }}
-        >
-          <Icon icon={Icons.caretLeft} size="lg" color="inherit" />
-        </button>
-      )}
-
-      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-        <PageTitle style={{ flex: 1 }}>{name}&rsquo;s Walks</PageTitle>
-        {onAdd && (
-          <button
-            type="button"
-            aria-label="Add walk"
-            onClick={() => onAdd(selectedDay ? localISO(selectedDay.date) : undefined)}
-            style={{
-              flexShrink: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 12,
-              border: "none",
-              borderRadius: 100,
-              background: "none",
-              color: "var(--color-pawpal-hero)",
-              cursor: "pointer",
-            }}
-          >
-            <Icon icon={Icons.plusCircle} width={32} height={32} color="inherit" />
-          </button>
-        )}
-      </div>
+      <TopBar
+        title={`${name}\u2019s Walks`}
+        leading={
+          onBack ? (
+            <TopBarAction icon={Icons.caretLeft} label="Back" onClick={onBack} />
+          ) : undefined
+        }
+        action={
+          onAdd ? (
+            <TopBarButton
+              icon={Icons.plus}
+              label="Add walk"
+              onClick={() => onAdd(selectedDay ? localISO(selectedDay.date) : undefined)}
+              color="var(--color-dash-walk)"
+            />
+          ) : undefined
+        }
+      />
+      <div style={{ padding: "0 16px" }}>
 
       {walkActive && (
         <button
@@ -511,12 +513,9 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
       <div
         style={{
           marginTop: 8,
-          borderRadius: 16,
-          overflow: "hidden",
-          background: "var(--color-settings-group)",
           display: "flex",
           flexDirection: "column",
-          gap: 4,
+          gap: 20,
         }}
       >
         {entries.length === 0 ? (
@@ -525,6 +524,8 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
               margin: 0,
               padding: 24,
               textAlign: "center",
+              borderRadius: 16,
+              background: "var(--color-settings-group)",
               fontFamily: "var(--font-ui)",
               fontWeight: 400,
               fontSize: 16,
@@ -543,32 +544,57 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
             .
           </p>
         ) : (
-          entries.map(({ w, index }, i) => (
-            <RevealItem key={index} index={i}>
-              <SwipeableRow
-                background="var(--color-settings-group)"
-                actions={[
-                  ...(onEdit
-                    ? [
-                        {
-                          label: "Edit",
-                          color: "#8592E0",
-                          icon: <Icon icon={Icons.pencilSimple} color="inherit" />,
-                          onAction: () => onEdit(index),
-                        },
-                      ]
-                    : []),
-                  {
-                    label: "Delete",
-                    color: "#ff3b30",
-                    icon: <Icon icon={Icons.trash} color="inherit" />,
-                    onAction: () => delWalk(index),
-                  },
-                ]}
+          groupedEntries.map((group) => (
+            <div key={group.date}>
+              <h3
+                style={{
+                  margin: "0 0 8px",
+                  padding: "0 4px",
+                  fontFamily: "var(--font-ui)",
+                  fontWeight: 700,
+                  fontSize: 16,
+                  color: "var(--color-pawpal-hero)",
+                }}
               >
-                <WalkEntry walk={w} avatar={db.profile.avatar} onOpenMap={setMapWalk} />
-              </SwipeableRow>
-            </RevealItem>
+                {fmtDate(group.date)}
+              </h3>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4,
+                }}
+              >
+                {group.items.map(({ w, index }, i) => (
+                  <RevealItem key={index} index={i}>
+                    <SwipeableRow
+                      background="var(--color-settings-group)"
+                      style={{ borderRadius: 32 }}
+                      actions={[
+                        ...(onEdit
+                          ? [
+                              {
+                                label: "Edit",
+                                color: "#8592E0",
+                                icon: <Icon icon={Icons.pencilSimple} color="inherit" />,
+                                onAction: () => onEdit(index),
+                              },
+                            ]
+                          : []),
+                        {
+                          label: "Delete",
+                          color: "#ff3b30",
+                          icon: <Icon icon={Icons.trash} color="inherit" />,
+                          onAction: () => delWalk(index),
+                        },
+                      ]}
+                    >
+                      <WalkEntry walk={w} avatar={db.profile.avatar} onOpenMap={setMapWalk} />
+                    </SwipeableRow>
+                  </RevealItem>
+                ))}
+              </div>
+            </div>
           ))
         )}
       </div>
@@ -576,6 +602,7 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
       <MotionSheet
         open={mapWalk !== null}
         onClose={() => setMapWalk(null)}
+        onCancel={() => setMapWalk(null)}
         ariaLabel="Walk route"
         scrimClassName="walk-sheet-scrim"
         sheetClassName="walk-sheet"
@@ -601,6 +628,7 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
           </div>
         )}
       </MotionSheet>
+      </div>
     </div>
   );
 }
@@ -617,6 +645,9 @@ function WalkEntry({
   const hasRoute = Array.isArray(walk.gpsRoute) && walk.gpsRoute.length > 1;
   const stepsNum = parseInt(String(walk.steps)) || 0;
   const assignee = walk.assignee ? walkerAvatar(walk.assignee) : undefined;
+  // No GPS route → show the selected terrain's glyph, falling back to a paw.
+  const fallbackIcon =
+    walk.terrain && TERRAIN_ICON[walk.terrain] ? Icons[TERRAIN_ICON[walk.terrain]] : Icons.pawPrint;
 
   const thumbStyle: React.CSSProperties = {
     width: 40,
@@ -632,7 +663,7 @@ function WalkEntry({
   };
 
   return (
-    <div style={{ display: "flex", gap: 16, alignItems: "center", padding: 16 }}>
+    <div style={{ display: "flex", gap: 16, alignItems: "center", height: 72, boxSizing: "border-box", padding: "0 16px" }}>
       {/* Thumbnail: tap the route map to view it full-size; else a green paw tile. */}
       {hasRoute && walk.gpsRoute ? (
         <button
@@ -648,7 +679,7 @@ function WalkEntry({
         </button>
       ) : (
         <div style={thumbStyle}>
-          <Icon icon={Icons.pawPrint} width={24} height={24} color="inherit" />
+          <Icon icon={fallbackIcon} width={24} height={24} color="inherit" />
         </div>
       )}
 
@@ -672,8 +703,7 @@ function WalkEntry({
             opacity: 0.8,
           }}
         >
-          {fmtDate(walk.date)}
-          {walk.time ? ` at ${walk.time}` : ""}
+          {walk.time ? `At ${walk.time}` : fmtDate(walk.date)}
         </span>
       </div>
 

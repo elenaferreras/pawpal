@@ -3,7 +3,8 @@ import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { useConfirm } from "../components/ConfirmDialog";
 import { SwipeableRow } from "../components/SwipeableRow";
-import { PageTitle, CardTitle } from "../components/Typography";
+import { CardTitle } from "../components/Typography";
+import { TopBar, TopBarButton } from "../components/TopBar";
 import { RevealItem } from "../components/Reveal";
 import { Icons, type AppIconName } from "../lib/icons";
 import { fmtDate } from "../lib/date";
@@ -70,35 +71,21 @@ export function Bathroom({ onAdd, onEdit }: BathroomProps): React.ReactElement {
       style={{
         minHeight: "100vh",
         background: DARK,
-        padding:
-          "calc(16px + env(safe-area-inset-top, 0px)) 16px calc(96px + env(safe-area-inset-bottom, 20px))",
+        paddingBottom: "calc(96px + env(safe-area-inset-bottom, 20px))",
       }}
     >
-      {/* Header — title + add button */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <PageTitle style={{ flex: 1, margin: "4px 0" }}>{name}&rsquo;s Bathroom</PageTitle>
-        <button
-          type="button"
-          aria-label="Log bathroom event"
-          onClick={onAdd}
-          style={{
-            width: 56,
-            height: 56,
-            borderRadius: "50%",
-            flexShrink: 0,
-            border: "none",
-            cursor: "pointer",
-            background: "var(--color-dash-surface)",
-            color: CREAM,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Icon icon={Icons.plusCircle} color="inherit" />
-        </button>
-      </div>
-
+      <TopBar
+        title={name}
+        action={
+          <TopBarButton
+            icon={Icons.plus}
+            label="Log bathroom event"
+            onClick={onAdd}
+            color={POOP}
+          />
+        }
+      />
+      <div style={{ padding: "0 16px" }}>
       {history.length === 0 ? (
         <div
           style={{
@@ -253,6 +240,7 @@ export function Bathroom({ onAdd, onEdit }: BathroomProps): React.ReactElement {
           </div>
         </>
       )}
+      </div>
     </div>
   );
 }

@@ -10,7 +10,8 @@ import { BathReminder } from "../components/BathReminder";
 import { HealthDetailScreen } from "../components/HealthDetailScreen";
 import type { RecordType } from "../components/VetAddModal";
 import { WeightChart } from "../components/WeightChart";
-import { PageTitle, Eyebrow, Headline, Footnote } from "../components/Typography";
+import { Eyebrow, Headline, Footnote } from "../components/Typography";
+import { TopBar } from "../components/TopBar";
 import { Icons } from "../lib/icons";
 import { fmtDate, today } from "../lib/date";
 import type { GroomingLog, GroomingType, HealthDocument, Priority, Profile, Vaccine, VetNote, WeightEntry } from "../types";
@@ -540,16 +541,11 @@ export function Vet({ onAdd, onEditReminder, onEditVaccine }: VetProps): React.R
       style={{
         minHeight: "100vh",
         background: DARK,
-        padding:
-          "calc(16px + env(safe-area-inset-top, 0px)) 16px calc(96px + env(safe-area-inset-bottom, 20px))",
+        paddingBottom: "calc(96px + env(safe-area-inset-bottom, 20px))",
       }}
     >
-      {/* Header — title */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <PageTitle style={{ margin: "4px 0 0" }}>{name}&rsquo;s Health</PageTitle>
-        </div>
-      </div>
+      <TopBar title={`${name}\u2019s Health`} />
+      <div style={{ padding: "0 16px" }}>
 
       {/* Overview widgets — Pet ID, Vet notes & Weight */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 20 }}>
@@ -814,6 +810,7 @@ export function Vet({ onAdd, onEditReminder, onEditVaccine }: VetProps): React.R
       <HealthDetailScreen open={bathOpen} onClose={() => setBathOpen(false)} title="Bath time">
         <BathReminder />
       </HealthDetailScreen>
+      </div>
     </div>
   );
 }

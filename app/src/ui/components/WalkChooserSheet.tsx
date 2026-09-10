@@ -35,6 +35,7 @@ export function WalkChooserSheet({
       sheetClassName="chooser-sheet"
       title="Log a walk"
       titleColor={HERO}
+      onCancel={onClose}
     >
         <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "8px 0 0" }}>
           <ChooserCard

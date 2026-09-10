@@ -1,5 +1,7 @@
 import { AnimatePresence, motion, useDragControls, useReducedMotion } from "motion/react";
 import { createPortal } from "react-dom";
+import { Icon } from "@astryxdesign/core/Icon";
+import { Icons } from "../lib/icons";
 import { useScrollLock } from "../lib/scrollLock";
 
 interface MotionSheetProps {
@@ -16,6 +18,14 @@ interface MotionSheetProps {
   title?: React.ReactNode;
   /** Text colour for the header title. Defaults to the PawPal page brown. */
   titleColor?: string;
+  /** Leading round Cancel (X) button handler. Defaults to `onClose`. */
+  onCancel?: () => void;
+  /** Accessible label for the leading Cancel button. */
+  cancelLabel?: string;
+  /** Trailing round Confirm (check) button handler. Omit for no confirm. */
+  onConfirm?: () => void;
+  /** Accessible label for the trailing Confirm button. */
+  confirmLabel?: string;
   /** Scrollable content rendered inside the unified sheet body. */
   body?: React.ReactNode;
   /** Pinned actions rendered in the fading footer over the body. */
@@ -46,6 +56,10 @@ export function MotionSheet({
   hideHandle,
   title,
   titleColor,
+  onCancel,
+  cancelLabel = "Cancel",
+  onConfirm,
+  confirmLabel = "Done",
   body,
   footer,
   children,
@@ -54,6 +68,10 @@ export function MotionSheet({
   const dragControls = useDragControls();
   const showHandle = !reduceMotion && !hideHandle;
   const draggable = !reduceMotion;
+  // Leading X shows for any sheet that can cancel or confirm; trailing check
+  // only when a confirm handler is supplied.
+  const showConfirm = onConfirm != null;
+  const showCancel = onCancel != null || showConfirm;
   useScrollLock(open);
 
   return createPortal(
@@ -88,17 +106,49 @@ export function MotionSheet({
               if (info.offset.y > 120 || info.velocity.y > 500) onClose();
             }}
           >
-            {(showHandle || title != null) && (
+            {(showHandle || title != null || showCancel || showConfirm) && (
               <div
                 className="sheet-header"
                 onPointerDown={draggable ? (e) => dragControls.start(e) : undefined}
                 style={draggable ? { touchAction: "none" } : undefined}
               >
                 {showHandle && <span className="sheet-grabber" aria-hidden="true" />}
-                {title != null && (
-                  <h2 className="sheet-title" style={titleColor ? { color: titleColor } : undefined}>
-                    {title}
-                  </h2>
+                {(title != null || showCancel || showConfirm) && (
+                  <div className="sheet-nav">
+                    <div className="sheet-nav-slot">
+                      {showCancel && (
+                        <button
+                          type="button"
+                          className="sheet-nav-btn"
+                          aria-label={cancelLabel}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={onCancel ?? onClose}
+                        >
+                          <Icon icon={Icons.x} width={16} height={16} color="inherit" />
+                        </button>
+                      )}
+                    </div>
+                    <div className="sheet-nav-title">
+                      {title != null && (
+                        <h2 className="sheet-title" style={titleColor ? { color: titleColor } : undefined}>
+                          {title}
+                        </h2>
+                      )}
+                    </div>
+                    <div className="sheet-nav-slot">
+                      {showConfirm && (
+                        <button
+                          type="button"
+                          className="sheet-nav-btn"
+                          aria-label={confirmLabel}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={onConfirm}
+                        >
+                          <Icon icon={Icons.check} width={16} height={16} color="inherit" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
             )}

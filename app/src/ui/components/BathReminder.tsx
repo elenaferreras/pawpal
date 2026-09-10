@@ -337,6 +337,11 @@ export function BathReminder(): React.ReactElement {
       scrimStyle={{ zIndex: 1300 }}
       sheetClassName="bath-sheet"
       title="Add a bath"
+      confirmLabel="Add bath"
+      onConfirm={() => {
+        logBath(addDate, addNotes);
+        setShowAdd(false);
+      }}
       body={
         <>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 24 }}>
@@ -390,29 +395,6 @@ export function BathReminder(): React.ReactElement {
             />
           </div>
         </>
-      }
-      footer={
-        <button
-          type="button"
-          onClick={() => {
-            logBath(addDate, addNotes);
-            setShowAdd(false);
-          }}
-          style={{
-            width: "100%",
-            padding: 16,
-            borderRadius: 16,
-            border: "none",
-            cursor: "pointer",
-            background: DARK,
-            color: BATH,
-            fontFamily: "var(--font-ui)",
-            fontWeight: 700,
-            fontSize: 16,
-          }}
-        >
-          Add bath
-        </button>
       }
     />
 

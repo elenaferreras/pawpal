@@ -6,6 +6,7 @@ import { useLiveWalk } from "../components/LiveWalk";
 import { WalksBarChart, type WalksBar } from "../components/WalksBarChart";
 import { DogFace } from "../avatar/DogAvatar";
 import { Eyebrow, CardTitle, StatNumber, Caption, Callout } from "../components/Typography";
+import { TopBar } from "../components/TopBar";
 import { Icons } from "../lib/icons";
 import type { ScreenId } from "../types";
 
@@ -190,98 +191,75 @@ export function Dashboard({
         paddingBottom: "calc(96px + env(safe-area-inset-bottom, 20px))",
       }}
     >
-      {/* Greeting header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          padding: "calc(16px + env(safe-area-inset-top, 0px)) 16px 12px",
-        }}
-      >
-        <button
-          type="button"
-          aria-label="Settings"
-          onClick={(e) => {
-            if (onOpenSettings) {
-              const r = e.currentTarget.getBoundingClientRect();
-              onOpenSettings({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
-            } else {
-              onNavigate("settings");
-            }
-          }}
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: "50%",
-            background: p.avatar?.bg ?? "var(--color-dash-pooped)",
-            flexShrink: 0,
-            overflow: "hidden",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            border: "none",
-            padding: 0,
-            cursor: "pointer",
-          }}
-        >
-          <DogFace avatar={p.avatar} size={48} />
-        </button>
-        <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-          <span
-            style={{
-              fontFamily: "var(--font-brand)",
-              fontWeight: 900,
-              fontSize: 12,
-              lineHeight: 1,
-              color: MUTED,
-            }}
-          >
-            Hello,
-          </span>
-          <span
-            style={{
-              fontFamily: "var(--font-brand)",
-              fontWeight: 900,
-              fontSize: 26,
-              lineHeight: 1,
-              color: HERO,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {p.name || "Dieguito"}
-          </span>
-        </div>
-        <button
-          type="button"
-          aria-label="Notifications"
-          onClick={(e) => {
-            if (onOpenNotifications) {
-              const r = e.currentTarget.getBoundingClientRect();
-              onOpenNotifications({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
-            } else {
-              onNavigate("notifications");
-            }
-          }}
-          style={{
-            marginLeft: "auto",
-            width: 44,
-            height: 44,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            border: "none",
-            background: "none",
-            cursor: "pointer",
-            color: HERO,
-            flexShrink: 0,
-          }}
-        >
-          <Icon icon={Icons.bell} color="inherit" />
-        </button>
-      </div>
+      {/* Greeting header — avatar + name on the left, bell on the right. */}
+      <TopBar
+        title={p.name || "Dieguito"}
+        largeTitle={
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "2px 0 8px" }}>
+            <button
+              type="button"
+              aria-label="Settings"
+              onClick={(e) => {
+                if (onOpenSettings) {
+                  const r = e.currentTarget.getBoundingClientRect();
+                  onOpenSettings({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+                } else {
+                  onNavigate("settings");
+                }
+              }}
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: "50%",
+                background: p.avatar?.bg ?? "var(--color-dash-pooped)",
+                flexShrink: 0,
+                overflow: "hidden",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+              }}
+            >
+              <DogFace avatar={p.avatar} size={44} />
+            </button>
+            <span
+              style={{
+                flex: 1,
+                minWidth: 0,
+                fontFamily: "var(--font-ui)",
+                fontWeight: 700,
+                fontSize: 34,
+                lineHeight: "41px",
+                letterSpacing: -0.4,
+                color: HERO,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {p.name || "Dieguito"}
+            </span>
+            <button
+              type="button"
+              aria-label="Notifications"
+              className="topbar-button"
+              onClick={(e) => {
+                if (onOpenNotifications) {
+                  const r = e.currentTarget.getBoundingClientRect();
+                  onOpenNotifications({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+                } else {
+                  onNavigate("notifications");
+                }
+              }}
+              style={{ background: "#fff", color: "var(--color-pawpal-page)" }}
+            >
+              <Icon icon={Icons.bell} color="inherit" />
+            </button>
+          </div>
+        }
+      />
 
       {/* Hero card — weekly walks (swipe horizontally for previous weeks) */}
       <div style={{ padding: "0 16px" }}>

@@ -38,7 +38,8 @@ const OTHER = "Other";
 
 const sheetFieldStyle: CSSProperties = {
   width: "100%",
-  padding: 16,
+  height: 28,
+  padding: "0 16px",
   borderRadius: 16,
   border: `1px solid ${DARK}`,
   background: "transparent",
@@ -349,6 +350,8 @@ export function VetAddModal({
       scrimClassName="walk-sheet-scrim"
       sheetClassName="walk-sheet"
       title={sheetLabel}
+      confirmLabel={isEdit ? "Save changes" : "Save record"}
+      onConfirm={save}
       body={
         <>
         {!isEdit && allowedTypes.length > 1 && (
@@ -526,26 +529,6 @@ export function VetAddModal({
         )}
         </>
       }
-      footer={
-        <button
-          type="button"
-          onClick={save}
-          style={{
-            width: "100%",
-            padding: 16,
-            borderRadius: 16,
-            border: "none",
-            cursor: "pointer",
-            background: DARK,
-            color: VET,
-            fontFamily: "var(--font-ui)",
-            fontWeight: 700,
-            fontSize: 16,
-          }}
-        >
-          {isEdit ? "Save changes" : "Save record"}
-        </button>
-      }
     />
   );
 }
@@ -659,7 +642,7 @@ function SheetTextarea({
       placeholder={placeholder}
       rows={3}
       onChange={(e) => onChange(e.target.value)}
-      style={{ ...sheetFieldStyle, resize: "none" }}
+      style={{ ...sheetFieldStyle, height: "auto", minHeight: 56, padding: "8px 16px", resize: "none" }}
     />
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface SplashProps {
   onDone: () => void;
@@ -7,19 +7,24 @@ interface SplashProps {
 // Animated splash screen shown once on launch.
 export function Splash({ onDone }: SplashProps): React.ReactElement {
   const [leaving, setLeaving] = useState(false);
+  // Keep the latest onDone without making it an effect dependency: callers pass
+  // an inline function, so depending on it would restart the timers on every
+  // parent re-render and the splash would never dismiss (blocking all clicks).
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
 
   useEffect(() => {
     // The doodle draws over 1s (CSS `splash-draw`). Hold 1s after that, then leave.
     let doneTimer: ReturnType<typeof setTimeout>;
     const hideTimer = setTimeout(() => {
       setLeaving(true);
-      doneTimer = setTimeout(onDone, 380);
+      doneTimer = setTimeout(() => onDoneRef.current(), 380);
     }, 2000);
     return () => {
       clearTimeout(hideTimer);
       clearTimeout(doneTimer);
     };
-  }, [onDone]);
+  }, []);
 
   return (
     <div id="splash" className={leaving ? "splash-hide" : undefined}>

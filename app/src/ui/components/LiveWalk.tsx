@@ -481,6 +481,8 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
         scrimClassName="walk-sheet-scrim"
         sheetClassName="walk-sheet"
         title={phase === "summary" ? "Walk complete" : undefined}
+        confirmLabel="Save walk"
+        onConfirm={saveWalk}
         body={
           <>
             <div style={{ display: "flex", gap: 8, marginTop: 24 }}>
@@ -574,7 +576,7 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
                   onChange={(e) => setNotes(e.target.value)}
                   style={{
                     width: "100%",
-                    padding: 16,
+                    padding: "8px 16px",
                     borderRadius: 16,
                     border: `1px solid ${SHEET_DARK}`,
                     background: "transparent",
@@ -588,26 +590,6 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
                 />
               </SummaryField>
           </>
-        }
-        footer={
-          <button
-            type="button"
-            onClick={saveWalk}
-            style={{
-              width: "100%",
-              padding: 16,
-              borderRadius: 16,
-              border: "none",
-              cursor: "pointer",
-              background: SHEET_DARK,
-              color: SHEET_WALK,
-              fontFamily: "var(--font-ui)",
-              fontWeight: 700,
-              fontSize: 16,
-            }}
-          >
-            Save walk
-          </button>
         }
       />
     </LiveWalkContext.Provider>

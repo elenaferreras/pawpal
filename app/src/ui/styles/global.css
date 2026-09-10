@@ -50,6 +50,9 @@
   --radius-sm: 14px;
   --radius-pill: 100px;
   --safe-bottom: env(safe-area-inset-bottom, 20px);
+  --safe-top: env(safe-area-inset-top, 0px);
+  /* Shared iOS-style navigation bar (see components/TopBar.tsx). */
+  --topbar-height: 44px;
 }
 * {
   box-sizing: border-box;
@@ -68,7 +71,7 @@ select,
   user-select: text;
 }
 html {
-  overflow-x: hidden;
+  overflow-x: clip;
   touch-action: pan-x pan-y;
   /* Paint the root the app's page colour so the areas behind native chrome
      (the bottom home-indicator inset, plus any overscroll rubber-banding) read
@@ -85,7 +88,7 @@ body {
   min-height: 100dvh;
   max-width: 430px;
   margin: 0 auto;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 button {
   font-family: inherit;
@@ -727,12 +730,14 @@ body.modal-open {
 
 /* Native-style drag grabber + fixed compact header shown at the top of every
    MotionSheet. Drag-to-dismiss is limited to this header so scrolling the sheet
-   body never moves the sheet. The header stays fixed while the body scrolls. */
+   body never moves the sheet. The header stays fixed while the body scrolls.
+   Layout matches the iOS 26 sheet nav bar: grabber, then a [X | title | check]
+   row with the title optically centered. */
 .sheet-header {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  padding: 10px 28px 8px;
+  padding: 10px 16px 8px;
   cursor: grab;
 }
 .sheet-header:active {
@@ -746,13 +751,54 @@ body.modal-open {
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.22);
 }
+.sheet-nav {
+  display: grid;
+  grid-template-columns: 40px 1fr 40px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.sheet-nav-slot {
+  display: flex;
+  align-items: center;
+}
+.sheet-nav-slot:last-child {
+  justify-content: flex-end;
+}
+.sheet-nav-title {
+  min-width: 0;
+  text-align: center;
+}
+/* Round iOS-style nav button. Uses the sheet's ink colour on its surface so
+   every sheet's buttons match automatically; X and check share the style. */
+.sheet-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: 100px;
+  cursor: pointer;
+  background: var(--sheet-ink, var(--color-pawpal-page));
+  color: var(--sheet-surface);
+}
+.sheet-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
 .sheet-title {
-  margin: 10px 0 0;
+  margin: 0;
   font-family: var(--font-ui);
-  font-weight: 700;
-  font-size: 20px;
-  line-height: 1.2;
+  font-weight: 590;
+  font-size: 17px;
+  line-height: 22px;
+  text-align: center;
   color: var(--color-pawpal-page);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 /* "Track walk" bottom sheet (Figma node 31:925). */
 .walk-sheet-scrim {
@@ -792,7 +838,9 @@ body.modal-open {
 }
 .sheet-body {
   flex: 1 0 auto;
-  padding: 8px 28px 0;
+  /* Confirm actions live in the header now, so the body carries the bottom
+     breathing room + iOS home-indicator safe area itself. */
+  padding: 8px 28px max(24px, calc(24px + env(safe-area-inset-bottom, 0px)));
 }
 .sheet-footer {
   position: sticky;
@@ -1289,6 +1337,7 @@ body.modal-open {
   display: flex;
   flex-direction: column;
   background: var(--color-pawpal-hero);
+  --sheet-surface: var(--color-pawpal-hero);
   border-radius: 0;
   overflow: hidden;
   padding-top: env(safe-area-inset-top, 0px);
@@ -1302,6 +1351,9 @@ body.modal-open {
   display: flex;
   flex-direction: column;
   background: var(--color-pawpal-page);
+  /* Dark surface: invert the nav button so the X reads as a cream circle. */
+  --sheet-ink: var(--color-pawpal-hero);
+  --sheet-surface: var(--color-pawpal-page);
   border-radius: 40px 40px 0 0;
   overflow-y: auto;
   padding: 0 24px calc(24px + env(safe-area-inset-bottom, 12px));
@@ -2306,6 +2358,8 @@ input.wts-field[type="time"] {
 }
 .splash-hide {
   animation: splash-out 0.4s ease-out forwards;
+  /* Once fading out, never intercept clicks even if unmount is briefly delayed. */
+  pointer-events: none;
 }
 
 .notif {
@@ -2709,7 +2763,7 @@ input.wts-field[type="time"] {
 .oba-input-wrap {
   display: flex;
   align-items: center;
-  height: 56px;
+  height: 28px;
   padding: 0 18px;
   border-radius: 16px;
   border: 1px solid color-mix(in srgb, var(--color-pawpal-hero) 34%, transparent);
@@ -4252,6 +4306,142 @@ input.wts-field[type="time"] {
   }
   50% {
     transform: rotate(-25deg);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   TopBar — shared iOS-style navigation bar (components/TopBar.tsx)
+   The large-title row (title + optional coloured action button) is the resting
+   header and matches the Figma toolbar. A translucent compact bar overlays the
+   top as a zero-height sticky layer (negative margin, so it reserves no space):
+   nav controls (back / close / avatar / bell) live in it and stay put, and on
+   scroll it fades in a blur + hairline border + the centred inline title.
+   ───────────────────────────────────────────────────────────────────────── */
+.topbar {
+  display: contents;
+}
+.topbar-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: calc(var(--safe-top) + var(--topbar-height));
+  margin-bottom: calc(-1 * (var(--safe-top) + var(--topbar-height)));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: var(--safe-top) 8px 0;
+  pointer-events: none;
+}
+/* Blur/tint/border live on a pseudo-element so the controls above stay fully
+   opaque while only the bar surface fades in on collapse. */
+.topbar-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--color-pawpal-page) 80%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  backdrop-filter: blur(18px) saturate(180%);
+  border-bottom: 1px solid rgba(233, 228, 196, 0.1);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+.topbar[data-collapsed="true"] .topbar-bar::before {
+  opacity: 1;
+}
+.topbar-lead,
+.topbar-trail {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  min-width: var(--topbar-height);
+  min-height: var(--topbar-height);
+  /* Empty slots must let taps through to the large-title row underneath (the +
+     button / dashboard bell live there); only the actual controls capture. */
+  pointer-events: none;
+}
+.topbar-lead > *,
+.topbar-trail > * {
+  pointer-events: auto;
+}
+.topbar-lead {
+  justify-content: flex-start;
+}
+.topbar-trail {
+  justify-content: flex-end;
+}
+.topbar-inline {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-width: 0;
+  padding: 0 4px;
+  text-align: center;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 17px;
+  line-height: 22px;
+  color: var(--color-pawpal-hero);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  transform: translateY(3px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.topbar[data-collapsed="true"] .topbar-inline {
+  opacity: 1;
+  transform: none;
+}
+/* Large-title row sits right below the status bar; when the bar carries nav
+   controls, it drops down to clear that 44pt band. */
+.topbar-large {
+  padding: calc(var(--safe-top) + 8px) 16px 0;
+}
+.topbar[data-controls="true"] .topbar-large {
+  padding-top: calc(var(--safe-top) + var(--topbar-height));
+}
+.topbar-largerow {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  padding-bottom: 10px;
+}
+.topbar-sentinel {
+  height: 1px;
+  pointer-events: none;
+}
+.topbar-action {
+  width: var(--topbar-height);
+  height: var(--topbar-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+}
+/* Filled, screen-tinted circular action button in the large-title row. */
+.topbar-button {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+}
+@media (prefers-reduced-motion: reduce) {
+  .topbar-bar::before,
+  .topbar-inline {
+    transition: none;
   }
 }
 
