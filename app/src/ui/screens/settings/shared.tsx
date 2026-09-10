@@ -1,7 +1,6 @@
 import type { ComponentType, CSSProperties, ReactNode } from "react";
 import { Icon } from "@astryxdesign/core/Icon";
 import { Icons } from "../../lib/icons";
-import { TopBar, TopBarAction } from "../../components/TopBar";
 import { Eyebrow, Headline, Footnote } from "../../components/Typography";
 
 // Dashboard design tokens (mirrors screens/Dashboard.tsx).
@@ -15,16 +14,19 @@ type LucideIcon = ComponentType<{ color?: string; size?: number }>;
 /**
  * Full-screen wrapper for a Settings subpage (2nd-level). Dark page background,
  * a centred navigation header with a back caret on the left and an optional
- * trailing action on the right. The 1st-level Settings hub uses its own large
- * title header instead.
+ * with a compact nav header — a glass back button, inline title (+ optional
+ * subtitle) and an optional trailing action — mirroring the Health detail
+ * screens. The 1st-level Settings hub uses its own large title header instead.
  */
 export function SettingsPage({
   title,
+  subtitle,
   onBack,
   action,
   children,
 }: {
   title: string;
+  subtitle?: ReactNode;
   onBack: () => void;
   action?: ReactNode;
   children: ReactNode;
@@ -37,12 +39,48 @@ export function SettingsPage({
         paddingBottom: "calc(32px + env(safe-area-inset-bottom, 20px))",
       }}
     >
-      <TopBar
-        title={title}
-        leading={<TopBarAction icon={Icons.caretLeft} label="Back" onClick={onBack} />}
-        trailing={action}
-      />
-      <div style={{ padding: "4px 16px 0" }}>{children}</div>
+      {/* Compact nav header: glass back button, inline title + subtitle,
+          optional glass action on the right. Matches HealthDetailScreen. */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          padding: "calc(12px + env(safe-area-inset-top, 0px)) 12px 12px",
+        }}
+      >
+        <button type="button" aria-label="Back" className="glass-btn" onClick={onBack}>
+          <Icon icon={Icons.caretLeft} color="inherit" />
+        </button>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <span
+            style={{
+              display: "block",
+              fontFamily: "var(--font-ui)",
+              fontWeight: 700,
+              fontSize: 20,
+              color: HERO,
+            }}
+          >
+            {title}
+          </span>
+          {subtitle && (
+            <span
+              style={{
+                fontFamily: "var(--font-ui)",
+                fontWeight: 500,
+                fontSize: 13,
+                color: MUTED,
+              }}
+            >
+              {subtitle}
+            </span>
+          )}
+        </div>
+        {action && <div style={{ flexShrink: 0 }}>{action}</div>}
+      </div>
+
+      <div style={{ padding: "8px 16px 0" }}>{children}</div>
     </div>
   );
 }

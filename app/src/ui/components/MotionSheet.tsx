@@ -119,7 +119,7 @@ export function MotionSheet({
                       {showCancel && (
                         <button
                           type="button"
-                          className="sheet-nav-btn"
+                          className="sheet-nav-btn sheet-nav-btn--cancel"
                           aria-label={cancelLabel}
                           onPointerDown={(e) => e.stopPropagation()}
                           onClick={onCancel ?? onClose}
@@ -139,12 +139,12 @@ export function MotionSheet({
                       {showConfirm && (
                         <button
                           type="button"
-                          className="sheet-nav-btn"
+                          className="sheet-nav-btn sheet-nav-btn--confirm"
                           aria-label={confirmLabel}
                           onPointerDown={(e) => e.stopPropagation()}
                           onClick={onConfirm}
                         >
-                          <Icon icon={Icons.check} width={16} height={16} color="inherit" />
+                          <Icon icon={Icons.check} width={18} height={18} color="inherit" />
                         </button>
                       )}
                     </div>

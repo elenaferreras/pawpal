@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { MotionSheet } from "./MotionSheet";
-
-const DARK = "var(--color-pawpal-page)"; // #352B25
+import { SelectRow } from "./SheetForm";
 
 export type FieldEditType = "text" | "number" | "decimal" | "tel" | "date";
+
+// Sentinel select value that reveals the free-text "other" row.
+const OTHER = "__other__";
 
 interface FieldEditSheetProps {
   open: boolean;
@@ -15,6 +17,9 @@ interface FieldEditSheetProps {
   /** Suffix shown inside the field, e.g. "kg" or "g / day". */
   unit?: string;
   placeholder?: string;
+  /** When set, the field is a native select of these options plus an "Other…"
+      free-text fallback (mirrors the onboarding breed picker). */
+  options?: string[];
   onSave: (value: string) => void;
   onClose: () => void;
 }
@@ -24,7 +29,8 @@ interface FieldEditSheetProps {
  *
  * Cream sheet with a grabber and a toolbar: a dark X on the left to dismiss, the
  * field name centred, and a yellow check on the right to confirm. The body holds
- * a labelled, dark-bordered input for the value.
+ * a single grouped-list row whose value is edited inline (focused on open). When
+ * `options` is given it becomes a select with an "Other…" free-text fallback.
  */
 export function FieldEditSheet({
   open,
@@ -33,19 +39,29 @@ export function FieldEditSheet({
   type = "text",
   unit,
   placeholder,
+  options,
   onSave,
   onClose,
 }: FieldEditSheetProps): React.ReactElement {
   const [draft, setDraft] = useState(value);
+  const [otherActive, setOtherActive] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const otherRef = useRef<HTMLInputElement>(null);
+  const selectMode = options != null;
 
   useEffect(() => {
     if (!open) return;
     setDraft(value);
-    // Focus the field as soon as it mounts so the correct keyboard pops up with
-    // the sheet. For dates, also open the native picker (wheel on iOS).
-    const el = inputRef.current;
+    const custom = selectMode && value !== "" && !options!.includes(value);
+    setOtherActive(custom);
+    // Focus the right control so the correct keyboard/picker pops with the
+    // sheet. A plain select waits for a tap, so only focus text inputs.
     const raf = requestAnimationFrame(() => {
+      if (selectMode) {
+        if (custom) otherRef.current?.focus();
+        return;
+      }
+      const el = inputRef.current;
       el?.focus();
       if (type === "date") {
         try {
@@ -57,9 +73,23 @@ export function FieldEditSheet({
       }
     });
     return () => cancelAnimationFrame(raf);
-  }, [open, value, type]);
+  }, [open, value, type, selectMode, options]);
 
-  const confirm = (): void => onSave(draft);
+  useEffect(() => {
+    if (otherActive) otherRef.current?.focus();
+  }, [otherActive]);
+
+  const confirm = (): void => onSave(draft.trim());
+
+  const handleSelect = (v: string): void => {
+    if (v === OTHER) {
+      setOtherActive(true);
+      if (options!.includes(draft)) setDraft("");
+    } else {
+      setOtherActive(false);
+      setDraft(v);
+    }
+  };
 
   // Map each field to the right input control + on-screen keyboard.
   const inputType = type === "date" ? "date" : type === "tel" ? "tel" : "text";
@@ -72,6 +102,8 @@ export function FieldEditSheet({
           ? "tel"
           : undefined;
 
+  const selectValue = otherActive ? OTHER : options?.includes(draft) ? draft : "";
+
   return (
     <MotionSheet
       open={open}
@@ -83,69 +115,60 @@ export function FieldEditSheet({
       confirmLabel="Save"
       onConfirm={confirm}
       body={
-        <label style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <span
-            style={{
-              fontFamily: "var(--font-ui)",
-              fontWeight: 400,
-              fontSize: 16,
-              color: DARK,
-            }}
-          >
-            {title}
-          </span>
-          <span
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              border: `1px solid ${DARK}`,
-              borderRadius: 16,
-              height: 28,
-              boxSizing: "border-box",
-              padding: "0 16px",
-            }}
-          >
-            <input
-              ref={inputRef}
-              autoFocus
-              type={inputType}
-              inputMode={inputMode}
-              value={draft}
-              placeholder={placeholder}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") confirm();
-              }}
-              style={{
-                flex: 1,
-                minWidth: 0,
-                border: "none",
-                outline: "none",
-                background: "none",
-                fontFamily: "var(--font-ui)",
-                fontWeight: 400,
-                fontSize: 16,
-                color: DARK,
-                padding: 0,
-              }}
-            />
-            {unit && (
-              <span
-                style={{
-                  fontFamily: "var(--font-ui)",
-                  fontWeight: 400,
-                  fontSize: 16,
-                  color: DARK,
-                  opacity: 0.6,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {unit}
-              </span>
-            )}
-          </span>
-        </label>
+        <div className="wts-form" style={{ margin: 0 }}>
+          <div className="wts-group">
+            <div className="wts-group-card">
+              {selectMode ? (
+                <>
+                  <SelectRow
+                    label={title}
+                    options={[
+                      ...options!.map((o) => ({ value: o, label: o })),
+                      { value: OTHER, label: "Other…" },
+                    ]}
+                    value={selectValue}
+                    onChange={handleSelect}
+                    placeholder={placeholder ?? "Select…"}
+                    emptyLabel={placeholder ?? "Select…"}
+                  />
+                  {otherActive && (
+                    <label className="wts-row" style={{ cursor: "text" }}>
+                      <input
+                        ref={otherRef}
+                        className="wts-row-input"
+                        type="text"
+                        autoComplete="off"
+                        value={draft}
+                        placeholder="Type a breed"
+                        onChange={(e) => setDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") confirm();
+                        }}
+                      />
+                    </label>
+                  )}
+                </>
+              ) : (
+                <label className="wts-row" style={{ cursor: "text" }}>
+                  <input
+                    ref={inputRef}
+                    autoFocus
+                    className="wts-row-input"
+                    type={inputType}
+                    inputMode={inputMode}
+                    value={draft}
+                    placeholder={placeholder ?? title}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") confirm();
+                    }}
+                  />
+                  {unit && <span className="wts-chip-suffix">{unit}</span>}
+                </label>
+              )}
+            </div>
+          </div>
+        </div>
       }
     />
   );

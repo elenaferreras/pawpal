@@ -6,15 +6,19 @@ import { useToast } from "../lib/toast";
 import { useConfirm } from "../components/ConfirmDialog";
 import { SwipeableRow } from "../components/SwipeableRow";
 import { RevealItem } from "../components/Reveal";
+import { CardStagger } from "../components/CardStagger";
+import { Group, NavRow } from "../components/SheetForm";
 import { BathReminder } from "../components/BathReminder";
+import { FieldEditSheet } from "../components/FieldEditSheet";
 import { HealthDetailScreen } from "../components/HealthDetailScreen";
+import { DogFace } from "../avatar/DogAvatar";
 import type { RecordType } from "../components/VetAddModal";
 import { WeightChart } from "../components/WeightChart";
 import { Eyebrow, Headline, Footnote } from "../components/Typography";
 import { TopBar } from "../components/TopBar";
 import { Icons } from "../lib/icons";
 import { fmtDate, today } from "../lib/date";
-import type { GroomingLog, GroomingType, HealthDocument, Priority, Profile, Vaccine, VetNote, WeightEntry } from "../types";
+import type { Avatar, GroomingLog, GroomingType, HealthDocument, Priority, Profile, Vaccine, VetNote, WeightEntry } from "../types";
 
 type IconComponent = (typeof Icons)[keyof typeof Icons];
 
@@ -74,7 +78,7 @@ export function Vet({ onAdd, onEditReminder, onEditVaccine }: VetProps): React.R
   const [draft, setDraft] = useState("");
   const [notesOpen, setNotesOpen] = useState(false);
   const [detail, setDetail] = useState<"care" | "vaccines" | "checkups" | null>(null);
-  const [docsOpen, setDocsOpen] = useState(false);
+  const [renameIndex, setRenameIndex] = useState<number | null>(null);
   const [openVaccineGroups, setOpenVaccineGroups] = useState<Set<string>>(new Set());
 
   const documents = db.vetRecords.documents ?? [];
@@ -99,6 +103,7 @@ export function Vet({ onAdd, onEditReminder, onEditVaccine }: VetProps): React.R
   const [weightOpen, setWeightOpen] = useState(false);
   const [petIdOpen, setPetIdOpen] = useState(false);
   const [bathOpen, setBathOpen] = useState(false);
+  const bathAddRef = useRef<(() => void) | undefined>(undefined);
   const weightAsc = [...weightLog].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
   const weightDesc = weightLog
     .map((e, index) => ({ e, index }))
@@ -236,6 +241,16 @@ export function Vet({ onAdd, onEditReminder, onEditVaccine }: VetProps): React.R
         setTimeout(() => URL.revokeObjectURL(url), 60000);
       })
       .catch(() => toast("Couldn't open that file"));
+  };
+
+  const renameDocument = (index: number, value: string): void => {
+    const name = value.trim();
+    if (!name) return;
+    update((d) => {
+      const doc = d.vetRecords.documents?.[index];
+      if (doc) doc.name = name;
+    });
+    toast("Renamed");
   };
 
   const deleteDocument = async (index: number): Promise<void> => {
@@ -455,53 +470,6 @@ export function Vet({ onAdd, onEditReminder, onEditVaccine }: VetProps): React.R
     );
   };
 
-  const renderDocuments = (): React.ReactElement => {
-    const ordered = documents
-      .map((doc, index) => ({ doc, index }))
-      .sort((a, b) => (a.doc.kind === "insurance" ? -1 : 0) - (b.doc.kind === "insurance" ? -1 : 0));
-    return (
-      <>
-        <button
-          type="button"
-          onClick={() => uploadDocument("other")}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            width: "100%",
-            padding: "12px 14px",
-            marginBottom: 10,
-            borderRadius: 16,
-            color: HERO,
-            cursor: "pointer",
-            background: "transparent",
-            border: "1.5px dashed rgba(233, 228, 196, 0.35)",
-          }}
-        >
-          <Icon icon={Icons.upload} color="inherit" />
-          <span style={{ fontFamily: "var(--font-ui)", fontWeight: 600, fontSize: 15 }}>
-            Add a document
-          </span>
-        </button>
-        <GroupCard>
-          {ordered.length === 0 ? (
-            <Empty icon={Icons.fileText} text="No documents uploaded." />
-          ) : (
-            ordered.map(({ doc, index }, i) => (
-              <DocumentRow
-                key={doc.created}
-                index={i}
-                doc={doc}
-                onOpen={() => openDocument(doc)}
-                onDelete={() => deleteDocument(index)}
-              />
-            ))
-          )}
-        </GroupCard>
-      </>
-    );
-  };
-
   const renderCheckups = (): React.ReactElement => (
     <GroupCard>
       {sortedCheckups.length === 0 ? (
@@ -547,6 +515,7 @@ export function Vet({ onAdd, onEditReminder, onEditVaccine }: VetProps): React.R
       <TopBar title={`${name}\u2019s Health`} />
       <div style={{ padding: "0 16px" }}>
 
+      <CardStagger>
       {/* Overview widgets — Pet ID, Vet notes & Weight */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 20 }}>
         <HubCard
@@ -704,6 +673,7 @@ export function Vet({ onAdd, onEditReminder, onEditVaccine }: VetProps): React.R
           onClick={() => setDetail("checkups")}
         />
       </div>
+      </CardStagger>
 
       <VetNotesScreen
         open={notesOpen}
@@ -754,15 +724,6 @@ export function Vet({ onAdd, onEditReminder, onEditVaccine }: VetProps): React.R
         {renderCheckups()}
       </HealthDetailScreen>
 
-      <HealthDetailScreen
-        open={docsOpen}
-        onClose={() => setDocsOpen(false)}
-        title="Documents"
-        subtitle={documents.length > 0 ? `${documents.length} file${documents.length !== 1 ? "s" : ""}` : undefined}
-      >
-        {renderDocuments()}
-      </HealthDetailScreen>
-
       <GroomingScreen
         open={groomingType === "haircut"}
         onClose={() => setGroomingType(null)}
@@ -798,17 +759,53 @@ export function Vet({ onAdd, onEditReminder, onEditVaccine }: VetProps): React.R
       <PetIdScreen
         open={petIdOpen}
         onClose={() => setPetIdOpen(false)}
+        avatar={db.profile.avatar}
+        emoji={db.profile.emoji}
+        name={db.profile.name}
+        breed={db.profile.breed}
+        birthday={db.profile.birthday ?? ""}
+        vetName={db.profile.vet}
         microchip={db.profile.microchip ?? ""}
         onMicrochip={setMicrochip}
         insuranceDoc={insuranceDoc}
-        documentsCount={documents.length}
         onOpenInsurance={() => insuranceDoc && openDocument(insuranceDoc)}
         onUploadInsurance={() => uploadDocument("insurance")}
-        onOpenDocuments={() => setDocsOpen(true)}
+        documents={documents}
+        onOpenDocument={openDocument}
+        onRenameDocument={(index) => setRenameIndex(index)}
+        onDeleteDocument={(index) => void deleteDocument(index)}
+        onAddDocument={() => uploadDocument("other")}
       />
 
-      <HealthDetailScreen open={bathOpen} onClose={() => setBathOpen(false)} title="Bath time">
-        <BathReminder />
+      <FieldEditSheet
+        open={renameIndex !== null}
+        title="Document name"
+        value={renameIndex !== null ? (documents[renameIndex]?.name ?? "") : ""}
+        type="text"
+        placeholder="e.g. Vaccination record"
+        onSave={(v) => {
+          if (renameIndex !== null) renameDocument(renameIndex, v);
+          setRenameIndex(null);
+        }}
+        onClose={() => setRenameIndex(null)}
+      />
+
+      <HealthDetailScreen
+        open={bathOpen}
+        onClose={() => setBathOpen(false)}
+        title="Bath time"
+        action={
+          <button
+            type="button"
+            aria-label="Log a bath"
+            className="glass-btn glass-btn--health"
+            onClick={() => bathAddRef.current?.()}
+          >
+            <Icon icon={Icons.plus} color="inherit" />
+          </button>
+        }
+      >
+        <BathReminder openAddRef={bathAddRef} />
       </HealthDetailScreen>
       </div>
     </div>
@@ -986,221 +983,207 @@ function HubCard({
   );
 }
 
-/** Pet ID detail screen: microchip field + insurance & documents actions. */
+/** Pet ID detail screen: pet identity header, microchip & vet, and documents. */
 function PetIdScreen({
   open,
   onClose,
+  avatar,
+  emoji,
+  name,
+  breed,
+  birthday,
+  vetName,
   microchip,
   onMicrochip,
   insuranceDoc,
-  documentsCount,
   onOpenInsurance,
   onUploadInsurance,
-  onOpenDocuments,
+  documents,
+  onOpenDocument,
+  onRenameDocument,
+  onDeleteDocument,
+  onAddDocument,
 }: {
   open: boolean;
   onClose: () => void;
+  avatar: Avatar | undefined;
+  emoji: string;
+  name: string;
+  breed: string;
+  birthday: string;
+  vetName: string;
   microchip: string;
   onMicrochip: (v: string) => void;
   insuranceDoc: HealthDocument | undefined;
-  documentsCount: number;
   onOpenInsurance: () => void;
   onUploadInsurance: () => void;
-  onOpenDocuments: () => void;
+  documents: HealthDocument[];
+  onOpenDocument: (doc: HealthDocument) => void;
+  onRenameDocument: (index: number) => void;
+  onDeleteDocument: (index: number) => void;
+  onAddDocument: () => void;
 }): React.ReactElement {
+  const [microOpen, setMicroOpen] = useState(false);
+  // Insurance is pinned as its own row, so list only the other documents.
+  const otherDocs = documents
+    .map((doc, index) => ({ doc, index }))
+    .filter(({ doc }) => doc.kind !== "insurance");
+  const title = [name.trim(), breed.trim()].filter(Boolean).join(", ");
   return (
-    <HealthDetailScreen open={open} onClose={onClose} title="Pet ID">
-      <label style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+    <HealthDetailScreen
+      open={open}
+      onClose={onClose}
+      title="Pet ID"
+      action={
+        <button
+          type="button"
+          aria-label="Add a document"
+          className="glass-btn glass-btn--health"
+          onClick={onAddDocument}
+        >
+          <Icon icon={Icons.plus} color="inherit" />
+        </button>
+      }
+    >
+      {/* Identity header: avatar, name + breed, birthday. */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 4,
+          padding: "4px 24px 8px",
+        }}
+      >
         <span
           style={{
-            fontFamily: "var(--font-ui)",
-            fontWeight: 700,
-            fontSize: 11,
-            letterSpacing: 0.6,
-            textTransform: "uppercase",
-            color: MUTED,
+            width: 72,
+            height: 72,
+            borderRadius: "50%",
+            overflow: "hidden",
+            background: avatar?.bg ?? "var(--color-dash-pooped)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: 6,
           }}
         >
-          Microchip number
+          {avatar ? <DogFace avatar={avatar} size={72} /> : <span style={{ fontSize: 40 }}>{emoji || "🐕"}</span>}
         </span>
-        <input
-          value={microchip}
-          onChange={(e) => onMicrochip(e.target.value)}
-          inputMode="numeric"
-          placeholder="Not set"
-          style={{
-            width: "100%",
-            boxSizing: "border-box",
-            padding: "14px 16px",
-            borderRadius: 16,
-            border: "1px solid rgba(233, 228, 196, 0.35)",
-            background: "transparent",
-            color: HERO,
-            fontFamily: "var(--font-ui)",
-            fontWeight: 500,
-            fontSize: 16,
-            outline: "none",
-          }}
-        />
-      </label>
-      <GroupCard>
-        <DarkActionRow
-          icon={Icons.shieldCheck}
-          accent={ACCENT.document}
-          title="Insurance"
-          value={insuranceDoc ? insuranceDoc.fileName : "Add insurance PDF"}
-          isFirst
-          onClick={insuranceDoc ? onOpenInsurance : onUploadInsurance}
-        />
-        <DarkActionRow
-          icon={Icons.paperclip}
-          accent={ACCENT.document}
-          title="Documents"
-          value={documentsCount === 0 ? "None yet" : `${documentsCount} file${documentsCount !== 1 ? "s" : ""}`}
-          onClick={onOpenDocuments}
-        />
-      </GroupCard>
+        <span style={{ fontFamily: "var(--font-ui)", fontWeight: 600, fontSize: 17, color: HERO, textAlign: "center" }}>
+          {title || "Your pup"}
+        </span>
+        {birthday && (
+          <span style={{ fontFamily: "var(--font-ui)", fontWeight: 500, fontSize: 17, color: MUTED }}>
+            {formatBirthday(birthday)}
+          </span>
+        )}
+      </div>
+
+      <div className="wts-form wts-form--dark" style={{ margin: 0, paddingTop: 8 }}>
+        <Group title="Vet details">
+          <NavRow label="Microchip" value={microchip || "Add"} onClick={() => setMicroOpen(true)} />
+          <NavRow label="Vet name" value={vetName.trim() || "—"} readOnly />
+        </Group>
+        <Group title="Documents">
+          {insuranceDoc ? (
+            <DocRow
+              label={insuranceDoc.name}
+              value={fmtDocSize(insuranceDoc.size)}
+              onOpen={onOpenInsurance}
+              onEdit={() => onRenameDocument(documents.indexOf(insuranceDoc))}
+              onDelete={() => onDeleteDocument(documents.indexOf(insuranceDoc))}
+            />
+          ) : (
+            <NavRow label="Insurance" value="Add insurance PDF" onClick={onUploadInsurance} />
+          )}
+          {otherDocs.map(({ doc, index }) => (
+            <DocRow
+              key={doc.created}
+              label={doc.name}
+              value={fmtDocSize(doc.size)}
+              onOpen={() => onOpenDocument(doc)}
+              onEdit={() => onRenameDocument(index)}
+              onDelete={() => onDeleteDocument(index)}
+            />
+          ))}
+        </Group>
+      </div>
+
+      <FieldEditSheet
+        open={microOpen}
+        title="Microchip"
+        value={microchip}
+        type="tel"
+        placeholder="Add microchip number"
+        onSave={(v) => {
+          onMicrochip(v.trim());
+          setMicroOpen(false);
+        }}
+        onClose={() => setMicroOpen(false)}
+      />
     </HealthDetailScreen>
   );
 }
 
-/** Tappable action row on a dark GroupCard: icon chip + title + value + chevron. */
-function DarkActionRow({
-  icon,
-  accent,
-  title,
+/** A single grouped-list document row (wts style): tap to open, swipe to rename
+    or delete. Used for both the pinned Insurance row and other documents. */
+function DocRow({
+  label,
   value,
-  isFirst,
-  onClick,
+  onOpen,
+  onEdit,
+  onDelete,
 }: {
-  icon: IconComponent;
-  accent: string;
-  title: string;
+  label: string;
   value: string;
-  isFirst?: boolean;
-  onClick: () => void;
+  onOpen: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }): React.ReactElement {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 14,
-        width: "100%",
-        padding: 14,
-        border: "none",
-        borderTop: isFirst ? undefined : "1px solid rgba(255,255,255,0.07)",
-        cursor: "pointer",
-        textAlign: "left",
-        background: SURFACE,
-      }}
+    <SwipeableRow
+      background={SURFACE}
+      actions={[
+        {
+          label: "Edit",
+          color: "#5B6EE1",
+          icon: <Icon icon={Icons.pencilSimple} color="inherit" />,
+          onAction: onEdit,
+        },
+        {
+          label: "Delete",
+          color: "#ff3b30",
+          icon: <Icon icon={Icons.trash} color="inherit" />,
+          onAction: onDelete,
+        },
+      ]}
     >
-      <IconChip icon={icon} accent={accent} />
-      <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0 }}>
-        <Headline color={HERO}>{title}</Headline>
-        <Footnote
-          color={MUTED}
-          style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-        >
-          {value}
-        </Footnote>
-      </div>
-      <span style={{ display: "flex", color: MUTED, flexShrink: 0 }}>
-        <Icon icon={Icons.caretRight} color="inherit" />
-      </span>
-    </button>
+      <NavRow label={label} value={value} onClick={onOpen} />
+    </SwipeableRow>
   );
 }
 
-/** A single uploaded-document row: tap to open, swipe to delete. */
-function DocumentRow({
-  index,
-  doc,
-  onOpen,
-  onDelete,
-}: {
-  index: number;
-  doc: HealthDocument;
-  onOpen: () => void;
-  onDelete: () => void;
-}): React.ReactElement {
-  const size =
-    doc.size >= 1024 * 1024
-      ? `${(doc.size / 1024 / 1024).toFixed(1)} MB`
-      : `${Math.max(1, Math.round(doc.size / 1024))} KB`;
-  return (
-    <RevealItem
-      index={index}
-      style={{ borderTop: index === 0 ? undefined : "1px solid rgba(255,255,255,0.07)" }}
-    >
-      <SwipeableRow
-        background={SURFACE}
-        actions={[
-          {
-            label: "Delete",
-            color: "#ff3b30",
-            icon: <Icon icon={Icons.trash} color="inherit" />,
-            onAction: onDelete,
-          },
-        ]}
-      >
-        <button
-          type="button"
-          onClick={onOpen}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 14,
-            width: "100%",
-            padding: 14,
-            border: "none",
-            cursor: "pointer",
-            textAlign: "left",
-            background: SURFACE,
-          }}
-        >
-          <IconChip
-            icon={doc.kind === "insurance" ? Icons.shieldCheck : Icons.fileText}
-            accent={ACCENT.document}
-          />
-          <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0 }}>
-            <Headline color={HERO}>{doc.name}</Headline>
-            <Footnote color={MUTED}>
-              {doc.fileName} · {size}
-            </Footnote>
-          </div>
-          <span style={{ display: "flex", color: MUTED, flexShrink: 0 }}>
-            <Icon icon={Icons.caretRight} color="inherit" />
-          </span>
-        </button>
-      </SwipeableRow>
-    </RevealItem>
-  );
+/** DD/MM/YYYY for a stored `YYYY-MM-DD` birthday, or the raw value / em dash. */
+function formatBirthday(value: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return value || "—";
+  const [, y, m, d] = match;
+  return `${d}/${m}/${y}`;
+}
+
+/** Human-readable file size for a stored document. */
+function fmtDocSize(bytes: number): string {
+  return bytes >= 1024 * 1024
+    ? `${(bytes / 1024 / 1024).toFixed(1)} MB`
+    : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
 /** Small circular "add record" button shown in a detail screen's header. */
 function AddRecordButton({ onClick }: { onClick: () => void }): React.ReactElement {
   return (
-    <button
-      type="button"
-      aria-label="Add record"
-      onClick={onClick}
-      style={{
-        width: 44,
-        height: 44,
-        borderRadius: "50%",
-        border: "none",
-        cursor: "pointer",
-        background: SURFACE,
-        color: HERO,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <Icon icon={Icons.plusCircle} color="inherit" />
+    <button type="button" aria-label="Add record" className="glass-btn" onClick={onClick}>
+      <Icon icon={Icons.plus} color="inherit" />
     </button>
   );
 }
@@ -1225,56 +1208,24 @@ function GroomingScreen({
   onAdd: (date: string) => void;
   onDelete: (index: number) => void;
 }): React.ReactElement {
-  const [date, setDate] = useState(today());
+  const [addOpen, setAddOpen] = useState(false);
   return (
     <HealthDetailScreen
       open={open}
       onClose={onClose}
       title={title}
       subtitle={items.length ? `${items.length} logged` : undefined}
-    >
-      <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          style={{
-            flex: 1,
-            minWidth: 0,
-            boxSizing: "border-box",
-            padding: "12px 14px",
-            borderRadius: 14,
-            border: "1px solid rgba(233, 228, 196, 0.35)",
-            background: "transparent",
-            color: HERO,
-            colorScheme: "dark",
-            fontFamily: "var(--font-ui)",
-            fontWeight: 500,
-            fontSize: 16,
-            outline: "none",
-            WebkitAppearance: "none",
-            appearance: "none",
-          }}
-        />
+      action={
         <button
           type="button"
-          onClick={() => onAdd(date)}
-          style={{
-            flexShrink: 0,
-            border: "none",
-            cursor: "pointer",
-            background: HERO,
-            color: DARK,
-            borderRadius: 14,
-            padding: "0 22px",
-            fontFamily: "var(--font-ui)",
-            fontWeight: 700,
-            fontSize: 15,
-          }}
+          aria-label={`Log ${title.toLowerCase()}`}
+          className="glass-btn glass-btn--health"
+          onClick={() => setAddOpen(true)}
         >
-          Log
+          <Icon icon={Icons.plus} color="inherit" />
         </button>
-      </div>
+      }
+    >
       <GroupCard>
         {items.length === 0 ? (
           <Empty icon={icon} text="Nothing logged yet." />
@@ -1293,6 +1244,18 @@ function GroomingScreen({
           ))
         )}
       </GroupCard>
+
+      <FieldEditSheet
+        open={addOpen}
+        title={title}
+        value={today()}
+        type="date"
+        onSave={(v) => {
+          if (v) onAdd(v);
+          setAddOpen(false);
+        }}
+        onClose={() => setAddOpen(false)}
+      />
     </HealthDetailScreen>
   );
 }

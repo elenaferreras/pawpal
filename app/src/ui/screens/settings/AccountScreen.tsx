@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { VStack } from "@astryxdesign/core/Stack";
 import { Button } from "../../components/Button";
 import { TextInput } from "@astryxdesign/core/TextInput";
+import { Group, NavRow, ActionRow } from "../../components/SheetForm";
+import { FieldEditSheet } from "../../components/FieldEditSheet";
 import { useDb } from "../../lib/store";
 import { useToast } from "../../lib/toast";
 import { syncFromSupabase } from "../../lib/supabase";
@@ -23,6 +25,10 @@ export function AccountScreen({ onBack, onSignedOut }: { onBack: () => void; onS
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ownerName, setOwnerNameState] = useState(getOwnerName);
+
+  // Signed-in navigation: the email row drills into an account sub-screen.
+  const [sub, setSub] = useState(false);
+  const [nameOpen, setNameOpen] = useState(false);
 
   useEffect(() => {
     const onAuth = (): void => setUser(getCurrentUser());
@@ -112,24 +118,18 @@ export function AccountScreen({ onBack, onSignedOut }: { onBack: () => void; onS
   };
 
   if (user) {
-    return (
-      <SettingsPage title="Account" onBack={onBack}>
-        <Panel>
-          <VStack gap={3}>
-            <VStack gap={0.5}>
-              <PanelTitle>Signed in</PanelTitle>
-              <PanelText>{user.email}</PanelText>
-            </VStack>
-            <TextInput
-              label="Your name"
-              value={ownerName}
-              placeholder="e.g. Alex"
-              onChange={(v: string) => {
-                setOwnerNameState(v);
-                setOwnerName(v);
-              }}
-            />
-            {pwOpen ? (
+    // Second level: tapping the email row drills into account actions.
+    if (sub) {
+      return (
+        <SettingsPage title="Account" onBack={() => { setSub(false); resetPwForm(); }}>
+          <div className="wts-form wts-form--dark" style={{ margin: 0, paddingTop: 8 }}>
+            <Group title={user.email}>
+              <NavRow label="Change password" onClick={() => setPwOpen((v) => !v)} />
+              <ActionRow label="Sign out" onClick={() => void doSignOut()} />
+            </Group>
+          </div>
+          {pwOpen && (
+            <Panel style={{ marginTop: 16 }}>
               <VStack gap={2}>
                 <TextInput
                   label="New password"
@@ -167,22 +167,36 @@ export function AccountScreen({ onBack, onSignedOut }: { onBack: () => void; onS
                   style={{ width: "100%" }}
                 />
               </VStack>
-            ) : (
-              <Button
-                label="Change password"
-                variant="secondary"
-                onClick={() => setPwOpen(true)}
-                style={{ width: "100%" }}
-              />
-            )}
-            <Button
-              label="Sign out"
-              variant="secondary"
-              onClick={() => void doSignOut()}
-              style={{ width: "100%" }}
-            />
-          </VStack>
-        </Panel>
+            </Panel>
+          )}
+        </SettingsPage>
+      );
+    }
+
+    return (
+      <SettingsPage title="Account" onBack={onBack}>
+        <div className="wts-form wts-form--dark" style={{ margin: 0, paddingTop: 8 }}>
+          <Group title="Signed in">
+            <NavRow label="Your name" value={ownerName || "Add"} onClick={() => setNameOpen(true)} />
+            <NavRow label="Email" value={user.email} onClick={() => setSub(true)} />
+          </Group>
+        </div>
+
+        <FieldEditSheet
+          open={nameOpen}
+          title="Your name"
+          value={ownerName}
+          type="text"
+          placeholder="e.g. Alex"
+          onSave={(v) => {
+            const name = v.trim();
+            setOwnerNameState(name);
+            setOwnerName(name);
+            setNameOpen(false);
+            toast("Name saved");
+          }}
+          onClose={() => setNameOpen(false)}
+        />
       </SettingsPage>
     );
   }
@@ -239,3 +253,4 @@ export function AccountScreen({ onBack, onSignedOut }: { onBack: () => void; onS
     </SettingsPage>
   );
 }
+

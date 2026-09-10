@@ -3,6 +3,7 @@ import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { useConfirm } from "../components/ConfirmDialog";
 import { SwipeableRow } from "../components/SwipeableRow";
+import { CardStagger } from "../components/CardStagger";
 import { CardTitle } from "../components/Typography";
 import { TopBar, TopBarButton } from "../components/TopBar";
 import { RevealItem } from "../components/Reveal";
@@ -20,7 +21,7 @@ const CREAM = "var(--color-pawpal-hero)"; // #E9E4C4 foreground
 const POOP = "#A9E7A7"; // green accent
 
 function typeLabel(type: BathroomType): string {
-  return type === "pipi" ? "Pipi" : type === "popo" ? "Popo" : "Pipi & Popo";
+  return type === "pipi" ? "Pee" : type === "popo" ? "Poop" : "Pee & Poop";
 }
 
 function typeIcon(type: BathroomType): AppIconName {
@@ -85,7 +86,7 @@ export function Bathroom({ onAdd, onEdit }: BathroomProps): React.ReactElement {
           />
         }
       />
-      <div style={{ padding: "0 16px" }}>
+      <CardStagger style={{ padding: "0 16px" }}>
       {history.length === 0 ? (
         <div
           style={{
@@ -240,7 +241,7 @@ export function Bathroom({ onAdd, onEdit }: BathroomProps): React.ReactElement {
           </div>
         </>
       )}
-      </div>
+      </CardStagger>
     </div>
   );
 }

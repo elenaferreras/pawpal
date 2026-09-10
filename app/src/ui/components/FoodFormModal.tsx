@@ -1,6 +1,6 @@
-import { useEffect, useState, type CSSProperties } from "react";
-import { Icon } from "@astryxdesign/core/Icon";
-import { Icons } from "../lib/icons";
+import { useEffect, useState } from "react";
+import { MotionSheet } from "./MotionSheet";
+import { Group, TimeRow, NumberRow, SelectRow, NotesField } from "./SheetForm";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { nowTime } from "../lib/date";
@@ -11,33 +11,14 @@ interface FoodFormModalProps {
   onClose: () => void;
 }
 
-const DARK = "var(--color-pawpal-page)"; // #352B25
 const TYPES = ["Dry kibble", "Wet food", "Raw", "Treats", "Other"];
 
-const sheetFieldStyle: CSSProperties = {
-  width: "100%",
-  height: 28,
-  padding: "0 16px",
-  borderRadius: 16,
-  border: `1px solid ${DARK}`,
-  background: "transparent",
-  color: DARK,
-  fontFamily: "var(--font-ui)",
-  fontWeight: 500,
-  fontSize: 16,
-  outline: "none",
-  boxSizing: "border-box",
-};
-
 /**
- * "Log a meal" bottom sheet (new design).
- *
- * Orange sheet that slides up from the bottom, matching the Track-walk sheet:
- * dark outlined fields on the orange surface, wrapping type chips that invert to
- * a dark fill when selected, and a pinned dark "Save meal" action.
+ * "Log a meal" bottom sheet — iOS grouped-list form on the meals (orange) glass
+ * surface. Time + amount + type in one card, an optional note below.
  */
-export function FoodFormModal({ open, onClose }: FoodFormModalProps): React.ReactElement | null {
-  const { update } = useDb();
+export function FoodFormModal({ open, onClose }: FoodFormModalProps): React.ReactElement {
+  const { db, update } = useDb();
   const toast = useToast();
   const [time, setTime] = useState("");
   const [type, setType] = useState(TYPES[0]);
@@ -46,13 +27,16 @@ export function FoodFormModal({ open, onClose }: FoodFormModalProps): React.Reac
 
   useEffect(() => {
     if (!open) return;
+    // Carry the last meal's amount + type forward so repeat feedings are one tap.
+    const last = db.meals
+      .filter((m) => m.created)
+      .sort((a, b) => (b.created || "").localeCompare(a.created || ""))[0];
     setTime(nowTime());
-    setType(TYPES[0]);
-    setAmount("");
+    setType(last?.type || TYPES[0]);
+    setAmount(last?.amount ? String(last.amount) : "");
     setNotes("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
-
-  if (!open) return null;
 
   const save = (): void => {
     if (!amount) {
@@ -75,135 +59,38 @@ export function FoodFormModal({ open, onClose }: FoodFormModalProps): React.Reac
   };
 
   return (
-    <div className="walk-sheet-scrim" onClick={onClose}>
-      <div
-        className="walk-sheet"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Log a meal"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="walk-sheet-body">
-          <p
-            style={{
-              margin: 0,
-              fontFamily: "var(--font-ui)",
-              fontWeight: 700,
-              fontSize: 32,
-              color: DARK,
-            }}
-          >
-            Log a meal
-          </p>
-
-          <Field label="Time">
-            <input
-              className="wts-field"
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-              style={sheetFieldStyle}
+    <MotionSheet
+      open={open}
+      onClose={onClose}
+      ariaLabel="Log a meal"
+      scrimClassName="walk-sheet-scrim"
+      sheetClassName="form-sheet meal-sheet"
+      title="Log a meal"
+      confirmLabel="Save meal"
+      onConfirm={save}
+      body={
+        <div className="wts-form">
+          <Group title="Meal">
+            <TimeRow label="Time" value={time} onChange={setTime} />
+            <NumberRow label="Amount" value={amount} onChange={setAmount} suffix="g" inputMode="numeric" />
+            <SelectRow
+              label="Type"
+              hideEmpty
+              value={type}
+              onChange={setType}
+              placeholder="Type"
+              options={TYPES.map((t) => ({ value: t, label: t }))}
             />
-          </Field>
+          </Group>
 
-          <Field label="Amount (g)">
-            <input
-              className="wts-field"
-              value={amount}
-              placeholder="120 g"
-              inputMode="numeric"
-              onChange={(e) => setAmount(e.target.value)}
-              style={sheetFieldStyle}
-            />
-          </Field>
-
-          <Field label="Type">
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {TYPES.map((t) => (
-                <ChoiceChip key={t} label={t} selected={type === t} onClick={() => setType(t)} />
-              ))}
+          <section className="wts-group">
+            <h3 className="wts-group-title">Notes</h3>
+            <div className="wts-group-card">
+              <NotesField value={notes} onChange={setNotes} placeholder="Optional" />
             </div>
-          </Field>
-
-          <Field label="Notes">
-            <textarea
-              className="wts-field"
-              value={notes}
-              placeholder="Optional"
-              rows={3}
-              onChange={(e) => setNotes(e.target.value)}
-              style={{ ...sheetFieldStyle, height: "auto", minHeight: 56, padding: "8px 16px", resize: "none" }}
-            />
-          </Field>
+          </section>
         </div>
-
-        <div className="walk-sheet-footer">
-          <button
-            type="button"
-            onClick={save}
-            style={{
-              width: "100%",
-              padding: 16,
-              borderRadius: 16,
-              border: "none",
-              cursor: "pointer",
-              background: DARK,
-              color: "var(--color-track-poop)",
-              fontFamily: "var(--font-ui)",
-              fontWeight: 700,
-              fontSize: 16,
-            }}
-          >
-            Save meal
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }): React.ReactElement {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 24 }}>
-      <span style={{ fontFamily: "var(--font-ui)", fontWeight: 500, fontSize: 16, color: DARK }}>
-        {label}
-      </span>
-      {children}
-    </div>
-  );
-}
-
-function ChoiceChip({
-  label,
-  selected,
-  onClick,
-}: {
-  label: string;
-  selected: boolean;
-  onClick: () => void;
-}): React.ReactElement {
-  return (
-    <button
-      type="button"
-      aria-pressed={selected}
-      onClick={onClick}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 6,
-        padding: "12px 16px",
-        borderRadius: 16,
-        border: `1px solid ${DARK}`,
-        cursor: "pointer",
-        background: selected ? DARK : "transparent",
-        color: selected ? "var(--color-track-poop)" : DARK,
-        fontFamily: "var(--font-ui)",
-        fontWeight: 500,
-        fontSize: 16,
-      }}
-    >
-      <span>{label}</span>
-      {selected && <Icon icon={Icons.checkCircle} color="inherit" size="sm" />}
-    </button>
+      }
+    />
   );
 }

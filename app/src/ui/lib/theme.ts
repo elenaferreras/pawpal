@@ -25,6 +25,7 @@ const pawpalTokens: Record<string, [light: string, dark: string]> = {
   "--color-pawpal-fab": ["#FBEF79", "#FBEF79"], // floating action button
   "--color-pawpal-page": ["#352B25", "#352B25"], // page background (dark brown)
   "--color-food": ["#E96A41", "#E96A41"], // meals accent (orange)
+  "--color-health": ["#EDD4FD", "#EDD4FD"], // health accent (matches the health fab + vet notes)
 
   // Muted label/support text used across the hero (rendered at 40% opacity).
   "--color-pawpal-muted": ["#8C8976", "#8C8976"],

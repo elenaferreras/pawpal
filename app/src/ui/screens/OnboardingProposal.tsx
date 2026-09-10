@@ -13,6 +13,7 @@ import { ScreenTransition } from "../components/ScreenTransition";
 import { requestNotificationPermission, saveNotifConfig } from "../lib/notifications";
 import { requestPasswordReset, signIn, signInWithGoogle, signUp } from "../lib/auth";
 import { syncFromSupabase } from "../lib/supabase";
+import { COMMON_BREEDS, OTHER_BREED } from "../lib/breeds";
 import type { Avatar, Database, Profile } from "../types";
 
 const DEFAULT_AVATAR: Avatar = {
@@ -25,32 +26,6 @@ const DEFAULT_AVATAR: Avatar = {
 
 const MEAL_OPTIONS = [1, 2, 3, 4];
 const RECOMMENDED_MEALS = 2;
-
-// Most common breeds for the onboarding picker. Selecting OTHER_BREED reveals
-// a free-text input for anything not listed here.
-const OTHER_BREED = "__other__";
-const COMMON_BREEDS = [
-  "Mixed breed",
-  "Labrador Retriever",
-  "Golden Retriever",
-  "German Shepherd",
-  "French Bulldog",
-  "Bulldog",
-  "Poodle",
-  "Beagle",
-  "Rottweiler",
-  "Dachshund",
-  "Yorkshire Terrier",
-  "Boxer",
-  "Chihuahua",
-  "Border Collie",
-  "Cocker Spaniel",
-  "Shih Tzu",
-  "Pug",
-  "Australian Shepherd",
-  "Cavalier King Charles Spaniel",
-  "Jack Russell Terrier",
-];
 
 interface WheelItem {
   value: number;

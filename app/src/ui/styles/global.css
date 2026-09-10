@@ -769,8 +769,9 @@ body.modal-open {
   min-width: 0;
   text-align: center;
 }
-/* Round iOS-style nav button. Uses the sheet's ink colour on its surface so
-   every sheet's buttons match automatically; X and check share the style. */
+/* Round iOS-style nav buttons. Leading Cancel (X) is a translucent circle in
+   the sheet's ink colour; trailing Confirm is a solid blue "send" up-arrow —
+   matches the iOS 26 sheet toolbar. */
 .sheet-nav-btn {
   display: flex;
   align-items: center;
@@ -781,8 +782,14 @@ body.modal-open {
   border: none;
   border-radius: 100px;
   cursor: pointer;
-  background: var(--sheet-ink, var(--color-pawpal-page));
-  color: var(--sheet-surface);
+}
+.sheet-nav-btn--cancel {
+  background: color-mix(in srgb, var(--sheet-ink, var(--color-pawpal-page)) 14%, transparent);
+  color: var(--sheet-ink, var(--color-pawpal-page));
+}
+.sheet-nav-btn--confirm {
+  background: #0088ff;
+  color: #fff;
 }
 .sheet-nav-btn:disabled {
   opacity: 0.4;
@@ -812,16 +819,34 @@ body.modal-open {
   justify-content: center;
   background: rgba(0, 0, 0, 0.4);
 }
-.walk-sheet {
+/* Generic floating "liquid glass" form sheet: the category fill
+   (--sheet-surface) at 95% over a frosted blur, light from -45° via inset
+   highlights, depth via a soft drop shadow. Each form sets --sheet-surface to
+   its category colour and adds this class alongside its own. */
+.form-sheet {
   position: relative;
-  width: min(560px, 100%);
+  width: min(560px, calc(100% - 12px));
   max-height: 92vh;
+  margin-bottom: max(6px, env(safe-area-inset-bottom, 6px));
   display: flex;
   flex-direction: column;
-  --sheet-surface: var(--color-dash-walk);
-  background: var(--sheet-surface);
-  border-radius: 40px 40px 0 0;
+  background: color-mix(in srgb, var(--sheet-surface) 95%, transparent);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  backdrop-filter: blur(12px) saturate(180%);
+  border-radius: 40px;
   overflow: hidden;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 1px 0 0 rgba(255, 255, 255, 0.28),
+    inset -1px 0 0 rgba(53, 43, 37, 0.06),
+    inset 0 -1px 0 rgba(53, 43, 37, 0.08),
+    0 16px 40px rgba(0, 0, 0, 0.28);
+}
+.form-sheet .sheet-body {
+  padding-bottom: 20px;
+}
+.walk-sheet {
+  --sheet-surface: var(--color-dash-walk);
 }
 /* Unified scrollable body + fading footer shared by every MotionSheet. Each
    sheet only sets its own `--sheet-surface` colour; the body/footer are common.
@@ -852,17 +877,287 @@ body.modal-open {
      sheet colour so it never reveals the dark page background beneath. */
   background: linear-gradient(to bottom, transparent 0, var(--sheet-surface) 24px);
 }
-/* "Log a meal" bottom sheet — meals accent surface (#E96A41). */
-.meal-sheet {
-  position: relative;
-  width: min(560px, 100%);
-  max-height: 92vh;
+/* iOS grouped-list form (walk-track redesign). Rendered inside a sheet body:
+   transparent sections over the sheet surface, bold section titles, hairline
+   separators between rows, and value chips / pop-up menus on the trailing edge. */
+.wts-form {
+  margin: 0 -20px;
   display: flex;
   flex-direction: column;
-  --sheet-surface: var(--color-food);
-  background: var(--sheet-surface);
-  border-radius: 40px 40px 0 0;
+  gap: 24px;
+}
+.wts-group {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+.wts-group-title {
+  margin: 0 0 6px;
+  padding-left: 16px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--color-pawpal-page);
+}
+/* Rows in a group share one translucent white rounded card. */
+.wts-group-card {
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 26px;
   overflow: hidden;
+}
+.wts-group-card > :first-child::before {
+  display: none;
+}
+.wts-row-wrap {
+  position: relative;
+  width: 100%;
+}
+.wts-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 6px 16px;
+  box-sizing: border-box;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-family: var(--font-ui);
+  color: var(--color-pawpal-page);
+}
+/* Hairline divider, inset 16px from the card edges (not full-bleed). */
+.wts-row::before,
+.wts-notes::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 16px;
+  height: 1px;
+  background: color-mix(in srgb, var(--color-pawpal-page) 13%, transparent);
+  pointer-events: none;
+}
+button.wts-row {
+  cursor: pointer;
+}
+.wts-row-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  font-size: 17px;
+  letter-spacing: -0.02em;
+}
+/* Value chip on the trailing edge of a row. */
+.wts-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 62vw;
+  padding: 6px 12px;
+  border-radius: 100px;
+  background: color-mix(in srgb, var(--color-pawpal-page) 9%, transparent);
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 16px;
+  color: var(--color-pawpal-page);
+}
+.wts-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wts-chip--empty {
+  color: color-mix(in srgb, var(--color-pawpal-page) 45%, transparent);
+}
+.wts-chip-input {
+  width: 4ch;
+  min-width: 2ch;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  text-align: right;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 16px;
+  color: var(--color-pawpal-page);
+}
+.wts-chip-suffix {
+  color: color-mix(in srgb, var(--color-pawpal-page) 55%, transparent);
+}
+/* Plain trailing detail text on a nav/disclosure row (not a chip). */
+.wts-nav-value {
+  max-width: 48vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 17px;
+  letter-spacing: -0.02em;
+  color: color-mix(in srgb, var(--color-pawpal-page) 45%, transparent);
+}
+/* Full-width inline input for a single-item edit row (e.g. FieldEditSheet). */
+.wts-row-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 17px;
+  letter-spacing: -0.02em;
+  color: var(--color-pawpal-page);
+}
+.wts-row-input::placeholder {
+  color: color-mix(in srgb, var(--color-pawpal-page) 40%, transparent);
+}
+/* Dark-surface variant — same grouped-list format as the sheet form, recoloured
+   for a dark page (e.g. Settings › Account). Cream text on a raised dark card. */
+.wts-form--dark .wts-group-title {
+  color: var(--color-pawpal-hero);
+}
+.wts-form--dark .wts-group-card {
+  background: var(--color-dash-surface);
+}
+.wts-form--dark .wts-row {
+  color: var(--color-pawpal-hero);
+}
+.wts-form--dark .wts-row::before {
+  background: color-mix(in srgb, var(--color-pawpal-hero) 12%, transparent);
+}
+.wts-form--dark .wts-chip {
+  background: color-mix(in srgb, var(--color-pawpal-hero) 12%, transparent);
+  color: var(--color-pawpal-hero);
+}
+.wts-form--dark .wts-chip--empty {
+  color: color-mix(in srgb, var(--color-pawpal-hero) 55%, transparent);
+}
+.wts-form--dark .wts-chip-input {
+  color: var(--color-pawpal-hero);
+}
+.wts-form--dark .wts-nav-value {
+  color: color-mix(in srgb, var(--color-pawpal-hero) 55%, transparent);
+}
+/* Native date picker sitting invisibly over its chip. */
+.wts-date-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  opacity: 0;
+  cursor: pointer;
+  color-scheme: light;
+}
+/* Truly-native OS picker sitting invisibly over its chip (weather, terrain,
+   walked-by). Tapping the chip opens the platform's native select menu. */
+.wts-native-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  opacity: 0;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  font-size: 16px;
+}
+/* Multiline notes field — full-width row body. */
+.wts-notes {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+}
+.wts-notes textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-pawpal-page) 9%, transparent);
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 16px;
+  color: var(--color-pawpal-page);
+  outline: none;
+  resize: none;
+}
+.wts-notes textarea::placeholder {
+  color: color-mix(in srgb, var(--color-pawpal-page) 45%, transparent);
+}
+/* Round −/+ stepper button (medication duration). */
+.wts-step {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--color-pawpal-page) 14%, transparent);
+  color: var(--color-pawpal-page);
+}
+/* Quick-preset pills below a row (e.g. duration 7/14/30/∞). */
+.wts-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 16px 12px;
+}
+.wts-preset {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 100px;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 15px;
+  background: color-mix(in srgb, var(--color-pawpal-page) 9%, transparent);
+  color: var(--color-pawpal-page);
+}
+.wts-preset.is-on {
+  background: var(--color-pawpal-page);
+  color: #fff;
+}
+/* Read-only info block inside a group card (e.g. medication summary). */
+.wts-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+}
+.wts-info-title {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--color-pawpal-page);
+}
+.wts-info-sub {
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 14px;
+  color: color-mix(in srgb, var(--color-pawpal-page) 65%, transparent);
+}
+/* "Log a meal" bottom sheet — meals accent surface (#E96A41). */
+.meal-sheet {
+  --sheet-surface: var(--color-food);
 }
 /* Meal-history matrix (Food tab): rows = days grouped by week, columns = slots. */
 .meal-matrix {
@@ -997,30 +1292,18 @@ body.modal-open {
   background: var(--color-pawpal-page);
 }
 
-/* "Add a bath" bottom sheet — teal water surface (--color-bath). */
+/* "Add a bath" bottom sheet — health pink surface (Health tab). */
 .bath-sheet {
-  position: relative;
-  width: min(560px, 100%);
-  max-height: 92vh;
-  display: flex;
-  flex-direction: column;
-  --sheet-surface: var(--color-bath);
-  background: var(--sheet-surface);
-  border-radius: 40px 40px 0 0;
-  overflow: hidden;
+  --sheet-surface: var(--color-health);
 }
 
 /* "Bathroom log" bottom sheet — green surface (#A9E7A7). */
 .bathroom-sheet {
-  position: relative;
-  width: min(560px, 100%);
-  max-height: 92vh;
-  display: flex;
-  flex-direction: column;
-  --sheet-surface: #A9E7A7;
-  background: var(--sheet-surface);
-  border-radius: 40px 40px 0 0;
-  overflow: hidden;
+  --sheet-surface: #a9e7a7;
+}
+/* "Add health record" sheet — health pink surface. */
+.vet-sheet {
+  --sheet-surface: var(--color-health);
 }
 @keyframes pawpal-sheet-up {
   from {
@@ -4332,22 +4615,57 @@ input.wts-field[type="time"] {
   padding: var(--safe-top) 8px 0;
   pointer-events: none;
 }
-/* Blur/tint/border live on a pseudo-element so the controls above stay fully
-   opaque while only the bar surface fades in on collapse. */
-.topbar-bar::before {
-  content: "";
+/* Progressive gradient blur at the top of every screen (iOS 26 / Tricount
+   style): four stacked backdrop-blur layers of increasing radius, each masked
+   to a shorter band, so content frosts smoothly toward the top and fades to
+   clear — no hard edge. A faint dark scrim keeps the collapsed title legible. */
+.topbar-blur {
   position: absolute;
-  inset: 0;
-  background: color-mix(in srgb, var(--color-pawpal-page) 80%, transparent);
-  -webkit-backdrop-filter: blur(18px) saturate(180%);
-  backdrop-filter: blur(18px) saturate(180%);
-  border-bottom: 1px solid rgba(233, 228, 196, 0.1);
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 0;
+  height: calc(var(--safe-top) + var(--topbar-height) + 32px);
+  pointer-events: none;
   opacity: 0;
   transition: opacity 0.25s ease;
-  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--color-pawpal-page) 72%, transparent) 0%,
+    color-mix(in srgb, var(--color-pawpal-page) 38%, transparent) 55%,
+    transparent 100%
+  );
 }
-.topbar[data-collapsed="true"] .topbar-bar::before {
+.topbar[data-collapsed="true"] .topbar-blur {
   opacity: 1;
+}
+.topbar-blur > div {
+  position: absolute;
+  inset: 0;
+}
+.topbar-blur > div:nth-child(1) {
+  -webkit-backdrop-filter: blur(1px);
+  backdrop-filter: blur(1px);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 68%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 68%, transparent 100%);
+}
+.topbar-blur > div:nth-child(2) {
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 48%, transparent 78%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 48%, transparent 78%);
+}
+.topbar-blur > div:nth-child(3) {
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 30%, transparent 58%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 30%, transparent 58%);
+}
+.topbar-blur > div:nth-child(4) {
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 12%, transparent 40%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 12%, transparent 40%);
 }
 .topbar-lead,
 .topbar-trail {
@@ -4425,6 +4743,38 @@ input.wts-field[type="time"] {
   cursor: pointer;
   color: inherit;
 }
+/* Liquid-glass circular icon button (Health detail headers): dark translucent
+   fill + backdrop blur + soft top highlight, cream glyph. */
+.glass-btn {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--color-pawpal-hero);
+  background: color-mix(in srgb, var(--color-pawpal-page) 60%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  backdrop-filter: blur(16px) saturate(160%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 6px 18px rgba(0, 0, 0, 0.3);
+}
+.glass-btn:active {
+  background: color-mix(in srgb, var(--color-pawpal-page) 74%, transparent);
+}
+/* Health-pink tinted liquid-glass button (e.g. Pet ID › add document). */
+.glass-btn--health {
+  color: var(--color-pawpal-page);
+  background: color-mix(in srgb, var(--color-health) 62%, transparent);
+}
+.glass-btn--health:active {
+  background: color-mix(in srgb, var(--color-health) 78%, transparent);
+}
 /* Filled, screen-tinted circular action button in the large-title row. */
 .topbar-button {
   width: 44px;
@@ -4439,7 +4789,7 @@ input.wts-field[type="time"] {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
 }
 @media (prefers-reduced-motion: reduce) {
-  .topbar-bar::before,
+  .topbar-blur,
   .topbar-inline {
     transition: none;
   }

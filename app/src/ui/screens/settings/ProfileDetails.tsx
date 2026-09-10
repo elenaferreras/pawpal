@@ -1,22 +1,19 @@
-import type { ReactNode } from "react";
 import { useState } from "react";
-import { Icon } from "@astryxdesign/core/Icon";
 import { useDb } from "../../lib/store";
 import { useToast } from "../../lib/toast";
 import { DogFace } from "../../avatar/DogAvatar";
 import { AvatarSheet } from "../../avatar/AvatarSheet";
 import { DEFAULT_AVATAR_BG } from "../../avatar/presets";
-import { Icons } from "../../lib/icons";
 import { Button } from "../../components/Button";
+import { Group, NavRow } from "../../components/SheetForm";
 import { FieldEditSheet, type FieldEditType } from "../../components/FieldEditSheet";
+import { COMMON_BREEDS } from "../../lib/breeds";
 import type { Avatar, Profile } from "../../types";
-import { HERO, MUTED, SettingsPage, SectionLabel } from "./shared";
+import { SettingsPage } from "./shared";
 
 interface ProfileDetailsProps {
   onBack: () => void;
 }
-
-const GROUP = "var(--color-settings-group)"; // #221D1A deep list surface
 
 /** Fallback avatar for the picker when the pet has none saved yet. */
 const DEFAULT_AVATAR: Avatar = {
@@ -47,6 +44,8 @@ interface EditableField {
   type: FieldEditType;
   unit?: string;
   placeholder?: string;
+  /** When set, the edit sheet is a select of these options + an "Other…" entry. */
+  options?: string[];
 }
 
 /**
@@ -63,7 +62,14 @@ export function ProfileDetails({ onBack }: ProfileDetailsProps): React.ReactElem
 
   const details: EditableField[] = [
     { key: "name", label: "Name", value: p.name || "—", editValue: p.name, type: "text" },
-    { key: "breed", label: "Breed", value: p.breed || "—", editValue: p.breed, type: "text" },
+    {
+      key: "breed",
+      label: "Breed",
+      value: p.breed || "—",
+      editValue: p.breed,
+      type: "text",
+      options: COMMON_BREEDS,
+    },
     {
       key: "birthday",
       label: "Birthday",
@@ -188,30 +194,23 @@ export function ProfileDetails({ onBack }: ProfileDetailsProps): React.ReactElem
         />
       </div>
 
-      <SectionLabel style={{ color: HERO, fontSize: 16, fontWeight: 510, margin: "20px 4px 8px" }}>
-        Details
-      </SectionLabel>
-      <Group>
-        {details.map((d) => (
-          <DetailRow key={d.label} label={d.label} value={d.value} onClick={() => setEditing(d.key)} />
-        ))}
-      </Group>
+      <div className="wts-form wts-form--dark" style={{ margin: 0, paddingTop: 20 }}>
+        <Group title="Details">
+          {details.map((d) => (
+            <NavRow key={d.key} label={d.label} value={d.value} onClick={() => setEditing(d.key)} />
+          ))}
+        </Group>
 
-      <SectionLabel style={{ color: HERO, fontSize: 16, fontWeight: 510, margin: "20px 4px 8px" }}>
-        Health
-      </SectionLabel>
-      <Group>
-        {health.map((d) => (
-          <DetailRow key={d.label} label={d.label} value={d.value} onClick={() => setEditing(d.key)} />
-        ))}
-      </Group>
+        <Group title="Health">
+          {health.map((d) => (
+            <NavRow key={d.key} label={d.label} value={d.value} onClick={() => setEditing(d.key)} />
+          ))}
+        </Group>
 
-      <SectionLabel style={{ color: HERO, fontSize: 16, fontWeight: 510, margin: "20px 4px 8px" }}>
-        Manage
-      </SectionLabel>
-      <Group>
-        <DetailRow label="Add a new pet" value="Coming soon" muted />
-      </Group>
+        <Group title="Manage">
+          <NavRow label="Add a new pet" value="Coming soon" disabled />
+        </Group>
+      </div>
 
       <FieldEditSheet
         open={activeField != null}
@@ -220,6 +219,7 @@ export function ProfileDetails({ onBack }: ProfileDetailsProps): React.ReactElem
         type={activeField?.type}
         unit={activeField?.unit}
         placeholder={activeField?.placeholder}
+        options={activeField?.options}
         onSave={(v) => activeField && saveField(activeField.key, v)}
         onClose={() => setEditing(null)}
       />
@@ -231,85 +231,5 @@ export function ProfileDetails({ onBack }: ProfileDetailsProps): React.ReactElem
         onClose={() => setAvatarOpen(false)}
       />
     </SettingsPage>
-  );
-}
-
-/** Deep rounded surface that groups a set of {@link DetailRow}s. */
-function Group({ children }: { children: ReactNode }): React.ReactElement {
-  return (
-    <div
-      style={{
-        background: GROUP,
-        borderRadius: 16,
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
-        gap: 4,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-/** A label + value row with a trailing chevron. Tappable when `onClick` is set. */
-function DetailRow({
-  label,
-  value,
-  onClick,
-  muted = false,
-}: {
-  label: string;
-  value: string;
-  onClick?: () => void;
-  muted?: boolean;
-}): React.ReactElement {
-  const clickable = onClick != null;
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={!clickable}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 16,
-        width: "100%",
-        textAlign: "left",
-        padding: 16,
-        background: "none",
-        border: "none",
-        cursor: clickable ? "pointer" : "default",
-      }}
-    >
-      <span
-        style={{
-          flex: 1,
-          minWidth: 0,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          fontFamily: "var(--font-ui)",
-          fontSize: 16,
-          color: HERO,
-        }}
-      >
-        <span style={{ whiteSpace: "nowrap" }}>{label}</span>
-        <span
-          style={{
-            opacity: muted ? 0.5 : 0.8,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {value}
-        </span>
-      </span>
-      <span style={{ color: MUTED, display: "flex", flexShrink: 0 }}>
-        <Icon icon={Icons.caretRight} color="inherit" />
-      </span>
-    </button>
   );
 }

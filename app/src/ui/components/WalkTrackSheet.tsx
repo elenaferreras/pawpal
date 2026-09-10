@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { MotionSheet } from "./MotionSheet";
+import { Group, SelectRow, NumberRow, DateRow, ToggleRow, NotesField } from "./SheetForm";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { Icon } from "@astryxdesign/core/Icon";
 import { Icons, type AppIconName } from "../lib/icons";
 import { nowTime } from "../lib/date";
-import { useWalkers, walkerAvatar, type Walker } from "../lib/walkers";
+import { useWalkers, myWalkerName, walkerAvatar, type Walker } from "../lib/walkers";
 import type { BathroomLog, Database, Walk } from "../types";
 
 interface WalkTrackSheetProps {
@@ -18,7 +19,6 @@ interface WalkTrackSheetProps {
 }
 
 const DARK = "var(--color-pawpal-page)"; // #352B25
-const WALK = "var(--color-dash-walk)"; // #9CCFFF walk accent token
 
 const WEATHERS: { value: string; icon: AppIconName; label: string }[] = [
   { value: "sunny", icon: "sun", label: "Sunny" },
@@ -66,7 +66,6 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate }: WalkTr
   const [socialised, setSocialised] = useState(false);
   const [assignee, setAssignee] = useState<string | null>(null);
   const [weather, setWeather] = useState("");
-  const [showTerrain, setShowTerrain] = useState(false);
   const [terrain, setTerrain] = useState("");
   const [notes, setNotes] = useState("");
   const [sendToVet, setSendToVet] = useState(false);
@@ -83,20 +82,24 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate }: WalkTr
       setAssignee(editWalk.assignee ?? null);
       setWeather(editWalk.weather ?? "");
       setTerrain(editWalk.terrain ?? "");
-      setShowTerrain(!!editWalk.terrain);
       setNotes(editWalk.notes ?? "");
       setSendToVet(!!editWalk.sentToVet);
     } else {
+      // New walk: carry forward the last walk's numbers/conditions so logging a
+      // routine walk is one tap; results + notes start empty, walker = current
+      // user (owner, co-owner or sitter).
+      const last = db.walks
+        .filter((w) => w.created)
+        .sort((a, b) => (b.created || "").localeCompare(a.created || ""))[0];
       setDateISO(prefillDate || localISO(new Date()));
-      setDuration("");
-      setSteps("");
-      setDistance("");
+      setDuration(last?.duration ? String(last.duration) : "");
+      setSteps(last?.steps ? String(last.steps) : "");
+      setDistance(last?.distance ? String(last.distance) : "");
       setPooped(false);
       setSocialised(false);
-      setAssignee(null);
-      setWeather("");
-      setTerrain("");
-      setShowTerrain(false);
+      setAssignee(myWalkerName());
+      setWeather(last?.weather ?? "");
+      setTerrain(last?.terrain ?? "");
       setNotes("");
       setSendToVet(false);
     }
@@ -161,7 +164,7 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate }: WalkTr
           friends: socialised,
           assignee: assignee ?? undefined,
           weather,
-          terrain: showTerrain ? terrain : "",
+          terrain: terrain,
           notes: notes.trim(),
           sentToVet: sendToVet && trimmedNotes !== "",
         };
@@ -180,7 +183,7 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate }: WalkTr
       popo: pooped,
       friends: socialised,
       weather,
-      terrain: showTerrain ? terrain : "",
+      terrain: terrain,
       notes: notes.trim(),
       assignee: assignee ?? undefined,
       sentToVet: sendToVet && trimmedNotes !== "",
@@ -201,212 +204,61 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate }: WalkTr
       onClose={onClose}
       ariaLabel="Track walk"
       scrimClassName="walk-sheet-scrim"
-      sheetClassName="walk-sheet"
+      sheetClassName="form-sheet walk-sheet"
       title={editWalk ? "Edit walk" : "Track walk"}
       confirmLabel={editWalk ? "Save changes" : "Save walk"}
       onConfirm={save}
       body={
-        <>
-        {/* Date picker — native date input */}
-        <Field label="Date">
-          <input
-            className="wts-field"
-            type="date"
-            value={dateISO}
-            max={localISO(new Date())}
-            onChange={(e) => setDateISO(e.target.value)}
-            style={{
-              width: "100%",
-              height: 28,
-              boxSizing: "border-box",
-              padding: "0 16px",
-              borderRadius: 16,
-              border: `1px solid ${DARK}`,
-              background: "transparent",
-              color: DARK,
-              colorScheme: "light",
-              fontFamily: "var(--font-ui)",
-              fontWeight: 500,
-              fontSize: 16,
-              outline: "none",
-            }}
-          />
-        </Field>
+        <div className="wts-form">
+          <Group title="Walk details">
+            <DateRow label="Date" value={dateISO} max={localISO(new Date())} onChange={setDateISO} />
+            <NumberRow label="Duration" value={duration} onChange={setDuration} suffix="min" inputMode="numeric" />
+            <NumberRow label="Steps" value={steps} onChange={setSteps} suffix="steps" inputMode="numeric" />
+            <NumberRow label="Distance" value={distance} onChange={setDistance} suffix="km" inputMode="decimal" />
+            {/* Only meaningful once there's someone other than the user to pick —
+                a co-owner or sitter. Still shown if an entry already has an
+                assignee (e.g. editing after the co-owner/sitter was removed). */}
+            {(walkers.length > 1 || assignee != null) && (
+              <WalkerRow walkers={walkers} value={assignee} onChange={setAssignee} />
+            )}
+          </Group>
 
-        {/* Weather picker — same segmented style as the date selector */}
-        <Field label="Weather">
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: 6,
-              padding: 6,
-              borderRadius: 16,
-              background: DARK,
-              overflow: "hidden",
-            }}
-          >
-            {WEATHERS.map((w) => {
-              const active = weather === w.value;
-              return (
-                <button
-                  key={w.value}
-                  type="button"
-                  onClick={() => setWeather(active ? "" : w.value)}
-                  aria-pressed={active}
-                  aria-label={w.label}
-                  title={w.label}
-                  style={{
-                    minWidth: 0,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 4,
-                    padding: "8px 2px",
-                    borderRadius: 12,
-                    border: "none",
-                    cursor: "pointer",
-                    lineHeight: 1,
-                    color: active ? DARK : WALK,
-                    background: active ? WALK : "transparent",
-                  }}
-                >
-                  <Icon icon={Icons[w.icon]} color="inherit" />
-                  <span
-                    style={{
-                      fontFamily: "var(--font-ui)",
-                      fontWeight: 500,
-                      fontSize: 10,
-                      lineHeight: 1,
-                    }}
-                  >
-                    {w.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </Field>
-
-        {/* Terrain picker — toggle reveals a segmented grid like the weather one */}
-        <Field label="Terrain">
-          <ChoiceButton
-            label="Add terrain"
-            selected={showTerrain}
-            onClick={() =>
-              setShowTerrain((v) => {
-                if (v) setTerrain("");
-                return !v;
-              })
-            }
-          />
-          {showTerrain && (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(3, 1fr)",
-                gap: 6,
-                padding: 6,
-                borderRadius: 16,
-                background: DARK,
-                overflow: "hidden",
-              }}
-            >
-              {TERRAINS.map((t) => {
-                const active = terrain === t.value;
-                return (
-                  <button
-                    key={t.value}
-                    type="button"
-                    onClick={() => setTerrain(active ? "" : t.value)}
-                    aria-pressed={active}
-                    aria-label={t.label}
-                    title={t.label}
-                    style={{
-                      minWidth: 0,
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 4,
-                      padding: "8px 2px",
-                      borderRadius: 12,
-                      border: "none",
-                      cursor: "pointer",
-                      lineHeight: 1,
-                      color: active ? DARK : WALK,
-                      background: active ? WALK : "transparent",
-                    }}
-                  >
-                    <Icon icon={Icons[t.icon]} color="inherit" />
-                    <span
-                      style={{
-                        fontFamily: "var(--font-ui)",
-                        fontWeight: 500,
-                        fontSize: 10,
-                        lineHeight: 1,
-                      }}
-                    >
-                      {t.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </Field>
-
-        <Field label="Duration">
-          <SheetInput value={duration} onChange={setDuration} placeholder="40" inputMode="numeric" suffix="min" />
-        </Field>
-
-        <Field label="Steps">
-          <SheetInput value={steps} onChange={setSteps} placeholder="12000" inputMode="numeric" suffix="steps" />
-        </Field>
-
-        <Field label="Distance">
-          <SheetInput value={distance} onChange={setDistance} placeholder="2.5" inputMode="decimal" suffix="km" />
-        </Field>
-
-        <Field label="Extras">
-          <div style={{ display: "flex", gap: 8 }}>
-            <ChoiceButton label="Pooped" selected={pooped} onClick={() => setPooped((v) => !v)} />
-            <ChoiceButton label="Socialised" selected={socialised} onClick={() => setSocialised((v) => !v)} />
-          </div>
-        </Field>
-
-        {/* Only meaningful once there's someone other than the user to pick —
-            a co-owner or sitter. Still shown if an entry already has an
-            assignee (e.g. editing after the co-owner/sitter was removed). */}
-        {(walkers.length > 1 || assignee != null) && (
-          <Field label="Walked by">
-            <WalkerSelect walkers={walkers} value={assignee} onChange={setAssignee} />
-          </Field>
-        )}
-
-        <Field label="Notes">
-          <SheetTextarea value={notes} onChange={setNotes} placeholder="Anything worth remembering?" />
-          {notes.trim() !== "" && (
-            <ChoiceButton
-              label="Send note to vet"
-              selected={sendToVet}
-              onClick={() => setSendToVet((v) => !v)}
+          <Group title="Conditions">
+            <SelectRow
+              label="Weather"
+              placeholder="Add"
+              value={weather}
+              onChange={setWeather}
+              options={WEATHERS.map((w) => ({ value: w.value, label: w.label, icon: w.icon }))}
             />
-          )}
-        </Field>
+            <SelectRow
+              label="Terrain"
+              placeholder="Add"
+              value={terrain}
+              onChange={setTerrain}
+              options={TERRAINS.map((t) => ({ value: t.value, label: t.label, icon: t.icon }))}
+            />
+          </Group>
 
-        </>
+          <Group title="Results">
+            <ToggleRow label="Socialised" value={socialised} onChange={setSocialised} />
+            <ToggleRow label="Pooped" value={pooped} onChange={setPooped} />
+          </Group>
+
+          <section className="wts-group">
+            <h3 className="wts-group-title">Notes</h3>
+            <div className="wts-group-card">
+              <NotesField value={notes} onChange={setNotes} />
+              {notes.trim() !== "" && (
+                <ToggleRow label="Send note to vet" value={sendToVet} onChange={setSendToVet} />
+              )}
+            </div>
+          </section>
+        </div>
       }
     />
   );
 }
-
-const KIND_LABEL: Record<Walker["kind"], string> = {
-  you: "You",
-  coowner: "Co-owner",
-  sitter: "Sitter",
-};
 
 /** Small circular avatar (coloured initial) for a walker. */
 function WalkerDot({ name, size = 26 }: { name: string; size?: number }): React.ReactElement {
@@ -434,11 +286,9 @@ function WalkerDot({ name, size = 26 }: { name: string; size?: number }): React.
   );
 }
 
-/**
- * Dropdown selecting who walked the dog — the signed-in user, a co-owner, or a
- * dog-sitter. Replaces the old hard-coded Person A/B toggle.
- */
-function WalkerSelect({
+/** "Walked by" row — the platform's native picker of the owner, co-owners and
+    sitters, shown over the chip. */
+function WalkerRow({
   walkers,
   value,
   onChange,
@@ -447,294 +297,27 @@ function WalkerSelect({
   value: string | null;
   onChange: (v: string | null) => void;
 }): React.ReactElement {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: PointerEvent): void => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("pointerdown", onDown);
-    return () => document.removeEventListener("pointerdown", onDown);
-  }, [open]);
-
-  const selected = value ? walkers.find((w) => w.name === value) : undefined;
-
-  const pick = (name: string | null): void => {
-    onChange(name);
-    setOpen(false);
-  };
-
   return (
-    <div ref={ref} style={{ position: "relative" }}>
-      <button
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        style={{
-          width: "100%",
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          padding: 16,
-          borderRadius: 16,
-          border: `1px solid ${DARK}`,
-          background: "transparent",
-          color: DARK,
-          cursor: "pointer",
-          fontFamily: "var(--font-ui)",
-          fontWeight: 500,
-          fontSize: 16,
-          textAlign: "left",
-        }}
-      >
-        {value ? (
-          <>
-            <WalkerDot name={value} />
-            <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {value}
-            </span>
-            {selected && (
-              <span style={{ flexShrink: 0, opacity: 0.55, fontSize: 13 }}>{KIND_LABEL[selected.kind]}</span>
-            )}
-          </>
-        ) : (
-          <span style={{ flex: 1, opacity: 0.55 }}>Unassigned</span>
-        )}
-        <Icon
-          icon={Icons.chevronDown}
-          color="inherit"
-          style={{ flexShrink: 0, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
-        />
-      </button>
-
-      {open && (
-        <div
-          role="listbox"
-          style={{
-            position: "absolute",
-            top: "calc(100% + 6px)",
-            left: 0,
-            right: 0,
-            zIndex: 10,
-            borderRadius: 16,
-            background: DARK,
-            padding: 6,
-            display: "flex",
-            flexDirection: "column",
-            gap: 2,
-            maxHeight: 260,
-            overflowY: "auto",
-            boxShadow: "0 12px 32px rgba(0,0,0,0.28)",
-          }}
+    <div className="wts-row">
+      <span className="wts-row-label">Walked by</span>
+      <span className={`wts-chip${value ? "" : " wts-chip--empty"}`} style={{ position: "relative" }}>
+        {value && <WalkerDot name={value} size={20} />}
+        <span className="wts-chip-text">{value ?? "Unassigned"}</span>
+        <Icon icon={Icons.chevronUpDown} width={14} height={14} color="inherit" style={{ opacity: 0.5 }} />
+        <select
+          className="wts-native-select"
+          aria-label="Walked by"
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value === "" ? null : e.target.value)}
         >
-          <WalkerOption label="Unassigned" active={value == null} onClick={() => pick(null)} />
+          <option value="">Unassigned</option>
           {walkers.map((w) => (
-            <WalkerOption
-              key={`${w.kind}:${w.name}`}
-              name={w.name}
-              tag={KIND_LABEL[w.kind]}
-              active={value === w.name}
-              onClick={() => pick(w.name)}
-            />
+            <option key={`${w.kind}:${w.name}`} value={w.name}>
+              {w.name}
+            </option>
           ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function WalkerOption({
-  name,
-  label,
-  tag,
-  active,
-  onClick,
-}: {
-  name?: string;
-  label?: string;
-  tag?: string;
-  active: boolean;
-  onClick: () => void;
-}): React.ReactElement {
-  return (
-    <button
-      type="button"
-      role="option"
-      aria-selected={active}
-      onClick={onClick}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        width: "100%",
-        padding: "10px 12px",
-        borderRadius: 12,
-        border: "none",
-        cursor: "pointer",
-        background: active ? WALK : "transparent",
-        color: active ? DARK : WALK,
-        fontFamily: "var(--font-ui)",
-        fontWeight: 500,
-        fontSize: 15,
-        textAlign: "left",
-      }}
-    >
-      {name && <WalkerDot name={name} />}
-      <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        {name ?? label}
+        </select>
       </span>
-      {tag && <span style={{ flexShrink: 0, opacity: 0.6, fontSize: 12 }}>{tag}</span>}
-      {active && <Icon icon={Icons.check} color="inherit" />}
-    </button>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }): React.ReactElement {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 24 }}>
-      <span style={{ fontFamily: "var(--font-ui)", fontWeight: 500, fontSize: 16, color: DARK }}>
-        {label}
-      </span>
-      {children}
     </div>
-  );
-}
-
-function SheetInput({
-  value,
-  onChange,
-  placeholder,
-  inputMode,
-  suffix,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder: string;
-  inputMode?: "numeric" | "decimal";
-  suffix?: string;
-}): React.ReactElement {
-  return (
-    <div
-      className="wts-field"
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        width: "100%",
-        height: 28,
-        boxSizing: "border-box",
-        padding: "0 16px",
-        borderRadius: 16,
-        border: `1px solid ${DARK}`,
-        background: "transparent",
-      }}
-    >
-      <input
-        value={value}
-        placeholder={placeholder}
-        inputMode={inputMode}
-        onChange={(e) => onChange(e.target.value)}
-        className="wts-field"
-        style={{
-          flex: 1,
-          minWidth: 0,
-          padding: 0,
-          border: "none",
-          background: "transparent",
-          color: DARK,
-          fontFamily: "var(--font-ui)",
-          fontWeight: 500,
-          fontSize: 16,
-          outline: "none",
-        }}
-      />
-      {suffix && (
-        <span
-          aria-hidden
-          style={{
-            flexShrink: 0,
-            color: "rgba(53, 43, 37, 0.55)",
-            fontFamily: "var(--font-ui)",
-            fontWeight: 500,
-            fontSize: 16,
-          }}
-        >
-          {suffix}
-        </span>
-      )}
-    </div>
-  );
-}
-
-function SheetTextarea({
-  value,
-  onChange,
-  placeholder,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder: string;
-}): React.ReactElement {
-  return (
-    <textarea
-      className="wts-field"
-      value={value}
-      placeholder={placeholder}
-      rows={3}
-      onChange={(e) => onChange(e.target.value)}
-      style={{
-        width: "100%",
-        padding: "8px 16px",
-        borderRadius: 16,
-        border: `1px solid ${DARK}`,
-        background: "transparent",
-        color: DARK,
-        fontFamily: "var(--font-ui)",
-        fontWeight: 500,
-        fontSize: 16,
-        outline: "none",
-        resize: "none",
-      }}
-    />
-  );
-}
-
-function ChoiceButton({
-  label,
-  selected,
-  onClick,
-}: {
-  label: string;
-  selected: boolean;
-  onClick: () => void;
-}): React.ReactElement {
-  return (
-    <button
-      type="button"
-      aria-pressed={selected}
-      onClick={onClick}
-      style={{
-        flex: 1,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 8,
-        padding: "14px 16px",
-        borderRadius: 16,
-        border: `1px solid ${DARK}`,
-        cursor: "pointer",
-        background: selected ? DARK : "transparent",
-        color: selected ? WALK : DARK,
-        fontFamily: "var(--font-ui)",
-        fontWeight: 500,
-        fontSize: 16,
-      }}
-    >
-      <span>{label}</span>
-      {selected && <Icon icon={Icons.checkCircle} color="inherit" />}
-    </button>
   );
 }

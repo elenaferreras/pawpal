@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@astryxdesign/core/Icon";
 import { MotionSheet } from "./MotionSheet";
+import { Group, SelectRow, TextRow, DateRow, NotesField } from "./SheetForm";
 import { Icons } from "../lib/icons";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
@@ -9,9 +10,6 @@ import type { Checkup, Medication, Priority, Reminder, Vaccine } from "../types"
 
 type RecordType = "checkup" | "vaccine" | "reminder" | "medication";
 export type { RecordType };
-
-const DARK = "var(--color-pawpal-page)"; // #352B25
-const VET = "var(--color-dash-walk)"; // blue sheet surface — used for button copy & selected chips
 
 const RECORD_TYPES: { value: RecordType; label: string }[] = [
   { value: "checkup", label: "Checkup" },
@@ -35,21 +33,6 @@ const PRIORITIES: Priority[] = ["High", "Medium", "Low"];
 const RABIES = "Rabies";
 const DHPP = "DHPP / DAPP (Combination Vaccine)";
 const OTHER = "Other";
-
-const sheetFieldStyle: CSSProperties = {
-  width: "100%",
-  height: 28,
-  padding: "0 16px",
-  borderRadius: 16,
-  border: `1px solid ${DARK}`,
-  background: "transparent",
-  color: DARK,
-  fontFamily: "var(--font-ui)",
-  fontWeight: 500,
-  fontSize: 16,
-  outline: "none",
-  boxSizing: "border-box",
-};
 
 interface VetAddModalProps {
   open: boolean;
@@ -104,7 +87,7 @@ export function VetAddModal({
   const addLabel =
     allowedTypes.length === 1
       ? "Add " + (RECORD_TYPES.find((t) => t.value === allowedTypes[0])?.label.toLowerCase() ?? "record")
-      : "Add health record";
+      : "New health entry";
   const sheetLabel = editReminder ? "Edit reminder" : editVaccine ? "Edit vaccine" : addLabel;
 
   // Checkup
@@ -348,421 +331,145 @@ export function VetAddModal({
       onClose={onClose}
       ariaLabel={sheetLabel}
       scrimClassName="walk-sheet-scrim"
-      sheetClassName="walk-sheet"
+      sheetClassName="form-sheet vet-sheet"
       title={sheetLabel}
       confirmLabel={isEdit ? "Save changes" : "Save record"}
       onConfirm={save}
       body={
-        <>
-        {!isEdit && allowedTypes.length > 1 && (
-          <Field label="Record type">
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {RECORD_TYPES.filter((t) => allowedTypes.includes(t.value)).map((t) => (
-                <ChoiceChip
-                  key={t.value}
-                  label={t.label}
-                  selected={type === t.value}
-                  onClick={() => setType(t.value)}
-                />
-              ))}
-            </div>
-          </Field>
-        )}
+        <div className="wts-form">
+          {!isEdit && allowedTypes.length > 1 && (
+            <Group title="Record">
+              <SelectRow
+                label="Type"
+                hideEmpty
+                value={type}
+                onChange={(v) => setType(v as RecordType)}
+                placeholder="Type"
+                options={RECORD_TYPES.filter((t) => allowedTypes.includes(t.value)).map((t) => ({
+                  value: t.value,
+                  label: t.label,
+                }))}
+              />
+            </Group>
+          )}
 
-        {type === "checkup" && (
-          <>
-            <Field label="Reason">
-              <SheetInput value={reason} onChange={setReason} placeholder="Annual checkup" />
-            </Field>
-            <Field label="Date">
-              <SheetInput value={cDate} onChange={setCDate} type="date" />
-            </Field>
-            <Field label="Clinic">
-              <SheetInput value={clinic} onChange={setClinic} placeholder="Clinic name" />
-            </Field>
-            <Field label="Notes">
-              <SheetTextarea value={cNotes} onChange={setCNotes} placeholder="Optional" />
-            </Field>
-            <Field label="Attach file (PDF)">
-              <FileButton fileName={fileName} onPick={setFileName} accept=".pdf" />
-            </Field>
-          </>
-        )}
+          {type === "checkup" && (
+            <>
+              <Group title="Checkup">
+                <TextRow label="Reason" value={reason} onChange={setReason} placeholder="Annual checkup" />
+                <DateRow label="Date" value={cDate} onChange={setCDate} />
+                <TextRow label="Clinic" value={clinic} onChange={setClinic} placeholder="Clinic name" />
+                <FileRow label="File (PDF)" fileName={fileName} onPick={setFileName} accept=".pdf" />
+              </Group>
+              <NotesGroup value={cNotes} onChange={setCNotes} />
+            </>
+          )}
 
-        {type === "vaccine" && (
-          <>
-            <Field label="Vaccine name">
-              <SheetSelect
+          {type === "vaccine" && (
+            <Group title="Vaccine">
+              <SelectRow
+                label="Name"
+                hideEmpty
                 value={vNameChoice}
                 onChange={setVNameChoice}
+                placeholder="Name"
                 options={vaccineNameOptions.map((opt) => ({ value: opt, label: opt }))}
               />
-            </Field>
-            {vNameChoice === OTHER && (
-              <Field label="Vaccine name">
-                <SheetInput value={vNameOther} onChange={setVNameOther} placeholder="Vaccine name" />
-              </Field>
-            )}
-            <Field label="Manufacturer">
-              <SheetInput value={vManufacturer} onChange={setVManufacturer} placeholder="e.g. Nobivac" />
-            </Field>
-            <Field label="Vaccination date">
-              <SheetInput value={vDate} onChange={setVDate} type="date" />
-            </Field>
-            {showValidFrom && (
-              <Field label="Valid from">
-                <SheetInput value={vValidFrom} onChange={setVValidFrom} type="date" />
-              </Field>
-            )}
-            <Field label="Valid until">
-              <SheetInput value={vValidUntil} onChange={setVValidUntil} type="date" />
-            </Field>
-            <Field label="Vet / clinic">
-              <SheetInput value={vClinic} onChange={setVClinic} placeholder="Clinic name" />
-            </Field>
-          </>
-        )}
+              {vNameChoice === OTHER && (
+                <TextRow label="Custom name" value={vNameOther} onChange={setVNameOther} placeholder="Vaccine name" />
+              )}
+              <TextRow label="Manufacturer" value={vManufacturer} onChange={setVManufacturer} placeholder="e.g. Nobivac" />
+              <DateRow label="Vaccination date" value={vDate} onChange={setVDate} />
+              {showValidFrom && <DateRow label="Valid from" value={vValidFrom} onChange={setVValidFrom} />}
+              <DateRow label="Valid until" value={vValidUntil} onChange={setVValidUntil} />
+              <TextRow label="Vet / clinic" value={vClinic} onChange={setVClinic} placeholder="Clinic name" />
+            </Group>
+          )}
 
-        {type === "reminder" && (
-          <>
-            <Field label="Reminder">
-              <SheetInput value={rTitle} onChange={setRTitle} placeholder="Flea treatment" />
-            </Field>
-            <Field label="Date">
-              <SheetInput value={rDate} onChange={setRDate} type="date" />
-            </Field>
-            <Field label="Priority">
-              <div style={{ display: "flex", gap: 8 }}>
-                {PRIORITIES.map((p) => (
-                  <ChoiceChip
-                    key={p}
-                    label={p}
-                    selected={rPriority === p}
-                    onClick={() => setRPriority(p)}
-                    grow
-                  />
-                ))}
-              </div>
-            </Field>
-          </>
-        )}
+          {type === "reminder" && (
+            <Group title="Reminder">
+              <TextRow label="Title" value={rTitle} onChange={setRTitle} placeholder="Flea treatment" />
+              <DateRow label="Date" value={rDate} onChange={setRDate} />
+              <SelectRow
+                label="Priority"
+                hideEmpty
+                value={rPriority}
+                onChange={(v) => setRPriority(v as Priority)}
+                placeholder="Priority"
+                options={PRIORITIES.map((p) => ({ value: p, label: p }))}
+              />
+            </Group>
+          )}
 
-        {type === "medication" && (
-          <>
-            <Field label="Medication name">
-              <SheetInput value={mName} onChange={setMName} placeholder="Antibiotic" />
-            </Field>
-            <Field label="Dose">
-              <SheetInput value={mDose} onChange={setMDose} placeholder="1 tablet" />
-            </Field>
-            <Field label="Frequency">
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {FREQS.map((f) => (
-                  <ChoiceChip key={f} label={f} selected={mFreq === f} onClick={() => setMFreq(f)} />
-                ))}
-              </div>
-            </Field>
-            <Field label="Duration (days)">
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <StepperButton
-                  label="Decrease days"
-                  icon={Icons.minus}
-                  onClick={() => setMDays(Math.max(0, mDays - 1))}
+          {type === "medication" && (
+            <>
+              <Group title="Medication">
+                <TextRow label="Name" value={mName} onChange={setMName} placeholder="Antibiotic" />
+                <TextRow label="Dose" value={mDose} onChange={setMDose} placeholder="1 tablet" />
+                <SelectRow
+                  label="Frequency"
+                  hideEmpty
+                  value={mFreq}
+                  onChange={setMFreq}
+                  placeholder="Frequency"
+                  options={FREQS.map((f) => ({ value: f, label: f }))}
                 />
-                <span
-                  style={{
-                    minWidth: 44,
-                    textAlign: "center",
-                    fontFamily: "var(--font-ui)",
-                    fontWeight: 700,
-                    fontSize: 18,
-                    color: DARK,
-                  }}
-                >
-                  {mDays === 0 ? "∞" : mDays}
-                </span>
-                <StepperButton label="Increase days" icon={Icons.plus} onClick={() => setMDays(mDays + 1)} />
-                <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
-                  {[7, 14, 30, 0].map((d) => (
-                    <ChoiceChip
-                      key={d}
-                      label={d === 0 ? "∞" : String(d)}
-                      selected={mDays === d}
-                      onClick={() => setMDays(d)}
-                    />
-                  ))}
+                <DaysRow days={mDays} onChange={setMDays} />
+                <DateRow label="Start date" value={mStart} onChange={setMStart} />
+              </Group>
+
+              <section className="wts-group">
+                <div className="wts-group-card">
+                  <div className="wts-info">
+                    <span className="wts-info-title">
+                      {mFreq}
+                      {mDays === 0
+                        ? " · Ongoing"
+                        : medEnd
+                          ? ` from ${fmtDate(mStart)} to ${fmtDate(medEnd)}`
+                          : ` for ${mDays} days`}
+                    </span>
+                    <span className="wts-info-sub">
+                      {totalDoses
+                        ? `Total: ${totalDoses} dose${totalDoses !== 1 ? "s" : ""} of ${mDose || "dose"}`
+                        : "Ongoing — no end date"}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            </Field>
-            <Field label="Start date">
-              <SheetInput value={mStart} onChange={setMStart} type="date" />
-            </Field>
-            <div
-              style={{
-                marginTop: 24,
-                padding: 16,
-                borderRadius: 16,
-                border: `1px solid ${DARK}`,
-                display: "flex",
-                flexDirection: "column",
-                gap: 4,
-              }}
-            >
-              <span style={{ fontFamily: "var(--font-ui)", fontWeight: 600, fontSize: 15, color: DARK }}>
-                {mFreq}
-                {mDays === 0
-                  ? " · Ongoing"
-                  : medEnd
-                    ? ` from ${fmtDate(mStart)} to ${fmtDate(medEnd)}`
-                    : ` for ${mDays} days`}
-              </span>
-              <span style={{ fontFamily: "var(--font-ui)", fontWeight: 500, fontSize: 14, color: DARK, opacity: 0.7 }}>
-                {totalDoses
-                  ? `Total: ${totalDoses} dose${totalDoses !== 1 ? "s" : ""} of ${mDose || "dose"}`
-                  : "Ongoing — no end date"}
-              </span>
-            </div>
-            <Field label="Notes">
-              <SheetTextarea value={mNotes} onChange={setMNotes} placeholder="Optional" />
-            </Field>
-          </>
-        )}
-        </>
+              </section>
+
+              <NotesGroup value={mNotes} onChange={setMNotes} />
+            </>
+          )}
+        </div>
       }
     />
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }): React.ReactElement {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 24 }}>
-      <span style={{ fontFamily: "var(--font-ui)", fontWeight: 500, fontSize: 16, color: DARK }}>
-        {label}
-      </span>
-      {children}
-    </div>
-  );
-}
-
-function SheetSelect({
-  value,
-  onChange,
-  options,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  options: { value: string; label: string }[];
-}): React.ReactElement {
-  return (
-    <div style={{ position: "relative" }}>
-      <select
-        className="wts-field"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        style={{
-          ...sheetFieldStyle,
-          minWidth: 0,
-          paddingRight: 44,
-          WebkitAppearance: "none",
-          appearance: "none",
-          cursor: "pointer",
-        }}
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-      <span
-        aria-hidden
-        style={{
-          position: "absolute",
-          right: 16,
-          top: "50%",
-          transform: "translateY(-50%)",
-          pointerEvents: "none",
-          display: "flex",
-          color: DARK,
-        }}
-      >
-        <Icon icon={Icons.chevronDown} color="inherit" size="sm" />
-      </span>
-    </div>
-  );
-}
-
-function SheetInput({
-  value,
-  onChange,
-  placeholder,
-  type,
-  inputMode,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  type?: string;
-  inputMode?: "numeric" | "decimal";
-}): React.ReactElement {
-  return (
-    <input
-      className="wts-field"
-      type={type}
-      value={value}
-      placeholder={placeholder}
-      inputMode={inputMode}
-      onChange={(e) => onChange(e.target.value)}
-      style={{
-        ...sheetFieldStyle,
-        // Native date/time inputs on iOS keep an intrinsic width and ignore
-        // `width: 100%`, overflowing the sheet. Reset appearance + min-width so
-        // they respect the container.
-        minWidth: 0,
-        WebkitAppearance: "none",
-        appearance: "none",
-      }}
-    />
-  );
-}
-
-function SheetTextarea({
-  value,
-  onChange,
-  placeholder,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-}): React.ReactElement {
-  return (
-    <textarea
-      className="wts-field"
-      value={value}
-      placeholder={placeholder}
-      rows={3}
-      onChange={(e) => onChange(e.target.value)}
-      style={{ ...sheetFieldStyle, height: "auto", minHeight: 56, padding: "8px 16px", resize: "none" }}
-    />
-  );
-}
-
-function ChoiceChip({
+function FileRow({
   label,
-  selected,
-  onClick,
-  grow,
-}: {
-  label: string;
-  selected: boolean;
-  onClick: () => void;
-  grow?: boolean;
-}): React.ReactElement {
-  return (
-    <button
-      type="button"
-      aria-pressed={selected}
-      onClick={onClick}
-      style={{
-        flex: grow ? 1 : undefined,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: grow ? "space-between" : "flex-start",
-        gap: 6,
-        padding: "12px 16px",
-        borderRadius: 16,
-        border: `1px solid ${DARK}`,
-        cursor: "pointer",
-        background: selected ? DARK : "transparent",
-        color: selected ? VET : DARK,
-        fontFamily: "var(--font-ui)",
-        fontWeight: 500,
-        fontSize: 16,
-      }}
-    >
-      <span>{label}</span>
-      {selected && <Icon icon={Icons.checkCircle} color="inherit" size="sm" />}
-    </button>
-  );
-}
-
-function StepperButton({
-  label,
-  icon,
-  onClick,
-}: {
-  label: string;
-  icon: (typeof Icons)[keyof typeof Icons];
-  onClick: () => void;
-}): React.ReactElement {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={onClick}
-      style={{
-        width: 48,
-        height: 48,
-        flexShrink: 0,
-        borderRadius: 16,
-        border: `1px solid ${DARK}`,
-        background: "transparent",
-        color: DARK,
-        cursor: "pointer",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <Icon icon={icon} color="inherit" />
-    </button>
-  );
-}
-
-function FileButton({
   fileName,
   onPick,
   accept,
 }: {
+  label: string;
   fileName: string;
   onPick: (name: string) => void;
   accept?: string;
 }): React.ReactElement {
   const inputRef = useRef<HTMLInputElement>(null);
   return (
-    <>
+    <div className="wts-row">
+      <span className="wts-row-label">{label}</span>
       <button
         type="button"
+        className={`wts-chip${fileName ? "" : " wts-chip--empty"}`}
+        style={{ border: "none", cursor: "pointer", maxWidth: "55vw" }}
         onClick={() => inputRef.current?.click()}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          padding: 16,
-          borderRadius: 16,
-          border: `1px dashed ${DARK}`,
-          background: "transparent",
-          color: DARK,
-          cursor: "pointer",
-          fontFamily: "var(--font-ui)",
-          fontWeight: 500,
-          fontSize: 16,
-          textAlign: "left",
-        }}
       >
-        <Icon icon={Icons.upload} color="inherit" />
-        <span
-          style={{
-            flex: 1,
-            minWidth: 0,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {fileName || "Choose a file"}
-        </span>
-        {fileName && <Icon icon={Icons.checkCircle} color="inherit" size="sm" />}
+        <Icon icon={fileName ? Icons.checkCircle : Icons.upload} width={18} height={18} color="inherit" />
+        <span className="wts-chip-text">{fileName || "Choose"}</span>
       </button>
       <input
         ref={inputRef}
@@ -771,6 +478,51 @@ function FileButton({
         hidden
         onChange={(e) => onPick(e.target.files?.[0]?.name || "")}
       />
+    </div>
+  );
+}
+
+/** Medication duration — a −/+ stepper with quick presets (∞ = ongoing). */
+function DaysRow({ days, onChange }: { days: number; onChange: (n: number) => void }): React.ReactElement {
+  return (
+    <>
+      <div className="wts-row">
+        <span className="wts-row-label">Duration</span>
+        <span className="wts-chip" style={{ gap: 12, paddingLeft: 8, paddingRight: 8 }}>
+          <button type="button" aria-label="Decrease days" className="wts-step" onClick={() => onChange(Math.max(0, days - 1))}>
+            <Icon icon={Icons.minus} width={16} height={16} color="inherit" />
+          </button>
+          <span style={{ minWidth: 52, textAlign: "center", fontWeight: 700 }}>
+            {days === 0 ? "∞ days" : `${days} days`}
+          </span>
+          <button type="button" aria-label="Increase days" className="wts-step" onClick={() => onChange(days + 1)}>
+            <Icon icon={Icons.plus} width={16} height={16} color="inherit" />
+          </button>
+        </span>
+      </div>
+      <div className="wts-presets">
+        {[7, 14, 30, 0].map((d) => (
+          <button
+            key={d}
+            type="button"
+            className={`wts-preset${days === d ? " is-on" : ""}`}
+            onClick={() => onChange(d)}
+          >
+            {d === 0 ? "∞" : `${d} days`}
+          </button>
+        ))}
+      </div>
     </>
+  );
+}
+
+function NotesGroup({ value, onChange }: { value: string; onChange: (v: string) => void }): React.ReactElement {
+  return (
+    <section className="wts-group">
+      <h3 className="wts-group-title">Notes</h3>
+      <div className="wts-group-card">
+        <NotesField value={value} onChange={onChange} placeholder="Optional" />
+      </div>
+    </section>
   );
 }

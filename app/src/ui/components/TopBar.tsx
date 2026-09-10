@@ -58,6 +58,12 @@ export function TopBar({
   return (
     <div className="topbar" data-collapsed={collapsed} data-controls={hasControls}>
       <div ref={barRef} className="topbar-bar">
+        <div className="topbar-blur" aria-hidden="true">
+          <div />
+          <div />
+          <div />
+          <div />
+        </div>
         <div className="topbar-lead">{leading}</div>
         <span className="topbar-inline">{title}</span>
         <div className="topbar-trail">{trailing}</div>

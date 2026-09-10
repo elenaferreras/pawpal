@@ -8,6 +8,7 @@ import { useLiveWalk } from "./LiveWalk";
 import { RouteMap } from "./RouteMap";
 import { MotionSheet } from "./MotionSheet";
 import { RevealItem } from "./Reveal";
+import { CardStagger } from "./CardStagger";
 import { SwipeableRow } from "./SwipeableRow";
 import { StatNumber } from "./Typography";
 import { TopBar, TopBarAction, TopBarButton } from "./TopBar";
@@ -264,6 +265,7 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
       />
       <div style={{ padding: "0 16px" }}>
 
+      <CardStagger>
       {walkActive && (
         <button
           type="button"
@@ -598,6 +600,7 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
           ))
         )}
       </div>
+      </CardStagger>
 
       <MotionSheet
         open={mapWalk !== null}

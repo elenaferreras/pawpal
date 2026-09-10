@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "@astryxdesign/core/Icon";
 import { MotionSheet } from "./MotionSheet";
+import { Group, SelectRow, TimeRow, DateRow, ToggleRow, NotesField } from "./SheetForm";
 import { Icons, type AppIconName } from "../lib/icons";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
@@ -15,30 +16,14 @@ interface PoopFormModalProps {
 }
 
 const DARK = "var(--color-pawpal-page)"; // #352B25
-const BATH = "#A9E7A7"; // green bathroom accent (matches the sheet surface)
 
 const CONSISTENCIES = ["Normal", "Soft", "Runny", "Hard", "Mucus", "Other"];
 
 const TYPES: { value: BathroomType; label: string; icon?: AppIconName }[] = [
-  { value: "pipi", label: "Pipi", icon: "droplet" },
-  { value: "popo", label: "Popo", icon: "toilet" },
+  { value: "pipi", label: "Pee", icon: "droplet" },
+  { value: "popo", label: "Poop", icon: "toilet" },
   { value: "both", label: "Both" },
 ];
-
-const sheetFieldStyle: CSSProperties = {
-  width: "100%",
-  height: 28,
-  padding: "0 16px",
-  borderRadius: 16,
-  border: `1px solid ${DARK}`,
-  background: "transparent",
-  color: DARK,
-  fontFamily: "var(--font-ui)",
-  fontWeight: 500,
-  fontSize: 16,
-  outline: "none",
-  boxSizing: "border-box",
-};
 
 function localISO(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -131,184 +116,56 @@ export function PoopFormModal({ open, onClose, editIndex }: PoopFormModalProps):
       onClose={onClose}
       ariaLabel={editIndex != null ? "Edit bathroom log" : "Bathroom log"}
       scrimClassName="walk-sheet-scrim"
-      sheetClassName="bathroom-sheet"
+      sheetClassName="form-sheet bathroom-sheet"
       title={editIndex != null ? "Edit bathroom log" : "Bathroom log"}
       confirmLabel={editIndex != null ? "Save changes" : "Save"}
       onConfirm={save}
       body={
-        <>
-        <Field label="Type">
-          <div style={{ display: "flex", gap: 8 }}>
-            {TYPES.map((t) => (
-              <ChoiceChip
-                key={t.value}
-                label={t.label}
-                icon={t.icon}
-                selected={type === t.value}
-                onClick={() => setType(t.value)}
-                grow
-              />
-            ))}
-          </div>
-        </Field>
-
-        <Field label="Time">
-          <SheetInput value={time} onChange={setTime} type="time" />
-        </Field>
-
-        <Field label="Date">
-          <SheetInput
-            value={dateISO}
-            onChange={setDateISO}
-            type="date"
-            max={localISO(new Date())}
-          />
-        </Field>
-
-        {showPhoto && (
-          <>
-            <Field label="Consistency">
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {CONSISTENCIES.map((c) => (
-                  <ChoiceChip
-                    key={c}
-                    label={c}
-                    selected={consistency === c}
-                    onClick={() => setConsistency(c)}
-                  />
-                ))}
-              </div>
-            </Field>
-
-            <Field label="Photos">
-              <PhotoPicker photos={photos} onChange={setPhotos} />
-            </Field>
-          </>
-        )}
-
-        <Field label="Notes">
-          <SheetTextarea value={notes} onChange={setNotes} placeholder="Optional" />
-          {notes.trim() !== "" && (
-            <ChoiceChip
-              label="Send note to vet"
-              selected={sendToVet}
-              onClick={() => setSendToVet((v) => !v)}
-              grow
+        <div className="wts-form">
+          <Group title="Bathroom">
+            <SelectRow
+              label="Type"
+              hideEmpty
+              value={type}
+              onChange={(v) => setType(v as BathroomType)}
+              placeholder="Type"
+              options={TYPES.map((t) => ({ value: t.value, label: t.label, icon: t.icon }))}
             />
+            <TimeRow label="Time" value={time} onChange={setTime} />
+            <DateRow label="Date" value={dateISO} max={localISO(new Date())} onChange={setDateISO} />
+            {showPhoto && (
+              <SelectRow
+                label="Consistency"
+                hideEmpty
+                value={consistency}
+                onChange={setConsistency}
+                placeholder="Consistency"
+                options={CONSISTENCIES.map((c) => ({ value: c, label: c }))}
+              />
+            )}
+          </Group>
+
+          {showPhoto && (
+            <section className="wts-group">
+              <h3 className="wts-group-title">Photos</h3>
+              <div className="wts-group-card">
+                <PhotoPicker photos={photos} onChange={setPhotos} />
+              </div>
+            </section>
           )}
-        </Field>
-        </>
+
+          <section className="wts-group">
+            <h3 className="wts-group-title">Notes</h3>
+            <div className="wts-group-card">
+              <NotesField value={notes} onChange={setNotes} placeholder="Optional" />
+              {notes.trim() !== "" && (
+                <ToggleRow label="Send note to vet" value={sendToVet} onChange={setSendToVet} />
+              )}
+            </div>
+          </section>
+        </div>
       }
     />
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }): React.ReactElement {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 24 }}>
-      <span style={{ fontFamily: "var(--font-ui)", fontWeight: 500, fontSize: 16, color: DARK }}>
-        {label}
-      </span>
-      {children}
-    </div>
-  );
-}
-
-function SheetInput({
-  value,
-  onChange,
-  placeholder,
-  type,
-  max,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  type?: string;
-  max?: string;
-}): React.ReactElement {
-  return (
-    <input
-      className="wts-field"
-      type={type}
-      value={value}
-      placeholder={placeholder}
-      max={max}
-      onChange={(e) => onChange(e.target.value)}
-      style={{
-        ...sheetFieldStyle,
-        colorScheme: "light",
-        // Native date/time inputs on iOS keep an intrinsic width and ignore
-        // `width: 100%`, overflowing the sheet. Reset appearance + min-width so
-        // they respect the container.
-        minWidth: 0,
-        WebkitAppearance: "none",
-        appearance: "none",
-      }}
-    />
-  );
-}
-
-function SheetTextarea({
-  value,
-  onChange,
-  placeholder,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-}): React.ReactElement {
-  return (
-    <textarea
-      className="wts-field"
-      value={value}
-      placeholder={placeholder}
-      rows={3}
-      onChange={(e) => onChange(e.target.value)}
-      style={{ ...sheetFieldStyle, height: "auto", minHeight: 56, padding: "8px 16px", resize: "none" }}
-    />
-  );
-}
-
-function ChoiceChip({
-  label,
-  selected,
-  onClick,
-  grow,
-  icon,
-}: {
-  label: string;
-  selected: boolean;
-  onClick: () => void;
-  grow?: boolean;
-  icon?: AppIconName;
-}): React.ReactElement {
-  return (
-    <button
-      type="button"
-      aria-pressed={selected}
-      onClick={onClick}
-      style={{
-        flex: grow ? 1 : undefined,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 6,
-        padding: "12px 16px",
-        borderRadius: 16,
-        border: `1px solid ${DARK}`,
-        cursor: "pointer",
-        background: selected ? DARK : "transparent",
-        color: selected ? BATH : DARK,
-        fontFamily: "var(--font-ui)",
-        fontWeight: 500,
-        fontSize: 16,
-        whiteSpace: "nowrap",
-      }}
-    >
-      {icon && <Icon icon={Icons[icon]} color="inherit" size="sm" />}
-      <span>{label}</span>
-    </button>
   );
 }
 
@@ -334,28 +191,18 @@ function PhotoPicker({
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <>
       <button
         type="button"
+        className="wts-row"
+        style={{ cursor: "pointer" }}
         onClick={() => inputRef.current?.click()}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          padding: 16,
-          borderRadius: 16,
-          border: `1px dashed ${DARK}`,
-          background: "transparent",
-          color: DARK,
-          cursor: "pointer",
-          fontFamily: "var(--font-ui)",
-          fontWeight: 500,
-          fontSize: 16,
-          textAlign: "left",
-        }}
       >
-        <Icon icon={Icons.upload} color="inherit" />
-        <span style={{ flex: 1 }}>Add photos</span>
+        <span className="wts-row-label">Add photos</span>
+        <span className="wts-chip wts-chip--empty">
+          <Icon icon={Icons.upload} width={18} height={18} color="inherit" />
+          <span className="wts-chip-text">{photos.length ? String(photos.length) : "Add"}</span>
+        </span>
       </button>
       <input
         ref={inputRef}
@@ -369,14 +216,10 @@ function PhotoPicker({
         }}
       />
       {photos.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "0 16px 12px" }}>
           {photos.map((src, i) => (
             <div key={i} style={{ position: "relative", width: 72, height: 72 }}>
-              <img
-                src={src}
-                alt=""
-                style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 12 }}
-              />
+              <img src={src} alt="" style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 12 }} />
               <button
                 type="button"
                 aria-label="Remove photo"
@@ -391,7 +234,7 @@ function PhotoPicker({
                   border: "none",
                   cursor: "pointer",
                   background: DARK,
-                  color: BATH,
+                  color: "#fff",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -403,6 +246,6 @@ function PhotoPicker({
           ))}
         </div>
       )}
-    </div>
+    </>
   );
 }

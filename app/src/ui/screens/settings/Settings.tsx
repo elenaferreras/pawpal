@@ -5,7 +5,7 @@ import { Icon } from "@astryxdesign/core/Icon";
 import { Icons } from "../../lib/icons";
 import { getCurrentUser, type AuthUser } from "../../lib/auth";
 import { getLastSync } from "../../lib/supabase";
-import { TopBar, TopBarAction } from "../../components/TopBar";
+import { TopBar } from "../../components/TopBar";
 import type { ScreenId } from "../../types";
 import { DARK, HERO, MUTED, GroupCard, SectionLabel, SettingsRow } from "./shared";
 
@@ -43,7 +43,11 @@ export function Settings({ onNavigate, onBack }: SettingsProps): React.ReactElem
     >
       <TopBar
         title="Settings"
-        trailing={<TopBarAction icon={Icons.x} label="Close" onClick={onBack} />}
+        action={
+          <button type="button" aria-label="Close" className="glass-btn" onClick={onBack}>
+            <Icon icon={Icons.x} color="inherit" />
+          </button>
+        }
       />
 
       <div style={{ padding: "4px 16px 0" }}>

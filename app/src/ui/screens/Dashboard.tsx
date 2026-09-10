@@ -1,4 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { motion, useReducedMotion, type Variants } from "motion/react";
 import { Icon } from "@astryxdesign/core/Icon";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
@@ -33,6 +34,17 @@ const WEEK_LETTERS = ["M", "T", "W", "T", "F", "S", "S"];
 const WEEK_GAP = 24;
 const ORDINALS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th"];
 
+// Staggered load-in for the dashboard cards: each block fades and rises into
+// place a beat after the previous one when the screen mounts (e.g. on reload).
+const CARDS_CONTAINER: Variants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.09, delayChildren: 0.05 } },
+};
+const CARD_ITEM: Variants = {
+  hidden: { opacity: 0, y: 26 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] } },
+};
+
 /** Local YYYY-MM-DD (avoids UTC off-by-one from toISOString). */
 function localISO(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -58,6 +70,7 @@ export function Dashboard({
   const { active: walkActive, start: startWalk } = useLiveWalk();
   const p = db.profile;
   const todayISO = localISO(new Date());
+  const reduceMotion = useReducedMotion();
 
   // Every Monday → Sunday week from the earliest walk up to the current week.
   // Ordered oldest → newest so the current week is the last (rightmost) panel.
@@ -262,8 +275,13 @@ export function Dashboard({
       />
 
       {/* Hero card — weekly walks (swipe horizontally for previous weeks) */}
-      <div style={{ padding: "0 16px" }}>
-        <div style={{ background: HERO, borderRadius: 32, padding: 24 }}>
+      <motion.div
+        variants={CARDS_CONTAINER}
+        initial={reduceMotion ? false : "hidden"}
+        animate="show"
+      >
+        <motion.div variants={CARD_ITEM} style={{ padding: "0 16px" }}>
+          <div style={{ background: HERO, borderRadius: 32, padding: 24 }}>
           {/* Week carousel — each panel is one Monday → Sunday week. */}
           <div
             ref={weekScrollRef}
@@ -325,10 +343,13 @@ export function Dashboard({
             </div>
           </button>
         </div>
-      </div>
+        </motion.div>
 
       {/* Quick actions row */}
-      <div style={{ display: "flex", gap: 12, padding: "16px 16px 8px", alignItems: "stretch" }}>
+      <motion.div
+        variants={CARD_ITEM}
+        style={{ display: "flex", gap: 12, padding: "16px 16px 8px", alignItems: "stretch" }}
+      >
         {/* Ready for a walk? */}
         <div
           style={{
@@ -416,10 +437,10 @@ export function Dashboard({
             onClick={() => toast("Training coming soon \u{1F43E}")}
           />
         </div>
-      </div>
+      </motion.div>
 
       {/* Meals progress */}
-      <div style={{ padding: "8px 16px 0" }}>
+      <motion.div variants={CARD_ITEM} style={{ padding: "8px 16px 0" }}>
         <div
           role="button"
           tabIndex={0}
@@ -483,10 +504,10 @@ export function Dashboard({
             })}
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Notes for the vet */}
-      <div style={{ padding: "16px 16px 0" }}>
+      <motion.div variants={CARD_ITEM} style={{ padding: "16px 16px 0" }}>
         <button
           type="button"
           onClick={() => onNavigate("vet")}
@@ -605,7 +626,8 @@ export function Dashboard({
             )}
           </div>
         </button>
-      </div>
+      </motion.div>
+      </motion.div>
     </div>
   );
 }

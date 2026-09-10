@@ -561,8 +561,8 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
 
               <SummaryField label="Extras">
                 <div style={{ display: "flex", gap: 8 }}>
-                  <SummaryChoice label="Pipi" selected={pipi} onClick={() => setPipi((v) => !v)} />
-                  <SummaryChoice label="Popo" selected={popo} onClick={() => setPopo((v) => !v)} />
+                  <SummaryChoice label="Pee" selected={pipi} onClick={() => setPipi((v) => !v)} />
+                  <SummaryChoice label="Poop" selected={popo} onClick={() => setPopo((v) => !v)} />
                   <SummaryChoice label="Friends" selected={friends} onClick={() => setFriends((v) => !v)} />
                 </div>
               </SummaryField>

@@ -42,44 +42,29 @@ export function HealthDetailScreen({
           role="dialog"
           aria-modal="true"
           aria-label={title}
-          initial={reduceMotion ? { opacity: 0 } : { y: "100%" }}
-          animate={reduceMotion ? { opacity: 1 } : { y: 0 }}
-          exit={reduceMotion ? { opacity: 0 } : { y: "100%" }}
+          initial={reduceMotion ? { opacity: 0 } : { x: "100%" }}
+          animate={reduceMotion ? { opacity: 1 } : { x: 0 }}
+          exit={reduceMotion ? { opacity: 0 } : { x: "100%" }}
           transition={{ type: "spring", damping: 34, stiffness: 320 }}
         >
-          {/* Header */}
+          {/* Compact nav header: glass back button, inline title + subtitle,
+              optional glass action on the right. */}
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 8,
-              padding: "calc(12px + env(safe-area-inset-top, 0px)) 8px 12px",
+              gap: 12,
+              padding: "calc(12px + env(safe-area-inset-top, 0px)) 12px 12px",
             }}
           >
-            <button
-              type="button"
-              aria-label="Back"
-              onClick={onClose}
-              style={{
-                width: 44,
-                height: 44,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                border: "none",
-                background: "none",
-                cursor: "pointer",
-                color: HERO,
-                flexShrink: 0,
-              }}
-            >
+            <button type="button" aria-label="Back" className="glass-btn" onClick={onClose}>
               <Icon icon={Icons.caretLeft} color="inherit" />
             </button>
             <div style={{ flex: 1, minWidth: 0 }}>
               <span
                 style={{
                   display: "block",
-                  fontFamily: "var(--font-brand)",
+                  fontFamily: "var(--font-ui)",
                   fontWeight: 700,
                   fontSize: 20,
                   color: HERO,
@@ -92,7 +77,7 @@ export function HealthDetailScreen({
                   style={{
                     fontFamily: "var(--font-ui)",
                     fontWeight: 500,
-                    fontSize: 12,
+                    fontSize: 13,
                     color: MUTED,
                   }}
                 >
@@ -103,11 +88,7 @@ export function HealthDetailScreen({
             {action && <div style={{ flexShrink: 0 }}>{action}</div>}
           </div>
 
-          <div
-            style={{
-              padding: "8px 16px calc(32px + env(safe-area-inset-bottom, 20px))",
-            }}
-          >
+          <div style={{ padding: "8px 16px calc(32px + env(safe-area-inset-bottom, 20px))" }}>
             {children}
           </div>
         </motion.div>

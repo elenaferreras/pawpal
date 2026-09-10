@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MutableRefObject } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Icon } from "@astryxdesign/core/Icon";
 import { MotionSheet } from "./MotionSheet";
+import { Group, DateRow, NotesField } from "./SheetForm";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { useConfirm } from "./ConfirmDialog";
@@ -112,7 +113,12 @@ function nudgeFor(prediction: Prediction | null, name: string): { title: string;
  * cream/teal palette: solid dots for logged baths, a hatched "window" around
  * the predicted date, and a dark badge marking today.
  */
-export function BathReminder(): React.ReactElement {
+export function BathReminder({
+  openAddRef,
+}: {
+  /** Lets a parent (e.g. a detail-screen header button) open the add sheet. */
+  openAddRef?: MutableRefObject<(() => void) | undefined>;
+} = {}): React.ReactElement {
   const { db, update } = useDb();
   const toast = useToast();
   const confirm = useConfirm();
@@ -125,6 +131,18 @@ export function BathReminder(): React.ReactElement {
   const [showAdd, setShowAdd] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
 
+  // Expose an opener so a parent header button can trigger the add sheet.
+  useEffect(() => {
+    if (!openAddRef) return;
+    openAddRef.current = () => {
+      setAddDate(todayIso);
+      setAddNotes("");
+      setShowAdd(true);
+    };
+    return () => {
+      openAddRef.current = undefined;
+    };
+  }, [openAddRef, todayIso]);
   const loggedByDate = useMemo(() => new Set(baths.map((b) => b.date)), [baths]);
   const prediction = useMemo(() => predict(baths, todayIso), [baths, todayIso]);
 
@@ -335,7 +353,7 @@ export function BathReminder(): React.ReactElement {
       ariaLabel="Add a past bath"
       scrimClassName="walk-sheet-scrim"
       scrimStyle={{ zIndex: 1300 }}
-      sheetClassName="bath-sheet"
+      sheetClassName="form-sheet bath-sheet"
       title="Add a bath"
       confirmLabel="Add bath"
       onConfirm={() => {
@@ -343,58 +361,21 @@ export function BathReminder(): React.ReactElement {
         setShowAdd(false);
       }}
       body={
-        <>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 24 }}>
-            <span style={{ fontFamily: "var(--font-ui)", fontWeight: 500, fontSize: 16, color: DARK }}>
-              Date
-            </span>
-            <input
-              type="date"
-              value={addDate}
-              max={todayIso}
-              onChange={(e) => setAddDate(e.target.value)}
-              style={{
-                width: "100%",
-                padding: 16,
-                borderRadius: 16,
-                border: `1px solid ${DARK}`,
-                background: "transparent",
-                color: DARK,
-                fontFamily: "var(--font-ui)",
-                fontWeight: 500,
-                fontSize: 16,
-                outline: "none",
-                boxSizing: "border-box",
-              }}
-            />
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 24 }}>
-            <span style={{ fontFamily: "var(--font-ui)", fontWeight: 500, fontSize: 16, color: DARK }}>
-              Notes
-            </span>
-            <textarea
-              value={addNotes}
-              onChange={(e) => setAddNotes(e.target.value)}
-              placeholder="Shampoo, groomer, how it went… (optional)"
-              rows={3}
-              style={{
-                width: "100%",
-                padding: 16,
-                borderRadius: 16,
-                border: `1px solid ${DARK}`,
-                background: "transparent",
-                color: DARK,
-                fontFamily: "var(--font-ui)",
-                fontWeight: 500,
-                fontSize: 16,
-                lineHeight: 1.4,
-                outline: "none",
-                resize: "none",
-                boxSizing: "border-box",
-              }}
-            />
-          </div>
-        </>
+        <div className="wts-form">
+          <Group title="Bath">
+            <DateRow label="Date" value={addDate} max={todayIso} onChange={setAddDate} />
+          </Group>
+          <section className="wts-group">
+            <h3 className="wts-group-title">Notes</h3>
+            <div className="wts-group-card">
+              <NotesField
+                value={addNotes}
+                onChange={setAddNotes}
+                placeholder="Shampoo, groomer, how it went…"
+              />
+            </div>
+          </section>
+        </div>
       }
     />
 

@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { AnimatePresence, motion, useDragControls, useReducedMotion } from "motion/react";
 import { Icon } from "@astryxdesign/core/Icon";
 import { Icons } from "../lib/icons";
+import { useScrollLock } from "../lib/scrollLock";
 import type { Avatar } from "../types";
 import { DogAvatar } from "./DogAvatar";
 import {
@@ -24,10 +27,14 @@ interface AvatarSheetProps {
  * "Profile picture" bottom sheet (Figma node 180:3718). Pick a background
  * colour and a preset dog, then confirm with ✓ or cancel with ✕.
  */
-export function AvatarSheet({ open, value, onConfirm, onClose }: AvatarSheetProps): React.ReactElement | null {
+export function AvatarSheet({ open, value, onConfirm, onClose }: AvatarSheetProps): React.ReactElement {
   const [parts, setParts] = useState<AvatarParts>(() => toParts(value));
   const [bg, setBg] = useState<string>(value.bg ?? DEFAULT_AVATAR_BG);
   const [sticker, setSticker] = useState<string | undefined>(value.sticker);
+  const reduceMotion = useReducedMotion();
+  const dragControls = useDragControls();
+  const draggable = !reduceMotion;
+  useScrollLock(open);
 
   // Re-sync the draft whenever the sheet is (re)opened.
   useEffect(() => {
@@ -39,45 +46,69 @@ export function AvatarSheet({ open, value, onConfirm, onClose }: AvatarSheetProp
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  if (!open) return null;
-
   const preview: Avatar = { ...parts, bg, sticker };
 
-  return (
-    <div
-      role="dialog"
-      aria-label="Profile picture"
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 1000,
-        background: "rgba(0,0,0,0.45)",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "flex-end",
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "100%",
-          maxWidth: 430,
-          background: "rgba(245,245,245,0.96)",
-          backdropFilter: "blur(20px)",
-          WebkitBackdropFilter: "blur(20px)",
-          borderTopLeftRadius: 34,
-          borderTopRightRadius: 34,
-          boxShadow: "0px -8px 40px rgba(0,0,0,0.18)",
-          paddingBottom: "calc(20px + env(safe-area-inset-bottom, 0px))",
-          maxHeight: "92vh",
-          overflowY: "auto",
-          overflowX: "hidden",
-          boxSizing: "border-box",
-        }}
-      >
-        {/* Grabber */}
-        <div style={{ display: "flex", justifyContent: "center", paddingTop: 8 }}>
+  return createPortal(
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          role="dialog"
+          aria-label="Profile picture"
+          onClick={onClose}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
+            background: "rgba(0,0,0,0.45)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "flex-end",
+          }}
+        >
+          <motion.div
+            onClick={(e) => e.stopPropagation()}
+            initial={reduceMotion ? { opacity: 0 } : { y: "100%" }}
+            animate={reduceMotion ? { opacity: 1 } : { y: 0 }}
+            exit={reduceMotion ? { opacity: 0 } : { y: "100%" }}
+            transition={{ type: "spring", damping: 32, stiffness: 340 }}
+            drag={reduceMotion ? false : "y"}
+            dragListener={false}
+            dragControls={dragControls}
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0, bottom: 0.6 }}
+            onDragEnd={(_, info) => {
+              if (info.offset.y > 120 || info.velocity.y > 500) onClose();
+            }}
+            style={{
+              width: "100%",
+              maxWidth: 430,
+              background: "rgba(245,245,245,0.96)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              borderTopLeftRadius: 34,
+              borderTopRightRadius: 34,
+              boxShadow: "0px -8px 40px rgba(0,0,0,0.18)",
+              paddingBottom: "calc(20px + env(safe-area-inset-bottom, 0px))",
+              maxHeight: "92vh",
+              overflowY: "auto",
+              overflowX: "hidden",
+              boxSizing: "border-box",
+            }}
+          >
+        {/* Grabber — drag-to-dismiss starts here so scrolling the body never moves the sheet. */}
+        <div
+          onPointerDown={draggable ? (e) => dragControls.start(e) : undefined}
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            paddingTop: 8,
+            touchAction: draggable ? "none" : undefined,
+          }}
+        >
           <div style={{ width: 36, height: 5, borderRadius: 100, background: "rgba(0,0,0,0.2)" }} />
         </div>
 
@@ -196,8 +227,11 @@ export function AvatarSheet({ open, value, onConfirm, onClose }: AvatarSheetProp
             );
           })}
         </div>
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body,
   );
 }
 

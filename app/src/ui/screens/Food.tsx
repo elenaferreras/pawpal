@@ -2,6 +2,7 @@ import { Icon } from "@astryxdesign/core/Icon";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { MealsWidget } from "../components/MealsWidget";
+import { CardStagger } from "../components/CardStagger";
 import { CardTitle } from "../components/Typography";
 import { TopBar, TopBarButton } from "../components/TopBar";
 import { Icons } from "../lib/icons";
@@ -133,7 +134,7 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
           />
         }
       />
-      <div style={{ padding: "0 16px" }}>
+      <CardStagger style={{ padding: "0 16px" }}>
       {/* Current meal plan */}
       <div
         style={{
@@ -328,7 +329,7 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
           </div>
         </>
       )}
-      </div>
+      </CardStagger>
     </div>
   );
 }
