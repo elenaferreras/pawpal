@@ -10,6 +10,7 @@ import {
 } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { haversine } from "../lib/geo";
+import { autoWeather } from "../lib/weather";
 import { Icon } from "@astryxdesign/core/Icon";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
@@ -57,15 +58,16 @@ const LiveWalkContext = createContext<LiveWalkContextValue | null>(null);
 const SHEET_DARK = "var(--color-pawpal-page)"; // #352B25
 const SHEET_WALK = "var(--color-dash-walk)"; // #9CCFFF
 
+// Sky states (map 1:1 to WMO codes) first; the two derived "feel" states last.
 const WEATHERS: { value: string; icon: AppIconName; label: string }[] = [
   { value: "sunny", icon: "sun", label: "Sunny" },
   { value: "cloudy", icon: "cloud", label: "Cloudy" },
   { value: "rainy", icon: "cloudRain", label: "Rainy" },
-  { value: "windy", icon: "wind", label: "Windy" },
   { value: "snowy", icon: "snowflake", label: "Snowy" },
-  { value: "hot", icon: "thermometer", label: "Hot" },
   { value: "foggy", icon: "cloudFog", label: "Foggy" },
   { value: "stormy", icon: "cloudLightning", label: "Stormy" },
+  { value: "windy", icon: "wind", label: "Windy" },
+  { value: "hot", icon: "thermometer", label: "Hot" },
 ];
 // A walk lives in React state, which the OS discards when it suspends/kills a
 // backgrounded tab (e.g. the phone is locked mid-walk). We mirror the session
@@ -254,6 +256,13 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
   const finish = useCallback(() => {
     stopSensors();
     setPhase("summary");
+    // Prefill weather from the walk's last GPS fix; a manual pick still wins.
+    const last = coordsRef.current[coordsRef.current.length - 1];
+    if (last) {
+      void autoWeather(last.lat, last.lng).then((w) => {
+        if (w) setWeather((cur) => cur || w);
+      });
+    }
   }, [stopSensors]);
 
   const cancel = useCallback(() => {

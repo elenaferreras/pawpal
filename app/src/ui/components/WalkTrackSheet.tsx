@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MotionSheet } from "./MotionSheet";
 import { Group, SelectRow, NumberRow, DateRow, ToggleRow, NotesField } from "./SheetForm";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
+import { autoWeather, currentPosition } from "../lib/weather";
 import { Icon } from "@astryxdesign/core/Icon";
 import { Icons, type AppIconName } from "../lib/icons";
 import { nowTime } from "../lib/date";
@@ -20,15 +21,16 @@ interface WalkTrackSheetProps {
 
 const DARK = "var(--color-pawpal-page)"; // #352B25
 
+// Sky states (map 1:1 to WMO codes) first; the two derived "feel" states last.
 const WEATHERS: { value: string; icon: AppIconName; label: string }[] = [
   { value: "sunny", icon: "sun", label: "Sunny" },
   { value: "cloudy", icon: "cloud", label: "Cloudy" },
   { value: "rainy", icon: "cloudRain", label: "Rainy" },
-  { value: "windy", icon: "wind", label: "Windy" },
   { value: "snowy", icon: "snowflake", label: "Snowy" },
-  { value: "hot", icon: "thermometer", label: "Hot" },
   { value: "foggy", icon: "cloudFog", label: "Foggy" },
   { value: "stormy", icon: "cloudLightning", label: "Stormy" },
+  { value: "windy", icon: "wind", label: "Windy" },
+  { value: "hot", icon: "thermometer", label: "Hot" },
 ];
 
 const TERRAINS: { value: string; icon: AppIconName; label: string }[] = [
@@ -69,6 +71,8 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate }: WalkTr
   const [terrain, setTerrain] = useState("");
   const [notes, setNotes] = useState("");
   const [sendToVet, setSendToVet] = useState(false);
+  // Set once the user taps a weather chip, so auto-detect never overrides them.
+  const weatherTouched = useRef(false);
 
   useEffect(() => {
     if (!open) return;
@@ -103,6 +107,26 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate }: WalkTr
       setNotes("");
       setSendToVet(false);
     }
+    weatherTouched.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editIndex]);
+
+  // For a new walk, replace the carried-forward guess with the live conditions
+  // at the user's location. Prefill only — a manual pick or an edit wins.
+  useEffect(() => {
+    if (!open || editWalk) return;
+    let cancelled = false;
+    currentPosition()
+      .then((pos) => autoWeather(pos.coords.latitude, pos.coords.longitude))
+      .then((w) => {
+        if (!cancelled && w && !weatherTouched.current) setWeather(w);
+      })
+      .catch(() => {
+        /* denied or offline — keep the carried-forward default */
+      });
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editIndex]);
 
@@ -228,7 +252,10 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate }: WalkTr
               label="Weather"
               placeholder="Add"
               value={weather}
-              onChange={setWeather}
+              onChange={(v) => {
+                weatherTouched.current = true;
+                setWeather(v);
+              }}
               options={WEATHERS.map((w) => ({ value: w.value, label: w.label, icon: w.icon }))}
             />
             <SelectRow

@@ -826,7 +826,10 @@ body.modal-open {
 .form-sheet {
   position: relative;
   width: min(560px, calc(100% - 12px));
-  max-height: 92vh;
+  /* Cap the height so a tall form never slides its top (header actions) under
+     the iOS status bar / notch. Reserve the top safe area, the bottom margin,
+     and a small gap on each side. */
+  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - max(6px, env(safe-area-inset-bottom, 6px)) - 20px);
   margin-bottom: max(6px, env(safe-area-inset-bottom, 6px));
   display: flex;
   flex-direction: column;
@@ -1395,7 +1398,8 @@ button.wts-row {
 }
 .lws {
   width: min(560px, 100%);
-  max-height: 92vh;
+  /* Keep the header below the iOS status bar / notch on tall content. */
+  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 12px);
   display: flex;
   flex-direction: column;
   background: var(--color-pawpal-page);
@@ -1630,7 +1634,8 @@ button.wts-row {
 /* "Log a walk" chooser sheet (new design). */
 .chooser-sheet {
   width: min(560px, 100%);
-  max-height: 92vh;
+  /* Keep the header below the iOS status bar / notch on tall content. */
+  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 12px);
   display: flex;
   flex-direction: column;
   background: var(--color-pawpal-page);
@@ -4478,26 +4483,28 @@ input.wts-field[type="time"] {
    ─────────────────────────────────────────────────────────────────────────
    When launched from the home screen with
    `apple-mobile-web-app-status-bar-style: black-translucent`, the web content
-   extends behind the iOS status bar. This overlay sits over that area and, at
-   rest, is painted the page background colour so the status bar reads as a
-   seamless extension of the page. Once the user scrolls it fades to fully
-   transparent, letting content scroll behind the status bar (the same look as
-   the splash screen).
+   extends behind the iOS status bar. This overlay is a frosted-glass layer over
+   that area: it blurs whatever app content passes under the status bar (with a
+   soft top scrim for status-text legibility) so the app reads edge-to-edge to
+   the very top — never a flat coloured bar.
 
    The overlay is styled but hidden by default; it's only revealed in
    home-screen / standalone mode, so it never affects normal in-browser
    viewing. Visibility is switched on by the `.pwa-standalone` class (set from
    JS in main.tsx — this is what catches iOS, which reports standalone via
-   `navigator.standalone` rather than the display-mode media query). The
-   `.scrolled` class is toggled from the same scroll listener. */
+   `navigator.standalone` rather than the display-mode media query). */
 :root {
   /* Status-bar height. Falls back to 44px on devices without safe-area insets. */
   --ios-blur-height: env(safe-area-inset-top, 44px);
-  /* Rest colour of the bar — matches the app's dark page background. */
-  --ios-bar-color: var(--color-pawpal-page);
 }
 
-/* Styled, but hidden until standalone mode is detected. */
+/* Styled, but hidden until standalone mode is detected.
+
+   This is a true frosted-glass layer, not an opaque bar: the app content runs
+   full-bleed to the very top of the screen and this only blurs whatever passes
+   under the iOS status bar, with a soft top-weighted scrim (masked to fade out
+   before the bottom edge) so the white status text stays legible. No solid
+   fill, so the app never looks like it stops below a coloured bar. */
 .ios-status-blur {
   display: none;
   position: fixed;
@@ -4510,15 +4517,16 @@ input.wts-field[type="time"] {
   z-index: 1000;
   /* Purely decorative — never intercept touches/clicks. */
   pointer-events: none;
-  background-color: var(--ios-bar-color);
-  /* Fade the whole bar via opacity (avoids colour-interpolation quirks). */
-  opacity: 1;
-  transition: opacity 0.25s ease;
-}
-
-/* Once scrolled, fade the bar out so content shows behind the status bar. */
-.ios-status-blur.scrolled {
-  opacity: 0;
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  backdrop-filter: blur(12px) saturate(150%);
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.28) 0%,
+    rgba(0, 0, 0, 0.12) 55%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 62%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 62%, transparent 100%);
 }
 
 /* Reveal in home-screen / standalone mode (JS-detected, incl. iOS). */

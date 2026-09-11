@@ -28,16 +28,9 @@ if (orientation?.lock) {
   });
 }
 
-// Status-bar overlay: page-coloured at rest, transparent once scrolled so
-// content passes behind it. Toggle the `.scrolled` class on any scroll.
-const statusBar = document.querySelector<HTMLElement>(".ios-status-blur");
-if (statusBar) {
-  const syncStatusBar = (): void => {
-    statusBar.classList.toggle("scrolled", window.scrollY > 4);
-  };
-  window.addEventListener("scroll", syncStatusBar, { passive: true });
-  syncStatusBar();
-}
+// Status-bar overlay: a frosted-glass layer (CSS `.ios-status-blur`) that blurs
+// whatever app content passes under the iOS status bar. Purely CSS now — no
+// scroll wiring — so the app reads edge-to-edge to the very top at all times.
 
 // Register the service-worker sandbox (built separately → dist/code.js).
 if ("serviceWorker" in navigator) {
