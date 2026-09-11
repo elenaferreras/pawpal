@@ -665,69 +665,6 @@ body.modal-open {
   margin-top: 1px;
 }
 
-/* Onboarding */
-.ob-overlay {
-  position: fixed;
-  inset: 0;
-  background: var(--bg);
-  z-index: 500;
-  flex-direction: column;
-  overflow: hidden;
-  max-width: 430px;
-  margin: 0 auto;
-  display: flex;
-}
-.ob-progress {
-  display: flex;
-  gap: 6px;
-  padding: 20px 24px 0;
-}
-.ob-progress-dot {
-  flex: 1;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--border-strong);
-  transition: background 0.3s;
-}
-.ob-progress-dot.done {
-  background: var(--amber);
-}
-.ob-slide {
-  flex-direction: column;
-  flex: 1;
-  padding: 0 24px 32px;
-  overflow-y: auto;
-  display: flex;
-}
-.ob-emoji-big {
-  font-size: 64px;
-  text-align: center;
-  margin: 28px 0 16px;
-  line-height: 1;
-}
-.ob-title {
-  font-size: 30px;
-  font-weight: 700;
-  letter-spacing: -1px;
-  text-align: center;
-  margin-bottom: 8px;
-}
-.ob-sub {
-  font-size: 15px;
-  color: var(--text2);
-  text-align: center;
-  line-height: 1.5;
-  margin-bottom: 28px;
-}
-.ob-spacer {
-  flex: 1;
-}
-.ob-btn-row {
-  display: flex;
-  gap: 10px;
-  margin-top: 16px;
-}
-
 /* Native-style drag grabber + fixed compact header shown at the top of every
    MotionSheet. Drag-to-dismiss is limited to this header so scrolling the sheet
    body never moves the sheet. The header stays fixed while the body scrolls.
@@ -827,10 +764,13 @@ body.modal-open {
   position: relative;
   width: min(560px, calc(100% - 12px));
   /* Cap the height so a tall form never slides its top (header actions) under
-     the iOS status bar / notch. Reserve the top safe area, the bottom margin,
-     and a small gap on each side. */
-  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - max(6px, env(safe-area-inset-bottom, 6px)) - 20px);
-  margin-bottom: max(6px, env(safe-area-inset-bottom, 6px));
+     the iOS status bar / notch, while the bottom keeps a uniform 6px float gap. */
+  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 18px);
+  /* Uniform 6px float gap on every side (sides come from the width calc). The
+     home-indicator inset is handled by the body's bottom padding, not by a big
+     bottom margin — otherwise the safe area shows as a brown band under the
+     sheet on notched phones. */
+  margin-bottom: 6px;
   display: flex;
   flex-direction: column;
   background: color-mix(in srgb, var(--sheet-surface) 95%, transparent);
@@ -846,7 +786,7 @@ body.modal-open {
     0 16px 40px rgba(0, 0, 0, 0.28);
 }
 .form-sheet .sheet-body {
-  padding-bottom: 20px;
+  padding-bottom: max(20px, calc(20px + env(safe-area-inset-bottom, 0px)));
 }
 .walk-sheet {
   --sheet-surface: var(--color-dash-walk);
@@ -1022,6 +962,130 @@ button.wts-row {
 .wts-row-input::placeholder {
   color: color-mix(in srgb, var(--color-pawpal-page) 40%, transparent);
 }
+/* −/＋ stepper pill on the trailing edge of a row. */
+.wts-stepper-value {
+  font-weight: 700;
+}
+.wts-stepper {
+  display: inline-flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  border-radius: 100px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-pawpal-page) 9%, transparent);
+}
+.wts-stepper-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  padding: 6px 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--color-pawpal-page);
+}
+.wts-stepper-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.wts-stepper-sep {
+  width: 1px;
+  align-self: stretch;
+  background: color-mix(in srgb, var(--color-pawpal-page) 18%, transparent);
+}
+/* Multiselect block: label above a wrapping grid of toggleable chips. */
+.wts-multi {
+  position: relative;
+  padding: 12px 16px;
+}
+.wts-multi-label {
+  display: block;
+  margin-bottom: 10px;
+}
+.wts-multi-grid {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  /* Bleed to the card edges so chips can scroll under them. */
+  margin: 0 -16px;
+  padding: 0 16px;
+}
+.wts-multi-grid::-webkit-scrollbar {
+  display: none;
+}
+.wts-multi-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 72px;
+  flex: 0 0 auto;
+  padding: 12px 10px;
+  border: 1.5px solid transparent;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--color-pawpal-page) 9%, transparent);
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 15px;
+  color: var(--color-pawpal-page);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+.wts-multi-chip--on {
+  background: color-mix(in srgb, #0088ff 22%, transparent);
+  border-color: #0088ff;
+}
+.wts-multi-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+/* "Log a walk" chooser cards, shown on the walk-sheet surface before it morphs
+   into the activity form. */
+.walk-chooser-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 16px;
+  border: none;
+  border-radius: 22px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.5);
+  color: var(--color-pawpal-page);
+}
+.walk-chooser-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #0088ff;
+  color: #fff;
+}
+.walk-chooser-title {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+  color: var(--color-pawpal-page);
+}
+.walk-chooser-sub {
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 14px;
+  color: color-mix(in srgb, var(--color-pawpal-page) 60%, transparent);
+}
 /* Dark-surface variant — same grouped-list format as the sheet form, recoloured
    for a dark page (e.g. Settings › Account). Cream text on a raised dark card. */
 .wts-form--dark .wts-group-title {
@@ -1048,6 +1112,23 @@ button.wts-row {
 }
 .wts-form--dark .wts-nav-value {
   color: color-mix(in srgb, var(--color-pawpal-hero) 55%, transparent);
+}
+.wts-form--dark .wts-stepper {
+  background: color-mix(in srgb, var(--color-pawpal-hero) 12%, transparent);
+}
+.wts-form--dark .wts-stepper-btn {
+  color: var(--color-pawpal-hero);
+}
+.wts-form--dark .wts-stepper-sep {
+  background: color-mix(in srgb, var(--color-pawpal-hero) 20%, transparent);
+}
+.wts-form--dark .wts-multi-chip {
+  background: color-mix(in srgb, var(--color-pawpal-hero) 12%, transparent);
+  color: var(--color-pawpal-hero);
+}
+.wts-form--dark .wts-multi-chip--on {
+  background: color-mix(in srgb, #0088ff 30%, transparent);
+  border-color: #0088ff;
 }
 /* Native date picker sitting invisibly over its chip. */
 .wts-date-input {
@@ -3051,7 +3132,7 @@ input.wts-field[type="time"] {
 .oba-input-wrap {
   display: flex;
   align-items: center;
-  height: 28px;
+  height: 56px;
   padding: 0 18px;
   border-radius: 16px;
   border: 1px solid color-mix(in srgb, var(--color-pawpal-hero) 34%, transparent);

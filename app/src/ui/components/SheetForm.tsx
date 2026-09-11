@@ -259,6 +259,89 @@ export function ToggleRow({
   );
 }
 
+/** Row with a trailing −/＋ stepper for a small non-negative count. */
+export function StepperRow({
+  label,
+  value,
+  onChange,
+  min = 0,
+  max = 99,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  max?: number;
+}): React.ReactElement {
+  const clamp = (n: number): number => Math.max(min, Math.min(max, n));
+  return (
+    <div className="wts-row">
+      <span className="wts-row-label">
+        {label}: <span className="wts-stepper-value">{value}</span>
+      </span>
+      <span className="wts-stepper">
+        <button
+          type="button"
+          className="wts-stepper-btn"
+          aria-label={`Decrease ${label}`}
+          disabled={value <= min}
+          onClick={() => onChange(clamp(value - 1))}
+        >
+          <Icon icon={Icons.minus} width={18} height={18} color="inherit" />
+        </button>
+        <span className="wts-stepper-sep" aria-hidden />
+        <button
+          type="button"
+          className="wts-stepper-btn"
+          aria-label={`Increase ${label}`}
+          disabled={value >= max}
+          onClick={() => onChange(clamp(value + 1))}
+        >
+          <Icon icon={Icons.plus} width={18} height={18} color="inherit" />
+        </button>
+      </span>
+    </div>
+  );
+}
+
+/** Block row: a label above a horizontal grid of toggleable chips (multiselect). */
+export function MultiSelectRow({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: SelectOption[];
+  value: string[];
+  onChange: (v: string[]) => void;
+}): React.ReactElement {
+  const toggle = (v: string): void =>
+    onChange(value.includes(v) ? value.filter((x) => x !== v) : [...value, v]);
+  return (
+    <div className="wts-multi">
+      <span className="wts-row-label wts-multi-label">{label}</span>
+      <div className="wts-multi-grid">
+        {options.map((o) => {
+          const on = value.includes(o.value);
+          return (
+            <button
+              key={o.value}
+              type="button"
+              className={`wts-multi-chip${on ? " wts-multi-chip--on" : ""}`}
+              aria-pressed={on}
+              onClick={() => toggle(o.value)}
+            >
+              {o.icon && <Icon icon={Icons[o.icon]} width={22} height={22} color="inherit" />}
+              <span className="wts-multi-chip-text">{o.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /** Full-width multiline notes field (sits inside a Group card). */
 export function NotesField({
   value,

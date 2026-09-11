@@ -48,22 +48,31 @@ export interface GpsCoord {
 export interface Walk {
   date: string;
   time: string;
-  duration: number | string;
   steps: number | string;
-  distance: number | string;
-  pipi: boolean;
-  popo: boolean;
   friends: boolean;
-  weather: string;
-  terrain?: string;
+  /** Selected sky/feel conditions (multiselect). Legacy string entries are migrated to a 1-element array. */
+  weather: string[];
+  /** Selected terrains (multiselect). */
+  terrain?: string[];
   notes: string;
   assignee?: string;
   gpsRoute?: GpsCoord[];
   created: string;
+  /** Number of walks aggregated into this day's entry. */
+  walksCount?: number;
+  /** Free-text location (auto-filled from geolocation when available). */
+  location?: string;
+  /** Number of poops during the day. */
+  poops?: number;
   /** True once this walk's note has been forwarded to the vet notes. */
   sentToVet?: boolean;
   /** Set when the entry was logged by a dog-sitter (server-tagged). */
   by?: "sitter";
+  // --- Legacy / live-GPS-session fields (kept for old data + LiveWalk routes) ---
+  duration?: number | string;
+  distance?: number | string;
+  pipi?: boolean;
+  popo?: boolean;
 }
 
 export interface Meal {

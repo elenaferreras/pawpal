@@ -51,8 +51,8 @@ export function WalkChooserSheet({
           <ChooserCard
             bg="var(--color-track-notes)"
             icon={Icons.pencilSimple}
-            title="Log manually"
-            subtitle="Add a past walk"
+            title="Log activity"
+            subtitle="The whole day's walks"
             onClick={() => {
               onClose();
               onManual();

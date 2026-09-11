@@ -647,10 +647,12 @@ function WalkEntry({
 }): React.ReactElement {
   const hasRoute = Array.isArray(walk.gpsRoute) && walk.gpsRoute.length > 1;
   const stepsNum = parseInt(String(walk.steps)) || 0;
+  const walksCount = walk.walksCount ?? 1;
   const assignee = walk.assignee ? walkerAvatar(walk.assignee) : undefined;
-  // No GPS route → show the selected terrain's glyph, falling back to a paw.
+  // No GPS route → show the first selected terrain's glyph, falling back to a paw.
+  const terrain0 = walk.terrain?.[0];
   const fallbackIcon =
-    walk.terrain && TERRAIN_ICON[walk.terrain] ? Icons[TERRAIN_ICON[walk.terrain]] : Icons.pawPrint;
+    terrain0 && TERRAIN_ICON[terrain0] ? Icons[TERRAIN_ICON[terrain0]] : Icons.pawPrint;
 
   const thumbStyle: React.CSSProperties = {
     width: 40,
@@ -695,7 +697,9 @@ function WalkEntry({
             color: "var(--color-pawpal-hero)",
           }}
         >
-          {stepsNum > 0 ? `${stepsNum.toLocaleString("de-DE")} steps` : "Walk logged"}
+          {stepsNum > 0
+            ? `${walksCount} walk${walksCount === 1 ? "" : "s"} · ${stepsNum.toLocaleString("de-DE")} steps`
+            : `${walksCount} walk${walksCount === 1 ? "" : "s"}`}
         </span>
         <span
           style={{

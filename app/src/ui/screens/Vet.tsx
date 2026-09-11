@@ -46,6 +46,63 @@ const ACCENT = {
 // Documents are stored inline as base64, so keep uploads small.
 const MAX_DOC_BYTES = 2 * 1024 * 1024;
 
+/** Read a file as a base64 data URL. */
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("read"));
+    reader.readAsDataURL(file);
+  });
+}
+
+/** Approximate byte size of a base64 data URL's payload. */
+function dataUrlBytes(dataUrl: string): number {
+  const comma = dataUrl.indexOf(",");
+  return Math.ceil((dataUrl.length - comma - 1) * 0.75);
+}
+
+/**
+ * Downscale + JPEG-compress an image so it fits under `maxBytes` (gallery photos
+ * are routinely larger than the inline-storage cap). Returns null if it can't.
+ */
+async function compressImageToDataUrl(
+  file: File,
+  maxBytes: number,
+): Promise<{ dataUrl: string; size: number } | null> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("decode"));
+      el.src = url;
+    });
+    let scale = Math.min(1, 1800 / Math.max(img.naturalWidth, img.naturalHeight));
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const w = Math.max(1, Math.round(img.naturalWidth * scale));
+      const h = Math.max(1, Math.round(img.naturalHeight * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+      ctx.drawImage(img, 0, 0, w, h);
+      for (const quality of [0.82, 0.65, 0.5, 0.38]) {
+        const dataUrl = canvas.toDataURL("image/jpeg", quality);
+        const size = dataUrlBytes(dataUrl);
+        if (size <= maxBytes) return { dataUrl, size };
+      }
+      scale *= 0.7;
+    }
+    return null;
+  } catch {
+    return null;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 const PRIORITY_COLOR: Record<Priority, string> = {
   High: "#E96A41",
   Medium: "#F2B84B",
@@ -200,34 +257,52 @@ export function Vet({ onAdd, onEditReminder, onEditVaccine }: VetProps): React.R
   };
 
   // Store a picked file inline as a base64 data URL (kept small — see the cap).
+  // Images are downscaled/compressed to fit; other files must be under the cap.
   const uploadDocument = (kind: "insurance" | "other"): void => {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".pdf,image/*";
-    input.onchange = () => {
+    input.onchange = async () => {
       const file = input.files?.[0];
       if (!file) return;
-      if (file.size > MAX_DOC_BYTES) {
-        toast("File too large — keep it under 2 MB");
-        return;
+      let data: string;
+      let mime: string;
+      let size: number;
+      if (file.type.startsWith("image/")) {
+        const out = await compressImageToDataUrl(file, MAX_DOC_BYTES);
+        if (!out) {
+          toast("Couldn't add that image");
+          return;
+        }
+        data = out.dataUrl;
+        mime = "image/jpeg";
+        size = out.size;
+      } else {
+        if (file.size > MAX_DOC_BYTES) {
+          toast("File too large — keep it under 2 MB");
+          return;
+        }
+        try {
+          data = await readFileAsDataUrl(file);
+        } catch {
+          toast("Couldn't read that file");
+          return;
+        }
+        mime = file.type || "application/octet-stream";
+        size = file.size;
       }
-      const reader = new FileReader();
-      reader.onload = () => {
-        update((d) => {
-          (d.vetRecords.documents ??= []).push({
-            name: kind === "insurance" ? "Pet insurance" : file.name,
-            kind,
-            mime: file.type || "application/octet-stream",
-            fileName: file.name,
-            data: String(reader.result),
-            size: file.size,
-            created: new Date().toISOString(),
-          });
+      update((d) => {
+        (d.vetRecords.documents ??= []).push({
+          name: kind === "insurance" ? "Pet insurance" : file.name,
+          kind,
+          mime,
+          fileName: file.name,
+          data,
+          size,
+          created: new Date().toISOString(),
         });
-        toast(kind === "insurance" ? "Insurance saved" : "Document saved");
-      };
-      reader.onerror = () => toast("Couldn't read that file");
-      reader.readAsDataURL(file);
+      });
+      toast(kind === "insurance" ? "Insurance saved" : "Document saved");
     };
     input.click();
   };

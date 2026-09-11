@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import type { Database } from "../types";
-import { defaultDatabase, loadDatabase, persistDatabase } from "./storage";
+import { defaultDatabase, loadDatabase, migrateDatabase, persistDatabase } from "./storage";
 import { resolveMembership } from "./coowner";
 import {
   getDataOwner,
@@ -46,6 +46,8 @@ export function DbProvider({ children }: { children: ReactNode }): ReactNode {
   }, []);
 
   const replace = useCallback((next: Database) => {
+    // Normalise any legacy-shape walks brought in by a cloud pull / snapshot.
+    migrateDatabase(next);
     persistDatabase(next);
     ref.current = next;
     setDb(next);
@@ -81,9 +83,9 @@ export function DbProvider({ children }: { children: ReactNode }): ReactNode {
       }
 
       if (remote) {
-        // This identity already has cloud data — adopt it.
+        // This { ...defaultDatabase(), ...remote }
         setDataOwner(newKey);
-        replace({ ...defaultDatabase(), ...remote });
+        replace(migrateDatabase({ ...defaultDatabase(), ...remote }));
         return;
       }
 

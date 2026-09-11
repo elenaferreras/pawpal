@@ -32,6 +32,8 @@ interface MotionSheetProps {
   footer?: React.ReactNode;
   /** Custom content rendered directly in the sheet (bypasses body/footer). */
   children?: React.ReactNode;
+  /** Animate the sheet's size when its content changes (e.g. a step morph). */
+  layout?: boolean;
 }
 
 /**
@@ -63,6 +65,7 @@ export function MotionSheet({
   body,
   footer,
   children,
+  layout,
 }: MotionSheetProps): React.ReactElement {
   const reduceMotion = useReducedMotion();
   const dragControls = useDragControls();
@@ -92,6 +95,7 @@ export function MotionSheet({
             role="dialog"
             aria-modal="true"
             aria-label={ariaLabel}
+            layout={layout && !reduceMotion ? true : undefined}
             onClick={(e) => e.stopPropagation()}
             initial={reduceMotion ? { opacity: 0 } : { y: "100%" }}
             animate={reduceMotion ? { opacity: 1 } : { y: 0 }}

@@ -257,7 +257,7 @@ export function Dashboard({
             <button
               type="button"
               aria-label="Notifications"
-              className="topbar-button"
+              className="glass-btn"
               onClick={(e) => {
                 if (onOpenNotifications) {
                   const r = e.currentTarget.getBoundingClientRect();
@@ -266,7 +266,6 @@ export function Dashboard({
                   onNavigate("notifications");
                 }
               }}
-              style={{ background: "#fff", color: "var(--color-pawpal-page)" }}
             >
               <Icon icon={Icons.bell} color="inherit" />
             </button>

@@ -1,7 +1,7 @@
 import { Icon } from "@astryxdesign/core/Icon";
 import { useDb } from "../lib/store";
 import { Icons } from "../lib/icons";
-import { TopBar, TopBarAction } from "../components/TopBar";
+import { TopBar } from "../components/TopBar";
 import type { ScreenId } from "../types";
 
 type IconComponent = (typeof Icons)[keyof typeof Icons];
@@ -139,7 +139,11 @@ export function Notifications({
     >
       <TopBar
         title="Today"
-        trailing={<TopBarAction icon={Icons.x} label="Close" onClick={onClose} />}
+        action={
+          <button type="button" aria-label="Close" className="glass-btn" onClick={onClose}>
+            <Icon icon={Icons.x} color="inherit" />
+          </button>
+        }
       />
 
       <div style={{ padding: "4px 16px 0" }}>

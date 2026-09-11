@@ -22,7 +22,6 @@ import { WalksStats } from "./components/WalksStats";
 import { WalkTrackSheet } from "./components/WalkTrackSheet";
 import { Splash } from "./components/Splash";
 import { DesktopGate, useIsDesktop } from "./components/DesktopGate";
-import { WalkChooserSheet } from "./components/WalkChooserSheet";
 import { CircleReveal } from "./components/CircleReveal";
 import { ScreenTransition } from "./components/ScreenTransition";
 import { FoodFormModal } from "./components/FoodFormModal";
@@ -481,14 +480,6 @@ function Shell(): React.ReactElement {
             onVet={() => navigate("vet")}
           />
 
-          <WalkChooserSheet
-            open={modal === "walk-choose"}
-            onClose={() => setModal("none")}
-            onManual={() => {
-              setEditWalkIndex(null);
-              setModal("walk-track");
-            }}
-          />
           <FoodFormModal open={modal === "food"} onClose={() => setModal("none")} />
           <PoopFormModal
             open={modal === "poop"}
@@ -510,7 +501,8 @@ function Shell(): React.ReactElement {
             }}
           />
           <WalkTrackSheet
-            open={modal === "walk-track"}
+            open={modal === "walk-track" || modal === "walk-choose"}
+            startInChooser={modal === "walk-choose"}
             editIndex={editWalkIndex}
             prefillDate={walkPrefillDate}
             onClose={() => {

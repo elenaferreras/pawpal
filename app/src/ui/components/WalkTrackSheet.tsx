@@ -1,22 +1,35 @@
 import { useEffect, useRef, useState } from "react";
 import { MotionSheet } from "./MotionSheet";
-import { Group, SelectRow, NumberRow, DateRow, ToggleRow, NotesField } from "./SheetForm";
+import {
+  Group,
+  NumberRow,
+  DateRow,
+  TextRow,
+  ToggleRow,
+  StepperRow,
+  MultiSelectRow,
+  NotesField,
+} from "./SheetForm";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { autoWeather, currentPosition } from "../lib/weather";
+import { reverseGeocode } from "../lib/geo";
 import { Icon } from "@astryxdesign/core/Icon";
 import { Icons, type AppIconName } from "../lib/icons";
 import { nowTime } from "../lib/date";
 import { useWalkers, myWalkerName, walkerAvatar, type Walker } from "../lib/walkers";
-import type { BathroomLog, Database, Walk } from "../types";
+import { useLiveWalk } from "./LiveWalk";
+import type { Database, Walk } from "../types";
 
 interface WalkTrackSheetProps {
   open: boolean;
   onClose: () => void;
-  /** When set, the sheet edits this existing walk instead of adding a new one. */
+  /** When set, the sheet edits this existing walk instead of the day's aggregate. */
   editIndex?: number | null;
-  /** Pre-fills the date for a new walk (e.g. the selected calendar day). */
+  /** Pre-fills the date for a new day's activity (e.g. the selected calendar day). */
   prefillDate?: string | null;
+  /** Open on the "Log a walk" chooser step, which morphs into the activity form. */
+  startInChooser?: boolean;
 }
 
 const DARK = "var(--color-pawpal-page)"; // #352B25
@@ -46,83 +59,127 @@ function localISO(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/** True when a walk is a live-GPS session entry (kept separate from the day's aggregate). */
+function isLiveEntry(w: Walk): boolean {
+  return Array.isArray(w.gpsRoute) && w.gpsRoute.length > 1;
+}
+
+/** One-line summary of a day's aggregate for the chooser's edit preview. */
+function activitySummary(w: Walk): string {
+  const walks = w.walksCount ?? 1;
+  const parts = [`${walks} walk${walks === 1 ? "" : "s"}`];
+  const steps = parseInt(String(w.steps)) || 0;
+  if (steps) parts.push(`${steps.toLocaleString("de-DE")} steps`);
+  const poops = w.poops ?? 0;
+  if (poops) parts.push(`${poops} poop${poops === 1 ? "" : "s"}`);
+  return parts.join(" · ");
+}
+
 /**
- * "Track walk" bottom sheet (Figma node 31:925).
+ * "Activity of the day" bottom sheet.
  *
- * Orange sheet that slides up when logging a walk in the new design. Dark fields
- * on the orange surface; selected toggles invert to a dark fill with a check.
+ * Aggregates the whole day's walking into a single entry per calendar day
+ * (re-opening a day edits it). Fields: date, amount of walks, steps, walker,
+ * location, weather + terrain (multiselect), socialised, and a poop count.
  */
-export function WalkTrackSheet({ open, onClose, editIndex, prefillDate }: WalkTrackSheetProps): React.ReactElement {
+export function WalkTrackSheet({ open, onClose, editIndex, prefillDate, startInChooser }: WalkTrackSheetProps): React.ReactElement {
   const { db, update } = useDb();
   const toast = useToast();
   const { walkers } = useWalkers();
+  const { start: startLiveWalk } = useLiveWalk();
 
   const editWalk =
     editIndex != null && editIndex >= 0 && editIndex < db.walks.length ? db.walks[editIndex] : null;
 
+  // "choose" shows the two options (live GPS vs the day's activity) and morphs
+  // into "form" — the same sheet growing into the activity editor.
+  const [step, setStep] = useState<"choose" | "form">("form");
   const [dateISO, setDateISO] = useState(localISO(new Date()));
-  const [duration, setDuration] = useState("");
+  const [walksCount, setWalksCount] = useState(1);
   const [steps, setSteps] = useState("");
-  const [distance, setDistance] = useState("");
-  const [pooped, setPooped] = useState(false);
+  const [poops, setPoops] = useState(0);
   const [socialised, setSocialised] = useState(false);
   const [assignee, setAssignee] = useState<string | null>(null);
-  const [weather, setWeather] = useState("");
-  const [terrain, setTerrain] = useState("");
+  const [location, setLocation] = useState("");
+  const [weather, setWeather] = useState<string[]>([]);
+  const [terrain, setTerrain] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
   const [sendToVet, setSendToVet] = useState(false);
-  // Set once the user taps a weather chip, so auto-detect never overrides them.
+  // Set once the user edits these, so auto-detect never overrides them.
   const weatherTouched = useRef(false);
+  const locationTouched = useRef(false);
+
+  /** The day's aggregate walk (the manual, non-GPS entry) for a given date. */
+  const aggregateIndexFor = (iso: string): number =>
+    db.walks.findIndex((w) => w.date === iso && !isLiveEntry(w));
+
+  const loadFrom = (w: Walk): void => {
+    setDateISO(w.date || localISO(new Date()));
+    setWalksCount(w.walksCount ?? 1);
+    setSteps(String(w.steps ?? ""));
+    setPoops(w.poops ?? 0);
+    setSocialised(!!w.friends);
+    setAssignee(w.assignee ?? null);
+    setLocation(w.location ?? "");
+    setWeather(w.weather ?? []);
+    setTerrain(w.terrain ?? []);
+    setNotes(w.notes ?? "");
+    setSendToVet(!!w.sentToVet);
+  };
 
   useEffect(() => {
     if (!open) return;
+    setStep(startInChooser && editWalk == null ? "choose" : "form");
     if (editWalk) {
-      setDateISO(editWalk.date || localISO(new Date()));
-      setDuration(String(editWalk.duration ?? ""));
-      setSteps(String(editWalk.steps ?? ""));
-      setDistance(String(editWalk.distance ?? ""));
-      setPooped(!!editWalk.popo);
-      setSocialised(!!editWalk.friends);
-      setAssignee(editWalk.assignee ?? null);
-      setWeather(editWalk.weather ?? "");
-      setTerrain(editWalk.terrain ?? "");
-      setNotes(editWalk.notes ?? "");
-      setSendToVet(!!editWalk.sentToVet);
+      loadFrom(editWalk);
     } else {
-      // New walk: carry forward the last walk's numbers/conditions so logging a
-      // routine walk is one tap; results + notes start empty, walker = current
-      // user (owner, co-owner or sitter).
-      const last = db.walks
-        .filter((w) => w.created)
-        .sort((a, b) => (b.created || "").localeCompare(a.created || ""))[0];
-      setDateISO(prefillDate || localISO(new Date()));
-      setDuration(last?.duration ? String(last.duration) : "");
-      setSteps(last?.steps ? String(last.steps) : "");
-      setDistance(last?.distance ? String(last.distance) : "");
-      setPooped(false);
-      setSocialised(false);
-      setAssignee(myWalkerName());
-      setWeather(last?.weather ?? "");
-      setTerrain(last?.terrain ?? "");
-      setNotes("");
-      setSendToVet(false);
+      const startDate = prefillDate || localISO(new Date());
+      const existing = db.walks[aggregateIndexFor(startDate)];
+      if (existing) {
+        // Re-opening a day that already has an aggregate → edit it.
+        loadFrom(existing);
+      } else {
+        // Fresh day: carry forward the last aggregate's conditions/walker so a
+        // routine day is a couple of taps; outcomes start empty.
+        const last = db.walks
+          .filter((w) => w.created && !isLiveEntry(w))
+          .sort((a, b) => (b.created || "").localeCompare(a.created || ""))[0];
+        setDateISO(startDate);
+        setWalksCount(1);
+        setSteps(last?.steps ? String(last.steps) : "");
+        setPoops(0);
+        setSocialised(false);
+        setAssignee(myWalkerName());
+        setLocation(last?.location ?? "");
+        setWeather(last?.weather ?? []);
+        setTerrain(last?.terrain ?? []);
+        setNotes("");
+        setSendToVet(false);
+      }
     }
     weatherTouched.current = false;
+    locationTouched.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editIndex]);
 
-  // For a new walk, replace the carried-forward guess with the live conditions
-  // at the user's location. Prefill only — a manual pick or an edit wins.
+  // For a new day, fill weather + location from the user's current position.
+  // Prefill only — a manual edit or an existing entry wins.
   useEffect(() => {
     if (!open || editWalk) return;
     let cancelled = false;
     currentPosition()
-      .then((pos) => autoWeather(pos.coords.latitude, pos.coords.longitude))
-      .then((w) => {
-        if (!cancelled && w && !weatherTouched.current) setWeather(w);
+      .then(async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        const [w, place] = await Promise.all([
+          autoWeather(latitude, longitude),
+          reverseGeocode(latitude, longitude),
+        ]);
+        if (cancelled) return;
+        if (w && !weatherTouched.current) setWeather((prev) => (prev.length ? prev : [w]));
+        if (place && !locationTouched.current) setLocation((prev) => prev || place);
       })
       .catch(() => {
-        /* denied or offline — keep the carried-forward default */
+        /* denied or offline — keep carried-forward defaults */
       });
     return () => {
       cancelled = true;
@@ -132,31 +189,7 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate }: WalkTr
 
   const save = (): void => {
     const trimmedNotes = notes.trim();
-    // Keep a linked bathroom entry in sync with the walk's "Pooped" toggle:
-    // create a popo entry when it's turned on, remove it when turned off. An
-    // existing linked entry is left untouched so edits made in the Bathroom tab
-    // (time, consistency, photos…) survive re-saving the walk.
-    const syncBathroom = (d: Database, walkCreated: string, time: string): void => {
-      const idx = d.bathroom.findIndex((b) => b.source === walkCreated);
-      if (pooped) {
-        if (idx < 0) {
-          const entry: BathroomLog = {
-            date: dateISO,
-            time,
-            type: "popo",
-            consistency: "",
-            notes: "",
-            photos: [],
-            created: new Date().toISOString(),
-            source: walkCreated,
-          };
-          d.bathroom.push(entry);
-        }
-      } else if (idx >= 0) {
-        d.bathroom.splice(idx, 1);
-      }
-    };
-    // Keep a linked "Notes for the vet" checklist item in sync with this walk's
+    // Keep a linked "Notes for the vet" checklist item in sync with this day's
     // note: create it when the toggle is on, update its text when the note
     // changes, and remove it when the toggle is turned off or the note cleared.
     const syncVetNote = (d: Database, walkCreated: string): void => {
@@ -174,71 +207,79 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate }: WalkTr
         items.splice(idx, 1);
       }
     };
-    if (editWalk && editIndex != null) {
+
+    const fields = {
+      date: dateISO,
+      walksCount,
+      steps: steps.trim(),
+      poops,
+      friends: socialised,
+      assignee: assignee ?? undefined,
+      location: location.trim(),
+      weather,
+      terrain,
+      notes: trimmedNotes,
+      sentToVet: sendToVet && trimmedNotes !== "",
+    };
+
+    // Upsert: edit the targeted walk, else the day's existing aggregate, else add.
+    const targetIndex = editIndex != null && editWalk ? editIndex : aggregateIndexFor(dateISO);
+    if (targetIndex >= 0) {
       update((d) => {
-        const existing = d.walks[editIndex];
+        const existing = d.walks[targetIndex];
         if (!existing) return;
-        d.walks[editIndex] = {
-          ...existing,
-          date: dateISO,
-          duration: duration.trim(),
-          steps: steps.trim(),
-          distance: distance.trim(),
-          popo: pooped,
-          friends: socialised,
-          assignee: assignee ?? undefined,
-          weather,
-          terrain: terrain,
-          notes: notes.trim(),
-          sentToVet: sendToVet && trimmedNotes !== "",
-        };
-        syncVetNote(d, existing.created);        syncBathroom(d, existing.created, existing.time);      });
-      toast("Walk updated! 🦮");
+        d.walks[targetIndex] = { ...existing, ...fields };
+        syncVetNote(d, existing.created);
+      });
+      toast("Activity updated! 🦮");
       onClose();
       return;
     }
     const walk: Walk = {
-      date: dateISO,
+      ...fields,
       time: nowTime(),
-      duration: duration.trim(),
-      steps: steps.trim(),
-      distance: distance.trim(),
-      pipi: false,
-      popo: pooped,
-      friends: socialised,
-      weather,
-      terrain: terrain,
-      notes: notes.trim(),
-      assignee: assignee ?? undefined,
-      sentToVet: sendToVet && trimmedNotes !== "",
       created: new Date().toISOString(),
     };
     update((d) => {
       d.walks.push(walk);
       syncVetNote(d, walk.created);
-      syncBathroom(d, walk.created, walk.time);
     });
-    toast("Walk saved! 🦮");
+    toast("Activity saved! 🦮");
     onClose();
   };
+
+  const existingForDate = aggregateIndexFor(dateISO) >= 0 || (editWalk != null);
+  const existingAgg = editWalk ?? db.walks[aggregateIndexFor(dateISO)] ?? null;
 
   return (
     <MotionSheet
       open={open}
       onClose={onClose}
-      ariaLabel="Track walk"
+      ariaLabel={step === "choose" ? "Log a walk" : "Activity of the day"}
       scrimClassName="walk-sheet-scrim"
       sheetClassName="form-sheet walk-sheet"
-      title={editWalk ? "Edit walk" : "Track walk"}
-      confirmLabel={editWalk ? "Save changes" : "Save walk"}
-      onConfirm={save}
+      layout
+      title={step === "choose" ? "Log a walk" : "Activity of the day"}
+      onCancel={onClose}
+      confirmLabel={existingForDate ? "Save changes" : "Save activity"}
+      onConfirm={step === "form" ? save : undefined}
       body={
-        <div className="wts-form">
-          <Group title="Walk details">
+        step === "choose" ? (
+          <WalkChooserBody
+            editTitle={dateISO === localISO(new Date()) ? "Edit today's activity" : "Edit activity"}
+            editSummary={existingAgg ? activitySummary(existingAgg) : null}
+            onStartWalk={() => {
+              onClose();
+              startLiveWalk();
+            }}
+            onLogActivity={() => setStep("form")}
+          />
+        ) : (
+          <div className="wts-form">
+          <Group title="Activity details">
             <DateRow label="Date" value={dateISO} max={localISO(new Date())} onChange={setDateISO} />
-            <NumberRow label="Duration" value={duration} onChange={setDuration} suffix="min" inputMode="numeric" />
-            <NumberRow label="Steps" value={steps} onChange={setSteps} suffix="steps" inputMode="numeric" />
-            <NumberRow label="Distance" value={distance} onChange={setDistance} suffix="km" inputMode="decimal" />
+            <StepperRow label="Amount of walks" value={walksCount} onChange={setWalksCount} min={0} />
+            <NumberRow label="Total steps" value={steps} onChange={setSteps} suffix="steps" inputMode="numeric" />
             {/* Only meaningful once there's someone other than the user to pick —
                 a co-owner or sitter. Still shown if an entry already has an
                 assignee (e.g. editing after the co-owner/sitter was removed). */}
@@ -248,9 +289,17 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate }: WalkTr
           </Group>
 
           <Group title="Conditions">
-            <SelectRow
-              label="Weather"
+            <TextRow
+              label="Location"
+              value={location}
+              onChange={(v) => {
+                locationTouched.current = true;
+                setLocation(v);
+              }}
               placeholder="Add"
+            />
+            <MultiSelectRow
+              label="Weather"
               value={weather}
               onChange={(v) => {
                 weatherTouched.current = true;
@@ -258,18 +307,17 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate }: WalkTr
               }}
               options={WEATHERS.map((w) => ({ value: w.value, label: w.label, icon: w.icon }))}
             />
-            <SelectRow
+            <MultiSelectRow
               label="Terrain"
-              placeholder="Add"
               value={terrain}
               onChange={setTerrain}
               options={TERRAINS.map((t) => ({ value: t.value, label: t.label, icon: t.icon }))}
             />
           </Group>
 
-          <Group title="Results">
+          <Group title="Walk outcomes">
             <ToggleRow label="Socialised" value={socialised} onChange={setSocialised} />
-            <ToggleRow label="Pooped" value={pooped} onChange={setPooped} />
+            <StepperRow label="Amount of poops" value={poops} onChange={setPoops} min={0} />
           </Group>
 
           <section className="wts-group">
@@ -281,9 +329,66 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate }: WalkTr
               )}
             </div>
           </section>
-        </div>
+          </div>
+        )
       }
     />
+  );
+}
+
+/** The "Log a walk" chooser step: two options on the same walk sheet surface.
+    "Log activity" morphs the sheet into the activity form. When the day already
+    has an aggregate, its second card previews that entry and opens it to edit. */
+function WalkChooserBody({
+  editTitle,
+  editSummary,
+  onStartWalk,
+  onLogActivity,
+}: {
+  editTitle: string;
+  editSummary: string | null;
+  onStartWalk: () => void;
+  onLogActivity: () => void;
+}): React.ReactElement {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "4px 0 6px" }}>
+      <ChooserCard
+        icon={Icons.mapPin}
+        title="Start a walk"
+        subtitle="Track live with GPS"
+        onClick={onStartWalk}
+      />
+      <ChooserCard
+        icon={Icons.pencilSimple}
+        title={editSummary ? editTitle : "Log activity"}
+        subtitle={editSummary ?? "The whole day's walks"}
+        onClick={onLogActivity}
+      />
+    </div>
+  );
+}
+
+function ChooserCard({
+  icon,
+  title,
+  subtitle,
+  onClick,
+}: {
+  icon: (typeof Icons)[keyof typeof Icons];
+  title: string;
+  subtitle: string;
+  onClick: () => void;
+}): React.ReactElement {
+  return (
+    <button type="button" className="walk-chooser-card" onClick={onClick}>
+      <span className="walk-chooser-icon">
+        <Icon icon={icon} color="inherit" />
+      </span>
+      <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1, textAlign: "left" }}>
+        <span className="walk-chooser-title">{title}</span>
+        <span className="walk-chooser-sub">{subtitle}</span>
+      </span>
+    </button>
   );
 }
 
