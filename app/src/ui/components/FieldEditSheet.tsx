@@ -110,7 +110,7 @@ export function FieldEditSheet({
       onClose={onClose}
       ariaLabel={title}
       scrimClassName="walk-sheet-scrim"
-      sheetClassName="field-sheet"
+      sheetClassName="form-sheet field-sheet"
       title={title}
       confirmLabel="Save"
       onConfirm={confirm}

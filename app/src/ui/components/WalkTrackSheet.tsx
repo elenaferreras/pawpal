@@ -146,7 +146,7 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate, startInC
           .sort((a, b) => (b.created || "").localeCompare(a.created || ""))[0];
         setDateISO(startDate);
         setWalksCount(1);
-        setSteps(last?.steps ? String(last.steps) : "");
+        setSteps("");
         setPoops(0);
         setSocialised(false);
         setAssignee(myWalkerName());
@@ -288,6 +288,11 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate, startInC
             )}
           </Group>
 
+          <Group title="Walk outcomes">
+            <ToggleRow label="Socialised" value={socialised} onChange={setSocialised} />
+            <StepperRow label="Amount of poops" value={poops} onChange={setPoops} min={0} />
+          </Group>
+
           <Group title="Conditions">
             <TextRow
               label="Location"
@@ -313,11 +318,6 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate, startInC
               onChange={setTerrain}
               options={TERRAINS.map((t) => ({ value: t.value, label: t.label, icon: t.icon }))}
             />
-          </Group>
-
-          <Group title="Walk outcomes">
-            <ToggleRow label="Socialised" value={socialised} onChange={setSocialised} />
-            <StepperRow label="Amount of poops" value={poops} onChange={setPoops} min={0} />
           </Group>
 
           <section className="wts-group">

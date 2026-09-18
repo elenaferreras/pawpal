@@ -3,7 +3,6 @@ import { motion, useReducedMotion, type Variants } from "motion/react";
 import { Icon } from "@astryxdesign/core/Icon";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
-import { useLiveWalk } from "../components/LiveWalk";
 import { WalksBarChart, type WalksBar } from "../components/WalksBarChart";
 import { DogFace } from "../avatar/DogAvatar";
 import { Eyebrow, CardTitle, StatNumber, Caption, Callout } from "../components/Typography";
@@ -67,7 +66,6 @@ export function Dashboard({
 }: DashboardProps): React.ReactElement {
   const { db, update } = useDb();
   const toast = useToast();
-  const { active: walkActive, start: startWalk } = useLiveWalk();
   const p = db.profile;
   const todayISO = localISO(new Date());
   const reduceMotion = useReducedMotion();
@@ -163,6 +161,17 @@ export function Dashboard({
       .map((m) => m.mealSlot as number);
     return new Set(slots);
   }, [db.meals, todayISO]);
+
+  // Today's aggregated walk activity (summed across manual + any live entries).
+  const todayActivity = useMemo(() => {
+    const entries = db.walks.filter((w) => w.date === todayISO);
+    return {
+      hasData: entries.length > 0,
+      steps: entries.reduce((a, w) => a + (parseInt(String(w.steps)) || 0), 0),
+      walks: entries.reduce((a, w) => a + (w.walksCount ?? 1), 0),
+      poops: entries.reduce((a, w) => a + (w.poops ?? 0), 0),
+    };
+  }, [db.walks, todayISO]);
 
   const toggleMeal = (slot: number): void => {
     update((d) => {
@@ -333,10 +342,10 @@ export function Dashboard({
               {averageLabel}
             </Eyebrow>
             <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-              <StatNumber color={DARK} style={{ fontSize: "clamp(30px, 9.5vw, 44px)" }}>
+              <StatNumber color={DARK} weight={400} style={{ fontFamily: "var(--font-ui)", fontSize: "clamp(30px, 9.5vw, 44px)" }}>
                 {average.toLocaleString("de-DE")}
               </StatNumber>
-              <StatNumber color={MUTED} style={{ opacity: 0.6, fontSize: "clamp(30px, 9.5vw, 44px)" }}>
+              <StatNumber color={MUTED} weight={400} style={{ fontFamily: "var(--font-ui)", opacity: 0.6, fontSize: "clamp(30px, 9.5vw, 44px)" }}>
                 steps
               </StatNumber>
             </div>
@@ -349,8 +358,13 @@ export function Dashboard({
         variants={CARD_ITEM}
         style={{ display: "flex", gap: 12, padding: "16px 16px 8px", alignItems: "stretch" }}
       >
-        {/* Ready for a walk? */}
-        <div
+        {/* Today's walk activity — tap to log/edit the day's activity */}
+        <button
+          type="button"
+          onClick={onLogWalk}
+          aria-label={
+            todayActivity.hasData ? "Edit today's walk activity" : "Log today's walk activity"
+          }
           style={{
             flex: "1 1 0",
             minWidth: 0,
@@ -363,69 +377,71 @@ export function Dashboard({
             gap: 16,
             color: DARK,
             minHeight: 150,
+            border: "none",
+            textAlign: "left",
+            cursor: "pointer",
+            fontFamily: "var(--font-ui)",
           }}
         >
-          <CardTitle>Ready for a walk?</CardTitle>
-          <button
-            type="button"
-            aria-label={walkActive ? "Walk in progress" : "Start a walk"}
-            onClick={() => {
-              if (walkActive) {
-                onLogWalk();
-              } else {
-                startWalk();
-              }
-            }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: walkActive ? "center" : "space-between",
-              gap: 8,
-              padding: walkActive ? "13px 12px" : "6px 6px 6px 18px",
-              borderRadius: 100,
-              border: "none",
-              cursor: "pointer",
-              background: HERO,
-              color: DARK,
-              fontFamily: "var(--font-ui)",
-              fontWeight: 700,
-              fontSize: 16,
-              width: "100%",
-            }}
-          >
-            {walkActive ? (
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+            <CardTitle weight={400} style={{ fontFamily: "var(--font-ui)" }}>
+              {todayActivity.hasData ? "Today's walks" : "Today's activity"}
+            </CardTitle>
+            {todayActivity.hasData && (
               <span
+                aria-hidden
                 style={{
-                  minWidth: 0,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
+                  width: 34,
+                  height: 34,
+                  borderRadius: "50%",
+                  background: HERO,
+                  color: DARK,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
                 }}
               >
-                In progress
+                <Icon icon={Icons.pencilSimple} color="inherit" />
               </span>
-            ) : (
-              <>
-                <span>Start</span>
-                <span
-                  style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: "50%",
-                    background: DARK,
-                    color: HERO,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                  }}
-                >
-                  <Icon icon={Icons.play} color="inherit" />
-                </span>
-              </>
             )}
-          </button>
-        </div>
+          </div>
+
+          {todayActivity.hasData ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <Icon icon={Icons.footprints} color="inherit" />
+                <StatNumber color={DARK} weight={400} style={{ fontFamily: "var(--font-ui)", fontSize: 26, lineHeight: 1 }}>
+                  {todayActivity.walks}
+                </StatNumber>
+                <Callout color={DARK} style={{ opacity: 0.7 }}>
+                  {todayActivity.walks === 1 ? "walk" : "walks"}
+                </Callout>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <Icon icon={Icons.toilet} color="inherit" />
+                <StatNumber color={DARK} weight={400} style={{ fontFamily: "var(--font-ui)", fontSize: 26, lineHeight: 1 }}>
+                  {todayActivity.poops}
+                </StatNumber>
+                <Callout color={DARK} style={{ opacity: 0.7 }}>
+                  {todayActivity.poops === 1 ? "poop" : "poops"}
+                </Callout>
+              </div>
+              <Caption color={DARK} style={{ opacity: 0.55 }}>
+                {todayActivity.steps.toLocaleString("de-DE")} steps
+              </Caption>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <Callout color={DARK} style={{ opacity: 0.7 }}>
+                Nothing logged yet. Tap to track a walk.
+              </Callout>
+              <span className="dash-track-pill" aria-hidden>
+                Track walk
+              </span>
+            </div>
+          )}
+        </button>
 
         {/* Pooped + Trained */}
         <div style={{ flex: "1 1 0", minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
@@ -462,7 +478,7 @@ export function Dashboard({
             cursor: "pointer",
           }}
         >
-          <CardTitle color={HERO}>Meals</CardTitle>
+          <CardTitle color={HERO} weight={400} style={{ fontFamily: "var(--font-ui)" }}>Meals</CardTitle>
           <div style={{ display: "flex", gap: 12 }}>
             {Array.from({ length: mealsPerDay }, (_, slot) => {
               const done = eatenSlots.has(slot);
@@ -535,8 +551,8 @@ export function Dashboard({
           >
             <span
               style={{
-                fontFamily: "var(--font-brand)",
-                fontWeight: 700,
+                fontFamily: "var(--font-ui)",
+                fontWeight: 400,
                 fontSize: 18,
                 color: DARK,
               }}
@@ -663,7 +679,9 @@ function QuickCard({
     >
       <CardTitle
         size={16}
+        weight={400}
         style={{
+          fontFamily: "var(--font-ui)",
           letterSpacing: -0.2,
           minWidth: 0,
           overflow: "hidden",

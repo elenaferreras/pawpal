@@ -95,19 +95,21 @@ export function NumberRow({
       <span className="wts-row-label">{label}</span>
       {editing ? (
         <span className="wts-chip">
-          <input
-            ref={inputRef}
-            className="wts-chip-input"
-            value={value}
-            inputMode={inputMode}
-            placeholder="0"
-            style={{ width: `${Math.max(2, value.length + 1)}ch` }}
-            onChange={(e) => onChange(e.target.value)}
-            onBlur={() => setEditing(false)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") e.currentTarget.blur();
-            }}
-          />
+          <span className="wts-chip-autosize" data-value={value || "0"}>
+            <input
+              ref={inputRef}
+              className="wts-chip-input"
+              value={value}
+              inputMode={inputMode}
+              placeholder="0"
+              size={1}
+              onChange={(e) => onChange(e.target.value)}
+              onBlur={() => setEditing(false)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
+              }}
+            />
+          </span>
           {suffix && <span className="wts-chip-suffix">{suffix}</span>}
         </span>
       ) : (
@@ -148,19 +150,22 @@ export function TextRow({
       <span className="wts-row-label">{label}</span>
       {editing ? (
         <span className="wts-chip" style={{ maxWidth: "62vw" }}>
-          <input
-            ref={inputRef}
-            className="wts-chip-input"
-            value={value}
-            placeholder={placeholder}
-            inputMode={inputMode}
-            style={{ width: `${Math.min(28, Math.max(6, value.length + 1))}ch`, textAlign: "right" }}
-            onChange={(e) => onChange(e.target.value)}
-            onBlur={() => setEditing(false)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") e.currentTarget.blur();
-            }}
-          />
+          <span className="wts-chip-autosize" data-value={value || placeholder}>
+            <input
+              ref={inputRef}
+              className="wts-chip-input"
+              value={value}
+              placeholder={placeholder}
+              inputMode={inputMode}
+              size={1}
+              style={{ textAlign: "left" }}
+              onChange={(e) => onChange(e.target.value)}
+              onBlur={() => setEditing(false)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
+              }}
+            />
+          </span>
         </span>
       ) : (
         <button

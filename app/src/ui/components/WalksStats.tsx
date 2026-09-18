@@ -29,8 +29,9 @@ interface WalksStatsProps {
 }
 
 const WEEKDAYS = ["M", "T", "W", "T", "F", "S", "S"];
-const WEEKS = 5;
-// How many 5-week windows to keep loaded, newest last. Scroll left for older.
+// Rows per month page: a calendar month spans at most 6 Monday-aligned weeks.
+const WEEKS = 6;
+// How many month windows to keep loaded, newest last. Scroll left for older.
 const PAGES = 6;
 
 type WalkFilter = "today" | "month" | "all";
@@ -66,9 +67,10 @@ interface DayInfo {
 /**
  * "Zipi's Walks" step heatmap (Figma node 31:259).
  *
- * Full-screen dark overlay opened from the Walks tab. Shows the last five weeks
- * (Mon-aligned) as a grid: active days are light-blue cells with an orange dot
- * sized by step count; empty/future days are muted cells with a small dot.
+ * Full-screen dark overlay opened from the Walks tab. Shows one calendar month
+ * per page (starting on the 1st, Monday-aligned) as a grid: active days are
+ * light-blue cells with an orange dot sized by step count; empty/future days are
+ * muted cells with a small dot. Scroll left for previous months.
  */
 export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.ReactElement {
   const { db, update } = useDb();
@@ -81,6 +83,9 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
   const calRef = useRef<HTMLDivElement>(null);
   // Which month window is currently in view (defaults to the newest).
   const [visiblePage, setVisiblePage] = useState(PAGES - 1);
+  // Measured height of the calendar for the month in view, so months with fewer
+  // weeks don't leave dead space above the summary/list below.
+  const [calH, setCalH] = useState<number | undefined>(undefined);
 
   // One-time migration: the old tracker stored two hard-coded assignees
   // ("Person A" / "Person B"). Now that walks are attributed to real people,
@@ -125,7 +130,14 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
     if (!el) return;
     const stride = (el.scrollWidth - el.clientWidth) / (PAGES - 1);
     const p = stride > 0 ? Math.round(el.scrollLeft / stride) : PAGES - 1;
-    setVisiblePage(Math.max(0, Math.min(PAGES - 1, p)));
+    const clamped = Math.max(0, Math.min(PAGES - 1, p));
+    // Landing on a different month clears the day selection and focuses the
+    // "Month" segment on that month's walks.
+    if (clamped !== visiblePage) {
+      setVisiblePage(clamped);
+      setSelected(null);
+      setFilter("month");
+    }
   };
 
   const delWalk = async (index: number): Promise<void> => {
@@ -155,39 +167,86 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const dow = (today.getDay() + 6) % 7; // 0 = Monday
-    // Start of the current (rightmost) window: this week's Monday, WEEKS-1 back.
-    const currentStart = new Date(today);
-    currentStart.setDate(today.getDate() - dow - (WEEKS - 1) * 7);
-    // Oldest window starts PAGES-1 windows earlier.
-    const firstStart = new Date(currentStart);
-    firstStart.setDate(currentStart.getDate() - (PAGES - 1) * WEEKS * 7);
 
-    const list: DayInfo[] = [];
-    for (let i = 0; i < PAGES * WEEKS * 7; i++) {
-      const d = new Date(firstStart);
-      d.setDate(firstStart.getDate() + i);
-      list.push({ date: d, steps: stepsByDay.get(localISO(d)) || 0, future: d > today });
-    }
-
-    // Chunk into pages; each window is normalised to its own busiest day so the
-    // dot sizes stay readable month-to-month, and carries its own step average.
-    const pageList: { days: DayInfo[]; max: number; avg: number }[] = [];
+    // Each page is a calendar month starting on the 1st (Monday-aligned, with
+    // leading/trailing blank cells). The current month is the rightmost page;
+    // older months scroll left. Every page is padded to WEEKS×7 cells so the
+    // flat `days` index stays a simple `page * WEEKS * 7 + cell`.
+    const flat: (DayInfo | null)[] = [];
+    const pageList: {
+      month: Date;
+      days: (DayInfo | null)[];
+      rows: number;
+      max: number;
+      avg: number;
+    }[] = [];
     for (let p = 0; p < PAGES; p++) {
-      const slice = list.slice(p * WEEKS * 7, (p + 1) * WEEKS * 7);
-      const activeDays = slice.filter((d) => !d.future && d.steps > 0);
+      const monthsBack = PAGES - 1 - p;
+      const first = new Date(today.getFullYear(), today.getMonth() - monthsBack, 1);
+      const year = first.getFullYear();
+      const month = first.getMonth();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const lead = (first.getDay() + 6) % 7; // blanks before the 1st (Mon = 0)
+      const rows = Math.ceil((lead + daysInMonth) / 7); // weeks this month spans
+
+      const cells: (DayInfo | null)[] = [];
+      for (let i = 0; i < lead; i++) cells.push(null);
+      for (let d = 1; d <= daysInMonth; d++) {
+        const date = new Date(year, month, d);
+        cells.push({ date, steps: stepsByDay.get(localISO(date)) || 0, future: date > today });
+      }
+      // Pad the flat array to a fixed page stride so `days` indexing stays simple,
+      // but `rows` drives how many weeks actually render.
+      while (cells.length < WEEKS * 7) cells.push(null);
+
+      // Normalise dot sizes to the month's own busiest day and carry its average.
+      const activeDays = cells.filter((c): c is DayInfo => !!c && !c.future && c.steps > 0);
       const average = activeDays.length
         ? Math.round(activeDays.reduce((a, d) => a + d.steps, 0) / activeDays.length)
         : 0;
-      pageList.push({ days: slice, max: Math.max(0, ...slice.map((d) => d.steps)), avg: average });
+      pageList.push({
+        month: first,
+        days: cells,
+        rows,
+        max: Math.max(0, ...cells.map((c) => (c ? c.steps : 0))),
+        avg: average,
+      });
+      flat.push(...cells);
     }
 
-    return { pages: pageList, days: list };
+    return { pages: pageList, days: flat };
   }, [db.walks]);
 
   const name = db.profile.name.trim() || "Zipi";
   const selectedDay = selected !== null ? days[selected] : null;
   const avg = pages[visiblePage]?.avg ?? 0;
+  // Name of the month currently in view (with year only when it isn't this one).
+  const visibleMonth = pages[visiblePage]?.month;
+  const monthLabel = visibleMonth
+    ? visibleMonth.toLocaleDateString("en-US", {
+        month: "long",
+        ...(visibleMonth.getFullYear() === new Date().getFullYear()
+          ? {}
+          : { year: "numeric" }),
+      })
+    : "";
+
+  // Size the calendar to the visible month's week count (cells are square, so a
+  // row's height equals a column's width), remeasuring on resize/month change.
+  const visibleRows = pages[visiblePage]?.rows ?? WEEKS;
+  useLayoutEffect(() => {
+    const el = calRef.current;
+    if (!el) return;
+    const measure = (): void => {
+      const pad = 5;
+      const gap = 4;
+      const cell = (el.clientWidth - pad * 2 - gap * 6) / 7;
+      setCalH(visibleRows * cell + (visibleRows - 1) * gap + pad * 2);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [visibleRows]);
 
   // Tapping a calendar day selects it and focuses the "Day" segment on that
   // date; tapping the same day again clears the selection (back to today).
@@ -209,16 +268,17 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
       .sort((a, b) => stamp(b.w) - stamp(a.w));
     if (filter === "today") {
       // "Day" shows the selected calendar day when one is tapped, else today.
-      const dayStr = selected !== null ? localISO(days[selected].date) : todayStr;
+      const dayStr = selected !== null && days[selected] ? localISO(days[selected]!.date) : todayStr;
       return sorted.filter(({ w }) => w.date === dayStr);
     }
     if (filter === "month")
       return sorted.filter(({ w }) => {
         const d = new Date(w.date + "T12:00:00");
-        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+        const m = pages[visiblePage]?.month ?? now;
+        return d.getFullYear() === m.getFullYear() && d.getMonth() === m.getMonth();
       });
     return sorted;
-  }, [db.walks, filter, selected, days]);
+  }, [db.walks, filter, selected, days, pages, visiblePage]);
 
   // Group the (already newest-first) entries by calendar day so the list can
   // show a "Today" / "Yesterday" / date header above each day's walks.
@@ -338,7 +398,9 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
+        <div
+          style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, padding: "0 5px" }}
+        >
           {WEEKDAYS.map((d, i) => (
             <div
               key={i}
@@ -358,15 +420,27 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
           ))}
         </div>
 
-        <div className="week-scroller" ref={calRef} onScroll={onCalScroll} style={{ gap: 16 }}>
+        <div
+          className="week-scroller week-scroller--cal"
+          ref={calRef}
+          onScroll={onCalScroll}
+          style={{
+            gap: 16,
+            height: calH,
+            overflowY: "hidden",
+            alignItems: "flex-start",
+            transition: "height 0.2s ease",
+          }}
+        >
           {pages.map((page, p) => (
             <div
               key={p}
               className="week-panel"
               style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}
             >
-              {page.days.map((day, i) => {
+              {page.days.slice(0, page.rows * 7).map((day, i) => {
                 const gi = p * WEEKS * 7 + i;
+                if (!day) return <div key={i} style={{ aspectRatio: "1 / 1" }} />;
                 return (
                   <DayCell
                     key={i}
@@ -428,7 +502,7 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
                 color: "var(--color-pawpal-hero)",
               }}
             >
-              Average of
+              {monthLabel}
             </p>
             <p style={{ margin: 0 }}>
               <StatNumber
@@ -698,20 +772,22 @@ function WalkEntry({
           }}
         >
           {stepsNum > 0
-            ? `${walksCount} walk${walksCount === 1 ? "" : "s"} · ${stepsNum.toLocaleString("de-DE")} steps`
+            ? `${stepsNum.toLocaleString("de-DE")} steps`
             : `${walksCount} walk${walksCount === 1 ? "" : "s"}`}
         </span>
-        <span
-          style={{
-            fontFamily: "var(--font-ui)",
-            fontWeight: 400,
-            fontSize: 16,
-            color: "var(--color-pawpal-hero)",
-            opacity: 0.8,
-          }}
-        >
-          {walk.time ? `At ${walk.time}` : fmtDate(walk.date)}
-        </span>
+        {stepsNum > 0 && (
+          <span
+            style={{
+              fontFamily: "var(--font-ui)",
+              fontWeight: 400,
+              fontSize: 16,
+              color: "var(--color-pawpal-hero)",
+              opacity: 0.8,
+            }}
+          >
+            {`${walksCount} walk${walksCount === 1 ? "" : "s"}`}
+          </span>
+        )}
       </div>
 
       {/* Walkers: the pet plus (optionally) the assignee. */}
@@ -859,8 +935,9 @@ function DayCell({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        outline: selected ? "3px solid var(--color-pawpal-hero)" : "none",
-        outlineOffset: 2,
+        // Ring stays within the 4px grid gap so it can't overlap neighbour cells.
+        outline: selected ? "2px solid var(--color-pawpal-hero)" : "none",
+        outlineOffset: 1,
         transition: "outline-color 0.15s ease, transform 0.12s ease",
       }}
     >

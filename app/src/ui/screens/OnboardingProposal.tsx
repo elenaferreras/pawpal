@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence } from "motion/react";
-import { Button } from "../components/Button";
 import { Toggle } from "../components/Toggle";
 import { Icon } from "@astryxdesign/core/Icon";
 import { Icons } from "../lib/icons";
@@ -452,45 +451,33 @@ function AuthGate({
   if (mode === "choose") {
     return (
       <div className="obw">
-        {/* Hand-drawn dog doodles (Figma node 100:5297). */}
-        <div className="obw-art" aria-hidden>
-          <img className="obw-dog obw-dog--blue" src="onboarding/dog-blue.svg" alt="" />
-          <img className="obw-dog obw-dog--purple" src="onboarding/dog-purple.svg" alt="" />
-          <img className="obw-dog obw-dog--cream" src="onboarding/dog-cream.svg" alt="" />
-          <img className="obw-dog obw-dog--orange" src="onboarding/dog-orange.svg" alt="" />
-        </div>
+        {/* Full-bleed hero illustration with the Pawpal wordmark (Figma node 11126:4257). */}
+        <img className="obw-hero" src="onboarding/dog-hero.svg" alt="Pawpal" />
 
         <div className="obw-ctas">
-          <div className="obw-heading">
-            <h1 className="obw-title">Welcome to PawPal</h1>
-            <p className="obw-sub">The home for pet owners</p>
-          </div>
-
-          <div className="obw-buttons">
-            <Button
-              variant="primary"
-              fullWidth
-              onClick={() => {
-                setError(null);
-                onStartSignup();
-              }}
-            >
-              Sign up
-            </Button>
-            <Button
-              variant="secondary"
-              fullWidth
-              onClick={() => {
-                setError(null);
-                setMode("login");
-              }}
-            >
-              Log in
-            </Button>
-            <Button variant="ghost" fullWidth onClick={onDogSit}>
-              I&rsquo;m dog sitting today
-            </Button>
-          </div>
+          <button
+            type="button"
+            className="obw-btn obw-btn--primary"
+            onClick={() => {
+              setError(null);
+              onStartSignup();
+            }}
+          >
+            Sign up
+          </button>
+          <button
+            type="button"
+            className="obw-btn obw-btn--outline"
+            onClick={() => {
+              setError(null);
+              setMode("login");
+            }}
+          >
+            Log in
+          </button>
+          <button type="button" className="obw-btn obw-btn--ghost" onClick={onDogSit}>
+            I&rsquo;m dog sitting today
+          </button>
         </div>
       </div>
     );

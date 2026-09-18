@@ -344,6 +344,14 @@ button {
   scroll-snap-align: start;
 }
 
+/* Calendar (WalksStats) variant: pad the scrollport so the selected day's
+   outline ring isn't clipped at the panel edges. scroll-padding keeps snapping
+   aligned; the weekday header carries a matching 5px inline padding. */
+.week-scroller--cal {
+  padding: 5px;
+  scroll-padding: 5px;
+}
+
 .pill {
   flex-shrink: 0;
   padding: 7px 16px;
@@ -917,9 +925,30 @@ button.wts-row {
 .wts-chip--empty {
   color: color-mix(in srgb, var(--color-pawpal-page) 45%, transparent);
 }
+/* Auto-sizing wrapper: a hidden pseudo-element mirrors the value so the input
+   stretches to exactly the text width (no width-estimation gaps). */
+.wts-chip-autosize {
+  display: inline-grid;
+  align-items: center;
+  max-width: 56vw;
+}
+.wts-chip-autosize::after {
+  content: attr(data-value) " ";
+  visibility: hidden;
+  height: 0;
+  overflow: hidden;
+  white-space: pre;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 16px;
+}
+.wts-chip-autosize > .wts-chip-input,
+.wts-chip-autosize::after {
+  grid-area: 1 / 1;
+}
 .wts-chip-input {
-  width: 4ch;
-  min-width: 2ch;
+  width: auto;
+  min-width: 0;
   padding: 0;
   border: none;
   outline: none;
@@ -1697,20 +1726,12 @@ button.wts-row {
   color: color-mix(in srgb, var(--color-track-poop) 90%, white);
 }
 /* Single-field edit sheet (Figma node 223:2507) — full-screen editor. */
+/* Single-field editor. A compact floating form sheet (shares `.form-sheet`
+   layout) that hugs the bottom just above the keyboard, so the input stays
+   visible without scrolling and the cream surface fills down to the keyboard
+   (no dark page background showing behind the iOS input accessory bar). */
 .field-sheet {
-  width: min(560px, 100%);
-  height: 100vh;
-  height: 100dvh;
-  max-height: none;
-  display: flex;
-  flex-direction: column;
-  background: var(--color-pawpal-hero);
   --sheet-surface: var(--color-pawpal-hero);
-  border-radius: 0;
-  overflow: hidden;
-  padding-top: env(safe-area-inset-top, 0px);
-  padding-bottom: calc(20px + env(safe-area-inset-bottom, 12px));
-  animation: pawpal-sheet-up 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 /* "Log a walk" chooser sheet (new design). */
 .chooser-sheet {
@@ -2802,102 +2823,80 @@ input.wts-field[type="time"] {
   }
 }
 
-/* ── Onboarding: "Welcome to PawPal" screen (Figma node 100:5297) ───────── */
+/* ── Onboarding: "Pawpal" welcome screen (Figma node 11126:4257) ────────── */
 .obw {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  /* Clip the doodles that bleed off the sides, but let the page scroll
-     vertically so the CTAs are never clipped on short screens. */
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden;
   background: var(--color-pawpal-page);
-  display: flex;
-  flex-direction: column;
   /* Match the rest of the app: constrain to a phone width and centre. */
   max-width: 430px;
   margin: 0 auto;
-  padding-top: env(safe-area-inset-top, 0px);
 }
-/* Top region that holds the hand-drawn dog doodles. */
-.obw-art {
-  position: relative;
-  flex: 1 1 auto;
-  min-height: 0;
-  z-index: 0;
-}
-.obw-dog {
+/* Full-bleed hero illustration (Pawpal wordmark + dog). The Figma frame is
+   402×874; anchoring the artwork to the top keeps the wordmark and dog in view
+   while the CTAs float over the lower portion. */
+.obw-hero {
   position: absolute;
-  height: auto;
-  display: block;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
   pointer-events: none;
-}
-.obw-dog--blue {
-  top: 18.7%;
-  left: 0;
-  width: 39.86%;
-}
-.obw-dog--purple {
-  top: 21.97%;
-  left: 68.41%;
-  width: 34.96%;
-}
-.obw-dog--cream {
-  top: 62.4%;
-  left: -3.48%;
-  width: 48.04%;
-}
-.obw-dog--orange {
-  top: 51.5%;
-  left: 48.01%;
-  width: 43.6%;
+  user-select: none;
 }
 .obw-ctas {
-  position: relative;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 1;
-  flex: 0 0 auto;
-  width: 100%;
   padding: 24px 16px calc(24px + var(--safe-bottom));
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 32px;
-  /* Fade the page in behind the text so doodles never crowd the CTAs. */
+  gap: 16px;
+  /* Scrim so the buttons stay legible over the illustration. */
   background: linear-gradient(
     to bottom,
     transparent 0,
-    var(--color-pawpal-page) 40px
+    color-mix(in srgb, var(--color-pawpal-page) 72%, transparent) 44%,
+    var(--color-pawpal-page) 100%
   );
 }
-.obw-heading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  text-align: center;
-  color: var(--color-pawpal-hero);
-}
-.obw-title {
-  margin: 0;
-  font-family: "FatFrank", "Abordage", sans-serif;
-  font-weight: 400;
-  font-size: 40px;
-  line-height: 1;
-  color: var(--color-pawpal-hero);
-}
-.obw-sub {
-  margin: 0;
-  font-family: var(--font-ui);
-  font-weight: 400;
-  font-size: 22px;
-  color: var(--color-pawpal-hero);
-}
-.obw-buttons {
+.obw-btn {
   width: 100%;
   max-width: 370px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  min-width: 150px;
+  padding: 16px;
+  border: 1px solid transparent;
+  border-radius: 40px;
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.obw-btn--primary {
+  background: var(--color-data-yellow-3, #ffff83);
+  color: var(--color-pawpal-page, #352b25);
+  font-weight: 700;
+}
+.obw-btn--outline {
+  background: rgba(255, 255, 255, 0.01);
+  border-color: var(--color-data-yellow-3, #ffff83);
+  color: var(--color-data-yellow-3, #ffff83);
+  font-weight: 590;
+  backdrop-filter: blur(7.9px);
+  -webkit-backdrop-filter: blur(7.9px);
+}
+.obw-btn--ghost {
+  background: transparent;
+  color: var(--color-data-yellow-3, #ffff83);
+  font-weight: 510;
 }
 
 /* ── Desktop gate: "PawPal is available on mobile" (Figma node 261:4958) ──── */
@@ -4863,6 +4862,28 @@ input.wts-field[type="time"] {
 }
 .glass-btn--health:active {
   background: color-mix(in srgb, var(--color-health) 78%, transparent);
+}
+
+/* Light "liquid glass" pill (dashboard empty-state "Track walk"): frosted
+   translucent fill, glossy top highlight + soft drop shadow, dark label. */
+.dash-track-pill {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 22px;
+  border-radius: 100px;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 17px;
+  color: var(--color-pawpal-page);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.22));
+  -webkit-backdrop-filter: blur(10px) saturate(170%);
+  backdrop-filter: blur(10px) saturate(170%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.4),
+    0 6px 16px rgba(0, 0, 0, 0.12);
 }
 /* Filled, screen-tinted circular action button in the large-title row. */
 .topbar-button {
