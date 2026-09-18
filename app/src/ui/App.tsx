@@ -87,7 +87,10 @@ function Shell(): React.ReactElement {
   const toast = useToast();
   const [screen, setScreen] = useState<ScreenId>("home");
   const [showSplash, setShowSplash] = useState(true);
-  const [onboarding, setOnboarding] = useState(!db.profile.onboarded);
+  // Show the welcome/onboarding screen whenever there's no active account —
+  // a logged-out (or expired) session must land on the welcome screen even if
+  // a stale local profile is still marked as onboarded.
+  const [onboarding, setOnboarding] = useState(!isSignedIn() || !db.profile.onboarded);
   // True while we finish a Google OAuth round-trip on the first load after the
   // redirect back from Google — keeps the app content hidden until the session
   // (and any cloud profile) has been resolved.
@@ -234,6 +237,19 @@ function Shell(): React.ReactElement {
     sync();
     window.addEventListener("pawpal:auth", sync);
     return () => window.removeEventListener("pawpal:auth", sync);
+  }, []);
+
+  // Losing the session (explicit sign-out or an expired/revoked token) must
+  // return to the welcome screen, not strand the user in the app.
+  useEffect(() => {
+    const onAuth = (e: Event): void => {
+      if (!(e as CustomEvent).detail) {
+        setOnboarding(true);
+        setScreen("home");
+      }
+    };
+    window.addEventListener("pawpal:auth", onAuth);
+    return () => window.removeEventListener("pawpal:auth", onAuth);
   }, []);
 
   // Live-refresh: while signed in and visible, pull in activities a sitter has
