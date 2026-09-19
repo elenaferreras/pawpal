@@ -89,12 +89,17 @@ export interface Meal {
   by?: "sitter";
 }
 
+/** Where a grooming service happened. */
+export type GroomingLocation = "home" | "groomer";
+
 /** A grooming bath (washing the dog) — distinct from the pipi/popo `bathroom` log. */
 export interface BathLog {
   /** Day the bath happened (YYYY-MM-DD). */
   date: string;
   /** Optional free-text note (e.g. shampoo used, groomer). */
   notes?: string;
+  /** Where it happened (at home vs. the groomer). */
+  location?: GroomingLocation;
   created: string;
 }
 
@@ -106,6 +111,8 @@ export interface GroomingLog {
   /** Day it happened (YYYY-MM-DD). */
   date: string;
   notes?: string;
+  /** Where it happened (at home vs. the groomer). */
+  location?: GroomingLocation;
   created: string;
 }
 

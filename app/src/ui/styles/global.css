@@ -1418,6 +1418,132 @@ button.wts-row {
 .vet-sheet {
   --sheet-surface: var(--color-health);
 }
+
+/* "Log grooming" sheet — health pink surface (matches the Health tab). */
+.groom-sheet {
+  --sheet-surface: var(--color-health);
+}
+/* Segmented Baths / Nails / Haircuts tabs on the Grooming screen. */
+.groom-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 16px;
+  background: var(--color-dash-surface);
+  border-radius: 999px;
+}
+.groom-tab {
+  flex: 1;
+  padding: 9px 8px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--color-pawpal-hero);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+.groom-tab--on {
+  background: var(--color-pawpal-hero);
+  color: var(--color-pawpal-page);
+}
+/* "Previous bath / nail trim / haircut" hero card. */
+.groom-prev {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px 22px;
+  background: var(--color-dash-surface);
+  border-radius: 24px;
+}
+.groom-prev-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-pawpal-hero);
+}
+.groom-prev-eyebrow {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-pawpal-hero);
+}
+.groom-prev-value {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 40px;
+  line-height: 1;
+  color: var(--color-pawpal-hero);
+}
+.groom-prev-unit {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-pawpal-muted);
+}
+.groom-prev-value--empty {
+  font-size: 22px;
+  color: var(--color-pawpal-muted);
+}
+/* Log-grooming sheet: service chips (multi-select) + location pills (single).
+   Coloured like the walk form's weather/terrain chips (page-tint idle, blue on). */
+.groom-field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.groom-field-label {
+  padding-left: 16px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--color-pawpal-page);
+}
+.groom-chips,
+.groom-loc {
+  display: flex;
+  gap: 8px;
+}
+.groom-chip,
+.groom-loc-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px 8px;
+  border: 1.5px solid transparent;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--color-pawpal-page) 9%, transparent);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--color-pawpal-page);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+.groom-loc-btn {
+  font-size: 14px;
+}
+.groom-chip--on,
+.groom-loc-btn--on {
+  background: color-mix(in srgb, #0088ff 22%, transparent);
+  border-color: #0088ff;
+}
+.groom-chip-text,
+.groom-loc-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 @keyframes pawpal-sheet-up {
   from {
     transform: translateY(100%);
@@ -4858,10 +4984,10 @@ input.wts-field[type="time"] {
 /* Health-pink tinted liquid-glass button (e.g. Pet ID › add document). */
 .glass-btn--health {
   color: var(--color-pawpal-page);
-  background: color-mix(in srgb, var(--color-health) 62%, transparent);
+  background: var(--color-health);
 }
 .glass-btn--health:active {
-  background: color-mix(in srgb, var(--color-health) 78%, transparent);
+  background: color-mix(in srgb, var(--color-health) 88%, var(--color-pawpal-page));
 }
 
 /* Light "liquid glass" pill (dashboard empty-state "Track walk"): frosted

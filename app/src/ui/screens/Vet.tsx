@@ -8,7 +8,7 @@ import { SwipeableRow } from "../components/SwipeableRow";
 import { RevealItem } from "../components/Reveal";
 import { CardStagger } from "../components/CardStagger";
 import { Group, NavRow } from "../components/SheetForm";
-import { BathReminder } from "../components/BathReminder";
+import { GroomingHub } from "../components/GroomingHub";
 import { FieldEditSheet } from "../components/FieldEditSheet";
 import { HealthDetailScreen } from "../components/HealthDetailScreen";
 import { DogFace } from "../avatar/DogAvatar";
@@ -18,7 +18,7 @@ import { Eyebrow, Headline, Footnote } from "../components/Typography";
 import { TopBar } from "../components/TopBar";
 import { Icons } from "../lib/icons";
 import { fmtDate, today } from "../lib/date";
-import type { Avatar, GroomingLog, GroomingType, HealthDocument, Priority, Profile, Vaccine, VetNote, WeightEntry } from "../types";
+import type { Avatar, HealthDocument, Priority, Profile, Vaccine, VetNote, WeightEntry } from "../types";
 
 type IconComponent = (typeof Icons)[keyof typeof Icons];
 
@@ -142,25 +142,11 @@ export function Vet({ onAdd, onEditReminder, onEditVaccine }: VetProps): React.R
   const insuranceDoc = documents.find((d) => d.kind === "insurance");
 
   const groomingLogs = db.grooming ?? [];
-  const [groomingType, setGroomingType] = useState<GroomingType | null>(null);
-  const groomingOf = (type: GroomingType): { g: GroomingLog; index: number }[] =>
-    groomingLogs
-      .map((g, index) => ({ g, index }))
-      .filter((x) => x.g.type === type)
-      .sort((a, b) => new Date(b.g.date).getTime() - new Date(a.g.date).getTime());
-  const lastGroomingDate = (type: GroomingType): string | undefined => {
-    const dates = groomingLogs
-      .filter((g) => g.type === type)
-      .map((g) => g.date)
-      .sort();
-    return dates[dates.length - 1];
-  };
+  const [groomingOpen, setGroomingOpen] = useState(false);
 
   const weightLog = db.weightLog ?? [];
   const [weightOpen, setWeightOpen] = useState(false);
   const [petIdOpen, setPetIdOpen] = useState(false);
-  const [bathOpen, setBathOpen] = useState(false);
-  const bathAddRef = useRef<(() => void) | undefined>(undefined);
   const weightAsc = [...weightLog].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
   const weightDesc = weightLog
     .map((e, index) => ({ e, index }))
@@ -170,8 +156,13 @@ export function Vet({ onAdd, onEditReminder, onEditVaccine }: VetProps): React.R
   const weightDelta =
     currentWeight !== undefined && prevWeight !== undefined ? currentWeight - prevWeight : undefined;
 
-  const bathDates = (db.baths ?? []).map((b) => b.date).sort();
-  const lastBath = bathDates.length ? bathDates[bathDates.length - 1] : undefined;
+  const groomingActivityDates = [
+    ...(db.baths ?? []).map((b) => b.date),
+    ...groomingLogs.map((g) => g.date),
+  ].sort();
+  const lastGroomingActivity = groomingActivityDates.length
+    ? groomingActivityDates[groomingActivityDates.length - 1]
+    : undefined;
 
   // One-time migration: seed the checklist from any legacy free-text notes.
   useEffect(() => {
@@ -337,27 +328,6 @@ export function Vet({ onAdd, onEditReminder, onEditVaccine }: VetProps): React.R
     if (!ok) return;
     update((d) => {
       d.vetRecords.documents?.splice(index, 1);
-    });
-    toast("Deleted");
-  };
-
-  const addGrooming = (type: GroomingType, date: string): void => {
-    if (!date) return;
-    update((d) => {
-      (d.grooming ??= []).push({ type, date, created: new Date().toISOString() });
-    });
-    toast("Logged");
-  };
-
-  const deleteGrooming = async (index: number): Promise<void> => {
-    const ok = await confirm({
-      title: "Delete this entry?",
-      message: "This grooming entry will be removed.",
-      confirmLabel: "Delete",
-    });
-    if (!ok) return;
-    update((d) => {
-      d.grooming?.splice(index, 1);
     });
     toast("Deleted");
   };
@@ -681,35 +651,15 @@ export function Vet({ onAdd, onEditReminder, onEditVaccine }: VetProps): React.R
         </button>
       </div>
 
-      {/* Grooming — bath rhythm + haircut & nail-trim logs */}
+      {/* Grooming — baths, nail trims & haircuts in one place */}
       <SectionLabel>Grooming</SectionLabel>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <HubCard
-          icon={Icons.droplet}
-          accent={ACCENT.bath}
-          title="Bath time"
-          summary={lastBath ? `Last ${fmtDate(lastBath)}` : "Not logged yet"}
-          onClick={() => setBathOpen(true)}
-        />
-        <HubCard
-          icon={Icons.scissors}
-          accent={ACCENT.haircut}
-          title="Haircuts"
-          summary={
-            lastGroomingDate("haircut") ? `Last ${fmtDate(lastGroomingDate("haircut")!)}` : "Not logged yet"
-          }
-          onClick={() => setGroomingType("haircut")}
-        />
-        <HubCard
-          icon={Icons.pawPrint}
-          accent={ACCENT.nails}
-          title="Nail trimming"
-          summary={
-            lastGroomingDate("nails") ? `Last ${fmtDate(lastGroomingDate("nails")!)}` : "Not logged yet"
-          }
-          onClick={() => setGroomingType("nails")}
-        />
-      </div>
+      <HubCard
+        icon={Icons.scissors}
+        accent={ACCENT.bath}
+        title="Grooming"
+        summary={lastGroomingActivity ? `Last ${fmtDate(lastGroomingActivity)}` : "Not logged yet"}
+        onClick={() => setGroomingOpen(true)}
+      />
 
       {/* Summary cards — each opens its full detail screen */}
       <SectionLabel>Health records</SectionLabel>
@@ -799,27 +749,7 @@ export function Vet({ onAdd, onEditReminder, onEditVaccine }: VetProps): React.R
         {renderCheckups()}
       </HealthDetailScreen>
 
-      <GroomingScreen
-        open={groomingType === "haircut"}
-        onClose={() => setGroomingType(null)}
-        title="Haircuts"
-        icon={Icons.scissors}
-        accent={ACCENT.haircut}
-        items={groomingOf("haircut")}
-        onAdd={(date) => addGrooming("haircut", date)}
-        onDelete={deleteGrooming}
-      />
-
-      <GroomingScreen
-        open={groomingType === "nails"}
-        onClose={() => setGroomingType(null)}
-        title="Nail trimming"
-        icon={Icons.pawPrint}
-        accent={ACCENT.nails}
-        items={groomingOf("nails")}
-        onAdd={(date) => addGrooming("nails", date)}
-        onDelete={deleteGrooming}
-      />
+      <GroomingHub open={groomingOpen} onClose={() => setGroomingOpen(false)} />
 
       <WeightScreen
         open={weightOpen}
@@ -865,23 +795,6 @@ export function Vet({ onAdd, onEditReminder, onEditVaccine }: VetProps): React.R
         onClose={() => setRenameIndex(null)}
       />
 
-      <HealthDetailScreen
-        open={bathOpen}
-        onClose={() => setBathOpen(false)}
-        title="Bath time"
-        action={
-          <button
-            type="button"
-            aria-label="Log a bath"
-            className="glass-btn glass-btn--health"
-            onClick={() => bathAddRef.current?.()}
-          >
-            <Icon icon={Icons.plus} color="inherit" />
-          </button>
-        }
-      >
-        <BathReminder openAddRef={bathAddRef} />
-      </HealthDetailScreen>
       </div>
     </div>
   );
@@ -1260,78 +1173,6 @@ function AddRecordButton({ onClick }: { onClick: () => void }): React.ReactEleme
     <button type="button" aria-label="Add record" className="glass-btn" onClick={onClick}>
       <Icon icon={Icons.plus} color="inherit" />
     </button>
-  );
-}
-
-/** Grooming history screen (haircuts / nail trims): log a dated entry, list, swipe-delete. */
-function GroomingScreen({
-  open,
-  onClose,
-  title,
-  icon,
-  accent,
-  items,
-  onAdd,
-  onDelete,
-}: {
-  open: boolean;
-  onClose: () => void;
-  title: string;
-  icon: IconComponent;
-  accent: string;
-  items: { g: GroomingLog; index: number }[];
-  onAdd: (date: string) => void;
-  onDelete: (index: number) => void;
-}): React.ReactElement {
-  const [addOpen, setAddOpen] = useState(false);
-  return (
-    <HealthDetailScreen
-      open={open}
-      onClose={onClose}
-      title={title}
-      subtitle={items.length ? `${items.length} logged` : undefined}
-      action={
-        <button
-          type="button"
-          aria-label={`Log ${title.toLowerCase()}`}
-          className="glass-btn glass-btn--health"
-          onClick={() => setAddOpen(true)}
-        >
-          <Icon icon={Icons.plus} color="inherit" />
-        </button>
-      }
-    >
-      <GroupCard>
-        {items.length === 0 ? (
-          <Empty icon={icon} text="Nothing logged yet." />
-        ) : (
-          items.map(({ g, index }, i) => (
-            <RecordRow
-              key={g.created}
-              index={i}
-              icon={icon}
-              accent={accent}
-              isFirst={i === 0}
-              title={fmtDate(g.date)}
-              meta={g.notes}
-              onDelete={() => onDelete(index)}
-            />
-          ))
-        )}
-      </GroupCard>
-
-      <FieldEditSheet
-        open={addOpen}
-        title={title}
-        value={today()}
-        type="date"
-        onSave={(v) => {
-          if (v) onAdd(v);
-          setAddOpen(false);
-        }}
-        onClose={() => setAddOpen(false)}
-      />
-    </HealthDetailScreen>
   );
 }
 
