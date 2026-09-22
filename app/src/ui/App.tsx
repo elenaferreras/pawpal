@@ -7,7 +7,7 @@ import type { Avatar, ScreenId } from "./types";
 import { DbProvider, useDb } from "./lib/store";
 import { ToastProvider, useToast } from "./lib/toast";
 import { ConfirmProvider } from "./components/ConfirmDialog";
-import { setupReminderChecks } from "./lib/notifications";
+import { getNotifConfig, setupReminderChecks } from "./lib/notifications";
 import { completeOAuthRedirect, hasPendingOAuth, isSignedIn } from "./lib/auth";
 import {
   getRowKey,
@@ -52,7 +52,7 @@ import {
 } from "./lib/sitter";
 import { parseAvatarParam, type JoinResult } from "./lib/coowner";
 import { defaultDatabase } from "./lib/storage";
-import { subscribeToPush } from "./lib/push";
+import { subscribeToPush, syncReminderPrefs } from "./lib/push";
 
 export function App(): React.ReactElement {
   const isDesktop = useIsDesktop();
@@ -102,9 +102,12 @@ function Shell(): React.ReactElement {
   const [walkPrefillDate, setWalkPrefillDate] = useState<string | null>(null);
   const [editReminderIndex, setEditReminderIndex] = useState<number | null>(null);
   const [editVaccineIndex, setEditVaccineIndex] = useState<number | null>(null);
+  const [editCheckupIndex, setEditCheckupIndex] = useState<number | null>(null);
   // Record types the health add-sheet is scoped to (per-category add buttons).
   const [addRecordTypes, setAddRecordTypes] = useState<RecordType[] | undefined>(undefined);
   const [editBathroomIndex, setEditBathroomIndex] = useState<number | null>(null);
+  // Deep-link request from the dashboard "Notes for the vet" card.
+  const [vetOpenNotes, setVetOpenNotes] = useState(false);
   // Origin of the circular Settings reveal (set from the tapped avatar).
   const [settingsOrigin, setSettingsOrigin] = useState<{ x: number; y: number } | null>(null);
   // Origin of the circular Notifications reveal (set from the tapped bell).
@@ -232,12 +235,16 @@ function Shell(): React.ReactElement {
   // permission is already granted (no-op otherwise). Also re-runs on sign-in.
   useEffect(() => {
     const sync = (): void => {
-      if (isSignedIn()) void subscribeToPush();
+      if (!isSignedIn()) return;
+      void subscribeToPush();
+      // Keep the server's reminder mirror current so reminders fire while the
+      // app is closed (see reminder-tick Edge Function).
+      void syncReminderPrefs(getNotifConfig(), getDb().profile.mealsPerDay || 4);
     };
     sync();
     window.addEventListener("pawpal:auth", sync);
     return () => window.removeEventListener("pawpal:auth", sync);
-  }, []);
+  }, [getDb]);
 
   // Losing the session (explicit sign-out or an expired/revoked token) must
   // return to the welcome screen, not strand the user in the app.
@@ -359,6 +366,10 @@ function Shell(): React.ReactElement {
         onNavigate={navigate}
         onOpenSettings={openSettings}
         onOpenNotifications={openNotifications}
+        onOpenVetNotes={() => {
+          setVetOpenNotes(true);
+          navigate("vet");
+        }}
         onLogWalk={logWalk}
         onLogBathroom={() => setModal("poop")}
       />
@@ -388,19 +399,30 @@ function Shell(): React.ReactElement {
         onAdd={(types) => {
           setEditReminderIndex(null);
           setEditVaccineIndex(null);
+          setEditCheckupIndex(null);
           setAddRecordTypes(types);
           setModal("vet");
         }}
         onEditReminder={(i) => {
           setEditVaccineIndex(null);
+          setEditCheckupIndex(null);
           setEditReminderIndex(i);
           setModal("vet");
         }}
         onEditVaccine={(i) => {
           setEditReminderIndex(null);
+          setEditCheckupIndex(null);
           setEditVaccineIndex(i);
           setModal("vet");
         }}
+        onEditCheckup={(i) => {
+          setEditReminderIndex(null);
+          setEditVaccineIndex(null);
+          setEditCheckupIndex(i);
+          setModal("vet");
+        }}
+        openNotes={vetOpenNotes}
+        onNotesOpened={() => setVetOpenNotes(false)}
       />
     ) : null;
 
@@ -509,11 +531,13 @@ function Shell(): React.ReactElement {
             open={modal === "vet"}
             editReminderIndex={editReminderIndex}
             editVaccineIndex={editVaccineIndex}
+            editCheckupIndex={editCheckupIndex}
             addTypes={addRecordTypes}
             onClose={() => {
               setModal("none");
               setEditReminderIndex(null);
               setEditVaccineIndex(null);
+              setEditCheckupIndex(null);
             }}
           />
           <WalkTrackSheet

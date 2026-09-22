@@ -8,7 +8,7 @@ import {
   requestNotificationPermission,
   saveNotifConfig,
 } from "../../lib/notifications";
-import { subscribeToPush } from "../../lib/push";
+import { subscribeToPush, syncReminderPrefs } from "../../lib/push";
 import type { NotifConfig, ReminderConfigEntry } from "../../types";
 import { HERO, MUTED, SURFACE, SettingsPage, SectionLabel } from "./shared";
 
@@ -47,6 +47,9 @@ export function NotificationsScreen({ onBack }: { onBack: () => void }): React.R
   const persist = (next: NotifConfig): void => {
     setCfg(next);
     saveNotifConfig(next);
+    // Mirror the whole config to the server so reminders fire while the app is
+    // closed (see reminder-tick Edge Function).
+    void syncReminderPrefs(next, db.profile.mealsPerDay || 4);
   };
 
   // Toggling any reminder on prompts for permission if not yet granted.
@@ -62,6 +65,7 @@ export function NotificationsScreen({ onBack }: { onBack: () => void }): React.R
     setPerm("Notification" in window ? Notification.permission : "unsupported");
     if (granted) {
       void subscribeToPush();
+      void syncReminderPrefs(cfg, db.profile.mealsPerDay || 4);
       toast("Notifications enabled!");
     }
   };

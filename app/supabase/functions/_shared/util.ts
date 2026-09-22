@@ -79,7 +79,13 @@ export function durationToExpiry(
   const now = new Date();
   switch (preset) {
     case "tonight": {
-      // 23:59 local-ish (server UTC) today; if already past, +1 day.
+      // Owner-local end of day. The client resolves this and sends it as
+      // customExpiresAt, since the server clock is UTC. Fall back to a UTC
+      // 23:59 if an older client omits it.
+      if (customExpiresAt) {
+        const d = new Date(customExpiresAt);
+        if (!isNaN(d.getTime()) && d > now) return d.toISOString();
+      }
       const end = new Date(now);
       end.setHours(23, 59, 0, 0);
       if (end <= now) end.setDate(end.getDate() + 1);

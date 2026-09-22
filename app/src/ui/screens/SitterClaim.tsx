@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { claimInvite, formatCode, type SitterState } from "../lib/sitter";
 import { Button } from "../components/Button";
+import { MotionSheet } from "../components/MotionSheet";
 
 interface SitterClaimProps {
   initialCode?: string;
@@ -39,7 +40,18 @@ export function SitterClaim({
 
   return (
     <div className="obw obw--plain">
-      <div className="obw-ctas obw-ctas--top">
+      {/* Same full-bleed hero as the onboarding welcome screen. */}
+      <img className="obw-hero" src="onboarding/dog-hero.svg" alt="Pawpal" />
+
+      {/* Non-dismissable sheet: no grabber/drag, and the scrim tap is a no-op. */}
+      <MotionSheet
+        open
+        onClose={() => {}}
+        ariaLabel="Enter invite code"
+        hideHandle
+        scrimClassName="walk-sheet-scrim sitclaim-scrim"
+        sheetClassName="chooser-sheet sitclaim-sheet"
+      >
         <div className="obw-heading">
           <h1 className="obw-title">Dog sitting?</h1>
           <p className="obw-sub">Enter the invite code the owner gave you.</p>
@@ -78,7 +90,7 @@ export function SitterClaim({
             Back
           </Button>
         </div>
-      </div>
+      </MotionSheet>
     </div>
   );
 }

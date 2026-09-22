@@ -141,6 +141,10 @@ export interface Checkup {
   notes: string;
   hasFile: boolean;
   fileName: string;
+  /** Base64 data URL of the attached file (kept small — see the ~2MB cap). */
+  fileData?: string;
+  /** MIME type of the attached file. */
+  fileMime?: string;
   created: string;
 }
 

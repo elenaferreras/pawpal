@@ -31,6 +31,23 @@ function fnUrl(name: string): string {
 
 export type DurationPreset = "tonight" | "24h" | "3d" | "custom";
 
+/** Owner-local end of day (23:59). Resolved client-side because the server
+ *  clock is UTC and "tonight" is relative to the owner's timezone. */
+export function tonightExpiry(): string {
+  const now = new Date();
+  const end = new Date(now);
+  end.setHours(23, 59, 0, 0);
+  if (end <= now) end.setDate(end.getDate() + 1);
+  return end.toISOString();
+}
+
+/** The explicit expiry to send the server: owner-local "tonight" resolved
+ *  client-side; otherwise the caller's custom timestamp (if any). */
+function expiryFor(preset: DurationPreset, customExpiresAt?: string): string | undefined {
+  if (preset === "tonight") return tonightExpiry();
+  return customExpiresAt;
+}
+
 export interface CreatedInvite {
   inviteId: string;
   code: string;
@@ -120,7 +137,7 @@ export async function createInvite(
   const res = await ownerPost({
     action: "create",
     durationPreset,
-    customExpiresAt: opts.customExpiresAt,
+    customExpiresAt: expiryFor(durationPreset, opts.customExpiresAt),
     dogName: opts.dogName,
     alias: opts.alias,
     notes: opts.notes,
@@ -150,7 +167,9 @@ export async function updateInvite(
     alias: opts.alias,
     notes: opts.notes,
     durationPreset: opts.durationPreset,
-    customExpiresAt: opts.customExpiresAt,
+    customExpiresAt: opts.durationPreset
+      ? expiryFor(opts.durationPreset, opts.customExpiresAt)
+      : opts.customExpiresAt,
   });
   if (!res.ok) throw new Error((await errText(res)) || "Could not update invite.");
 }

@@ -39,6 +39,9 @@ const pawpalTokens: Record<string, [light: string, dark: string]> = {
   "--color-track-meds": ["#9DBA9C", "#9DBA9C"], // green (vet medications card)
   "--color-track-notes": ["#C4DFFE", "#C4DFFE"], // light blue (vet "Notes" card)
 
+  // Grooming hub icon chips (baths & haircuts).
+  "--color-bath": ["#A7E5DD", "#A7E5DD"], // teal
+
   // Meals widget (Figma node 12:659). Pacman reuses --color-pawpal-fab.
   "--color-meal-widget-bg": ["#1E1C1E", "#1E1C1E"], // dark pill
   "--color-meal-dot": ["#D9D9D9", "#D9D9D9"], // meal dot (eaten shown faded)

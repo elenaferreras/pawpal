@@ -2,7 +2,8 @@
 // and store the subscription so the sitter-log Edge Function can notify the
 // owner when a sitter logs activity, even while the app is closed.
 import { getCurrentUserId, getValidAccessToken } from "./auth";
-import { getSBConfig } from "./supabase";
+import { getRowKey, getSBConfig } from "./supabase";
+import type { NotifConfig } from "../types";
 
 // Public half of the server VAPID keypair (safe to expose). The private half
 // lives only as a Supabase function secret (VAPID_PRIVATE_KEY).
@@ -143,6 +144,59 @@ export async function unsubscribeFromPush(): Promise<void> {
   }
   try {
     localStorage.removeItem(LOCAL_ENDPOINT_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** "HH:MM" from an hour/minute pair, zero-padded. */
+function hhmm(hour = 9, minute = 0): string {
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+/**
+ * Mirror this owner's reminder config to the server so the reminder-tick Edge
+ * Function can deliver meal, walk, medication, vaccination and vet reminders
+ * while the app is closed. Only meaningful for signed-in owners (anonymous
+ * device rows have no push target). Best-effort: never throws.
+ */
+export async function syncReminderPrefs(
+  cfg: NotifConfig,
+  mealsPerDay: number,
+): Promise<void> {
+  const userId = getCurrentUserId();
+  const token = await getValidAccessToken();
+  if (!userId || !token) return;
+
+  const timezone =
+    Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const meal = cfg.mealReminders;
+  const walk = cfg.walkReminder;
+  const sb = getSBConfig();
+  try {
+    await fetch(`${sb.url}/rest/v1/reminder_prefs`, {
+      method: "POST",
+      headers: {
+        apikey: sb.key,
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Prefer: "resolution=merge-duplicates,return=minimal",
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        owner_row_key: getRowKey(),
+        meal_enabled: meal?.enabled ?? false,
+        meal_times: (meal?.times ?? []).slice(0, mealsPerDay),
+        meals_per_day: mealsPerDay,
+        walk_enabled: walk?.enabled ?? false,
+        walk_time: hhmm(walk?.hour, walk?.minute),
+        med_enabled: cfg.medicationReminder?.enabled ?? false,
+        vacc_enabled: cfg.vaccinationReminder?.enabled ?? false,
+        vet_enabled: cfg.vetReminder?.enabled ?? false,
+        timezone,
+        updated_at: new Date().toISOString(),
+      }),
+    });
   } catch {
     /* ignore */
   }

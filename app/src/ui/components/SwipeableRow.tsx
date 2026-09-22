@@ -58,7 +58,18 @@ export function SwipeableRow({
   };
 
   return (
-    <div style={{ position: "relative", overflow: "hidden", background, ...style }}>
+    <div
+      style={{
+        position: "relative",
+        overflow: "hidden",
+        background,
+        // Force an own compositing layer so rounded corners keep clipping while
+        // an ancestor (e.g. RevealItem entrance) animates a transform — without
+        // this iOS Safari briefly shows square black corners.
+        transform: "translateZ(0)",
+        ...style,
+      }}
+    >
       {/* Action layer sitting behind the sliding content. */}
       <div
         aria-hidden={!open}

@@ -18,6 +18,8 @@ interface DashboardProps {
   onOpenSettings?: (origin: { x: number; y: number }) => void;
   /** Opens the notifications page with a circular reveal from the tapped bell. */
   onOpenNotifications?: (origin: { x: number; y: number }) => void;
+  /** Opens the Vet tab with the "Notes for the vet" detail screen showing. */
+  onOpenVetNotes?: () => void;
 }
 
 const HERO = "var(--color-pawpal-hero)"; // cream
@@ -63,6 +65,7 @@ export function Dashboard({
   onLogBathroom,
   onOpenSettings,
   onOpenNotifications,
+  onOpenVetNotes,
 }: DashboardProps): React.ReactElement {
   const { db, update } = useDb();
   const toast = useToast();
@@ -525,8 +528,8 @@ export function Dashboard({
       <motion.div variants={CARD_ITEM} style={{ padding: "16px 16px 0" }}>
         <button
           type="button"
-          onClick={() => onNavigate("vet")}
-          aria-label="Notes for the vet"
+          onClick={() => (onOpenVetNotes ? onOpenVetNotes() : onNavigate("vet"))}
+          aria-label="Vet notes"
           style={{
             display: "block",
             width: "100%",
@@ -557,7 +560,7 @@ export function Dashboard({
                 color: DARK,
               }}
             >
-              Notes for the vet
+              Vet notes
             </span>
             {openVetCount > 0 && (
               <span

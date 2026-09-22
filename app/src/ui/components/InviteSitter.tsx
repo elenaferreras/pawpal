@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { QRCodeSVG } from "qrcode.react";
 import { VStack } from "@astryxdesign/core/Stack";
 import { Icon } from "@astryxdesign/core/Icon";
 import { Button } from "./Button";
+import { MotionSheet } from "./MotionSheet";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
 import { getCurrentUser } from "../lib/auth";
@@ -172,6 +173,12 @@ export function InviteSitter(): React.ReactElement {
 
   const active = invites.filter((i) => inviteStatus(i) === "pending" || inviteStatus(i) === "active");
 
+  // Keep the last-opened invite around so the detail sheet keeps its content
+  // while MotionSheet plays its slide-out exit animation.
+  const lastDetail = useRef<InviteRow | null>(null);
+  if (detailInvite) lastDetail.current = detailInvite;
+  const shownDetail = detailInvite ?? lastDetail.current;
+
   return (
     <VStack gap={3}>
       <VStack gap={0.5}>
@@ -229,44 +236,32 @@ export function InviteSitter(): React.ReactElement {
         />
 
       {/* Invite detail — bottom sheet with the code + actions */}
-      {detailInvite && (
-        <div className="walk-sheet-scrim" onClick={() => setDetailInvite(null)}>
-          <div
-            className="chooser-sheet"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Invite code"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <span
-              aria-hidden
-              style={{
-                width: 36,
-                height: 5,
-                borderRadius: 100,
-                background: "rgba(233,228,196,0.3)",
-                alignSelf: "center",
-                marginBottom: 20,
-              }}
-            />
+      <MotionSheet
+        open={!!detailInvite}
+        onClose={() => setDetailInvite(null)}
+        ariaLabel="Invite code"
+        scrimClassName="walk-sheet-scrim"
+        sheetClassName="chooser-sheet"
+      >
+        {shownDetail && (
             <VStack gap={2}>
               <VStack gap={0.5}>
-                <PanelTitle>{detailInvite.alias || "Sitter code"}</PanelTitle>
+                <PanelTitle>{shownDetail.alias || "Sitter code"}</PanelTitle>
                 <PanelText>
-                  {inviteStatus(detailInvite) === "active"
-                    ? `In use${detailInvite.claimed_by ? ` · ${detailInvite.claimed_by}` : ""}`
+                  {inviteStatus(shownDetail) === "active"
+                    ? `In use${shownDetail.claimed_by ? ` · ${shownDetail.claimed_by}` : ""}`
                     : "Not used yet"}{" "}
-                  · ends {fmtWhen(detailInvite.expires_at)}
+                  · ends {fmtWhen(shownDetail.expires_at)}
                 </PanelText>
               </VStack>
 
-              {detailInvite.notes?.trim() && (
+              {shownDetail.notes?.trim() && (
                 <div className="invite-notes">
                   <PanelText style={{ opacity: 0.8, marginBottom: 4 }}>
                     Notes for the sitter
                   </PanelText>
                   <PanelText style={{ whiteSpace: "pre-wrap" }}>
-                    {detailInvite.notes}
+                    {shownDetail.notes}
                   </PanelText>
                 </div>
               )}
@@ -280,7 +275,7 @@ export function InviteSitter(): React.ReactElement {
                   gap: 8,
                 }}
               >
-                <div className="invite-code">{formatCode(detailInvite.code)}</div>
+                <div className="invite-code">{formatCode(shownDetail.code)}</div>
                 <button
                   type="button"
                   className="invite-kebab"
@@ -313,7 +308,7 @@ export function InviteSitter(): React.ReactElement {
                           className="ios-menu-item"
                           onClick={() => {
                             setMenuOpen(false);
-                            void copy(formatCode(detailInvite.code), "Code");
+                            void copy(formatCode(shownDetail.code), "Code");
                           }}
                         >
                           <span>Copy code</span>
@@ -325,7 +320,7 @@ export function InviteSitter(): React.ReactElement {
                           className="ios-menu-item"
                           onClick={() => {
                             setMenuOpen(false);
-                            void copy(sitterLink(detailInvite.code), "Link");
+                            void copy(sitterLink(shownDetail.code), "Link");
                           }}
                         >
                           <span>Copy link</span>
@@ -352,7 +347,7 @@ export function InviteSitter(): React.ReactElement {
               {showQr && (
                 <div className="invite-qr" style={{ alignSelf: "center" }}>
                   <QRCodeSVG
-                    value={sitterLink(detailInvite.code)}
+                    value={sitterLink(shownDetail.code)}
                     size={168}
                     level="M"
                     marginSize={2}
@@ -365,47 +360,30 @@ export function InviteSitter(): React.ReactElement {
               <Button
                 label="Edit name & duration"
                 variant="secondary"
-                onClick={() => openEdit(detailInvite)}
+                onClick={() => openEdit(shownDetail)}
                 fullWidth
               />
               <Button
                 label="Revoke access"
                 variant="destructive"
-                onClick={() => void revoke(detailInvite.id)}
+                onClick={() => void revoke(shownDetail.id)}
                 fullWidth
               />
             </VStack>
-          </div>
-        </div>
-      )}
+        )}
+      </MotionSheet>
 
       {/* Duration chooser — bottom sheet (create or edit) */}
-      {choosing && (
-        <div
-          className="walk-sheet-scrim"
-          onClick={() => {
-            setChoosing(false);
-            setEditing(null);
-          }}
-        >
-          <div
-            className="chooser-sheet"
-            role="dialog"
-            aria-modal="true"
-            aria-label={editing ? "Edit invite" : "Choose invite duration"}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <span
-              aria-hidden
-              style={{
-                width: 36,
-                height: 5,
-                borderRadius: 100,
-                background: "rgba(233,228,196,0.3)",
-                alignSelf: "center",
-                marginBottom: 20,
-              }}
-            />
+      <MotionSheet
+        open={choosing}
+        onClose={() => {
+          setChoosing(false);
+          setEditing(null);
+        }}
+        ariaLabel={editing ? "Edit invite" : "Choose invite duration"}
+        scrimClassName="walk-sheet-scrim"
+        sheetClassName="chooser-sheet"
+      >
             <VStack gap={2}>
               <VStack gap={0.5}>
                 <PanelTitle>{editing ? "Edit invite" : "How long?"}</PanelTitle>
@@ -490,9 +468,7 @@ export function InviteSitter(): React.ReactElement {
                 />
               </VStack>
             </VStack>
-          </div>
-        </div>
-      )}
+      </MotionSheet>
       </VStack>
   );
 }

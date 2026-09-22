@@ -342,6 +342,8 @@ button {
   flex: 0 0 100%;
   min-width: 100%;
   scroll-snap-align: start;
+  /* Stop at every panel so a single fling can't skip multiple weeks. */
+  scroll-snap-stop: always;
 }
 
 /* Calendar (WalksStats) variant: pad the scrollport so the selected day's
@@ -507,8 +509,13 @@ body.modal-open {
   position: fixed;
   left: 0;
   right: 0;
-  overflow: hidden;
-  height: 100%;
+  /* `position: fixed` already pins the page (no scroll), so no `overflow: hidden`
+     is needed for the lock. Crucially, an `overflow: hidden` fixed body CLIPS the
+     portaled fixed sheet scrim on iOS: with a scrolled page (inline top: -Ypx)
+     and/or the home-indicator safe area, the scrim gets cut short of the physical
+     bottom, revealing the brown html background as a gap under the sheet. Letting
+     the body not clip keeps the fixed scrim viewport-sized, edge to edge. */
+  height: 100dvh;
 }
 .modal {
   background: var(--bg);
@@ -695,6 +702,10 @@ body.modal-open {
   height: 5px;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.22);
+}
+/* Dark chooser-sheet surface: use a cream grabber so it stays visible. */
+.chooser-sheet .sheet-grabber {
+  background: rgba(233, 228, 196, 0.3);
 }
 .sheet-nav {
   display: grid;
@@ -3957,6 +3968,54 @@ input.wts-field[type="time"] {
   margin-bottom: auto;
   justify-content: center;
 }
+.obw-heading {
+  width: 100%;
+  max-width: 370px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: center;
+}
+.obw-title {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--color-pawpal-hero);
+}
+.obw-sub {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--color-pawpal-hero) 72%, transparent);
+}
+.obw-buttons {
+  width: 100%;
+  max-width: 370px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+/* Sitter-claim sheet: non-dismissable bottom sheet over the hero. Keep the
+   scrim clear so the full-bleed dog hero stays visible above the sheet. */
+.sitclaim-scrim {
+  background: transparent;
+}
+.sitclaim-sheet {
+  align-items: center;
+  gap: 20px;
+  /* Float the sheet with even side + bottom gaps, fully rounded like our
+     other card sheets (the scrim centres it horizontally). */
+  width: min(560px, calc(100% - 24px));
+  margin-bottom: 12px;
+  border-radius: 32px;
+  padding: 28px 24px calc(24px + env(safe-area-inset-bottom, 12px));
+  /* Elevation so the sheet reads as floating over the hero. */
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.38), 0 2px 8px rgba(0, 0, 0, 0.24);
+}
 .sitclaim-input {
   width: 100%;
   max-width: 370px;
@@ -4725,12 +4784,10 @@ input.wts-field[type="time"] {
   pointer-events: none;
   -webkit-backdrop-filter: blur(12px) saturate(150%);
   backdrop-filter: blur(12px) saturate(150%);
-  background: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0.28) 0%,
-    rgba(0, 0, 0, 0.12) 55%,
-    transparent 100%
-  );
+  /* No dark scrim: over the uniformly dark-brown page a tinted gradient reads as
+     a solid brown bar (worse on tall top insets like iPhone 15's Dynamic Island).
+     White status text is already legible on the dark app, so keep a pure frost
+     and only fade the blur out before its bottom edge (no hard blur seam). */
   -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 62%, transparent 100%);
   mask-image: linear-gradient(to bottom, #000 0%, #000 62%, transparent 100%);
 }

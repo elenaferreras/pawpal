@@ -34,9 +34,14 @@ const RABIES = "Rabies";
 const DHPP = "DHPP / DAPP (Combination Vaccine)";
 const OTHER = "Other";
 
+// Attachments are stored inline as base64, so keep uploads small.
+const MAX_FILE_BYTES = 2 * 1024 * 1024;
+
 interface VetAddModalProps {
   open: boolean;
   onClose: () => void;
+  /** When set, the sheet edits this existing checkup instead of adding a new record. */
+  editCheckupIndex?: number | null;
   /** When set, the sheet edits this existing reminder instead of adding a new record. */
   editReminderIndex?: number | null;
   /** When set, the sheet edits this existing vaccine instead of adding a new record. */
@@ -60,6 +65,7 @@ interface VetAddModalProps {
 export function VetAddModal({
   open,
   onClose,
+  editCheckupIndex,
   editReminderIndex,
   editVaccineIndex,
   addTypes,
@@ -68,6 +74,13 @@ export function VetAddModal({
   const toast = useToast();
   const allowedTypes = addTypes && addTypes.length ? addTypes : RECORD_TYPES.map((t) => t.value);
   const [type, setType] = useState<RecordType>(allowedTypes[0]);
+
+  const editCheckup =
+    editCheckupIndex != null &&
+    editCheckupIndex >= 0 &&
+    editCheckupIndex < db.vetRecords.checkups.length
+      ? db.vetRecords.checkups[editCheckupIndex]
+      : null;
 
   const editReminder =
     editReminderIndex != null &&
@@ -83,12 +96,18 @@ export function VetAddModal({
       ? db.vetRecords.vaccines[editVaccineIndex]
       : null;
 
-  const isEdit = Boolean(editReminder || editVaccine);
+  const isEdit = Boolean(editCheckup || editReminder || editVaccine);
   const addLabel =
     allowedTypes.length === 1
       ? "Add " + (RECORD_TYPES.find((t) => t.value === allowedTypes[0])?.label.toLowerCase() ?? "record")
       : "New health entry";
-  const sheetLabel = editReminder ? "Edit reminder" : editVaccine ? "Edit vaccine" : addLabel;
+  const sheetLabel = editCheckup
+    ? "Edit checkup"
+    : editReminder
+      ? "Edit reminder"
+      : editVaccine
+        ? "Edit vaccine"
+        : addLabel;
 
   // Checkup
   const [reason, setReason] = useState("");
@@ -96,6 +115,8 @@ export function VetAddModal({
   const [clinic, setClinic] = useState("");
   const [cNotes, setCNotes] = useState("");
   const [fileName, setFileName] = useState("");
+  const [fileData, setFileData] = useState("");
+  const [fileMime, setFileMime] = useState("");
 
   // Vaccine
   const [vNameChoice, setVNameChoice] = useState<string>(RABIES);
@@ -138,6 +159,8 @@ export function VetAddModal({
     setClinic("");
     setCNotes("");
     setFileName("");
+    setFileData("");
+    setFileMime("");
     setVNameChoice(RABIES);
     setVNameOther("");
     setVManufacturer("");
@@ -154,6 +177,17 @@ export function VetAddModal({
     setMDays(7);
     setMStart(today);
     setMNotes("");
+    // Editing an existing checkup: lock the sheet to the checkup form and prefill.
+    if (editCheckup) {
+      setType("checkup");
+      setReason(editCheckup.reason);
+      setCDate(editCheckup.date || today);
+      setClinic(editCheckup.clinic ?? "");
+      setCNotes(editCheckup.notes ?? "");
+      setFileName(editCheckup.fileName ?? "");
+      setFileData(editCheckup.fileData ?? "");
+      setFileMime(editCheckup.fileMime ?? "");
+    }
     // Editing an existing reminder: lock the sheet to the reminder form and prefill.
     if (editReminder) {
       setType("reminder");
@@ -179,7 +213,7 @@ export function VetAddModal({
       setVClinic(editVaccine.clinic ?? "");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, editReminderIndex, editVaccineIndex]);
+  }, [open, editCheckupIndex, editReminderIndex, editVaccineIndex]);
 
   const medEnd = useMemo<string | null>(() => {
     if (mDays === 0 || !mStart) return null;
@@ -195,6 +229,24 @@ export function VetAddModal({
 
   const save = (): void => {
     if (type === "checkup") {
+      if (editCheckup && editCheckupIndex != null) {
+        update((d) => {
+          const existing = d.vetRecords.checkups[editCheckupIndex];
+          if (existing) {
+            existing.reason = reason || "Visit";
+            existing.date = cDate;
+            existing.clinic = clinic;
+            existing.notes = cNotes;
+            existing.hasFile = fileName !== "";
+            existing.fileName = fileName;
+            existing.fileData = fileData || undefined;
+            existing.fileMime = fileMime || undefined;
+          }
+        });
+        toast("Checkup updated");
+        onClose();
+        return;
+      }
       const rec: Checkup = {
         reason: reason || "Visit",
         date: cDate,
@@ -202,6 +254,8 @@ export function VetAddModal({
         notes: cNotes,
         hasFile: fileName !== "",
         fileName,
+        fileData: fileData || undefined,
+        fileMime: fileMime || undefined,
         created: new Date().toISOString(),
       };
       update((d) => {
@@ -359,7 +413,17 @@ export function VetAddModal({
                 <TextRow label="Reason" value={reason} onChange={setReason} placeholder="Annual checkup" />
                 <DateRow label="Date" value={cDate} onChange={setCDate} />
                 <TextRow label="Clinic" value={clinic} onChange={setClinic} placeholder="Clinic name" />
-                <FileRow label="File (PDF)" fileName={fileName} onPick={setFileName} accept=".pdf" />
+                <FileRow
+                  label="File (PDF)"
+                  fileName={fileName}
+                  accept=".pdf"
+                  onPick={(name, data, mime) => {
+                    setFileName(name);
+                    setFileData(data);
+                    setFileMime(mime);
+                  }}
+                  onError={toast}
+                />
               </Group>
               <NotesGroup value={cNotes} onChange={setCNotes} />
             </>
@@ -451,14 +515,27 @@ function FileRow({
   label,
   fileName,
   onPick,
+  onError,
   accept,
 }: {
   label: string;
   fileName: string;
-  onPick: (name: string) => void;
+  onPick: (name: string, data: string, mime: string) => void;
+  onError: (message: string) => void;
   accept?: string;
 }): React.ReactElement {
   const inputRef = useRef<HTMLInputElement>(null);
+  const handlePick = (file: File): void => {
+    if (file.size > MAX_FILE_BYTES) {
+      onError("File too large \u2014 keep it under 2 MB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () =>
+      onPick(file.name, typeof reader.result === "string" ? reader.result : "", file.type || "application/pdf");
+    reader.onerror = () => onError("Couldn't read that file");
+    reader.readAsDataURL(file);
+  };
   return (
     <div className="wts-row">
       <span className="wts-row-label">{label}</span>
@@ -476,7 +553,10 @@ function FileRow({
         type="file"
         accept={accept}
         hidden
-        onChange={(e) => onPick(e.target.files?.[0]?.name || "")}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handlePick(file);
+        }}
       />
     </div>
   );

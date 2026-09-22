@@ -18,7 +18,7 @@ import { Eyebrow, Headline, Footnote } from "../components/Typography";
 import { TopBar } from "../components/TopBar";
 import { Icons } from "../lib/icons";
 import { fmtDate, today } from "../lib/date";
-import type { Avatar, HealthDocument, Priority, Profile, Vaccine, VetNote, WeightEntry } from "../types";
+import type { Avatar, Checkup, HealthDocument, Priority, Profile, Vaccine, VetNote, WeightEntry } from "../types";
 
 type IconComponent = (typeof Icons)[keyof typeof Icons];
 
@@ -120,11 +120,23 @@ interface VetProps {
   onAdd: (types?: RecordType[]) => void;
   onEditReminder: (index: number) => void;
   onEditVaccine: (index: number) => void;
+  onEditCheckup: (index: number) => void;
+  /** When true, open the "Notes for the vet" detail screen on entry. */
+  openNotes?: boolean;
+  /** Called once the notes screen has been auto-opened, to clear the request. */
+  onNotesOpened?: () => void;
 }
 
 type Collection = "checkups" | "vaccines" | "reminders" | "medications";
 
-export function Vet({ onAdd, onEditReminder, onEditVaccine }: VetProps): React.ReactElement {
+export function Vet({
+  onAdd,
+  onEditReminder,
+  onEditVaccine,
+  onEditCheckup,
+  openNotes,
+  onNotesOpened,
+}: VetProps): React.ReactElement {
   const { db, update } = useDb();
   const toast = useToast();
   const confirm = useConfirm();
@@ -179,6 +191,14 @@ export function Vet({ onAdd, onEditReminder, onEditVaccine }: VetProps): React.R
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Deep-link from the dashboard "Notes for the vet" card: open the detail
+  // screen straight away, then clear the request so it doesn't re-open.
+  useEffect(() => {
+    if (!openNotes) return;
+    setNotesOpen(true);
+    onNotesOpened?.();
+  }, [openNotes, onNotesOpened]);
 
   // One-time migration: fold legacy vaccine `nextDue` into `validUntil`, and
   // seed the weight log from the single numeric `profile.weight` if empty.
@@ -300,6 +320,19 @@ export function Vet({ onAdd, onEditReminder, onEditVaccine }: VetProps): React.R
 
   const openDocument = (doc: HealthDocument): void => {
     fetch(doc.data)
+      .then((r) => r.blob())
+      .then((blob) => {
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank");
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      })
+      .catch(() => toast("Couldn't open that file"));
+  };
+
+  // Opens a checkup's inline attachment (stored as a base64 data URL).
+  const openCheckupFile = (checkup: Checkup): void => {
+    if (!checkup.fileData) return;
+    fetch(checkup.fileData)
       .then((r) => r.blob())
       .then((blob) => {
         const url = URL.createObjectURL(blob);
@@ -532,9 +565,29 @@ export function Vet({ onAdd, onEditReminder, onEditVaccine }: VetProps): React.R
             extra={
               <>
                 {c.notes && <Footnote color={MUTED}>{c.notes}</Footnote>}
-                {c.hasFile && <Footnote color={HERO}>📎 {c.fileName}</Footnote>}
+                {c.hasFile &&
+                  (c.fileData ? (
+                    <button
+                      type="button"
+                      onClick={() => openCheckupFile(c)}
+                      style={{
+                        alignSelf: "flex-start",
+                        border: "none",
+                        background: "transparent",
+                        padding: 0,
+                        cursor: "pointer",
+                        textDecoration: "underline",
+                        textAlign: "left",
+                      }}
+                    >
+                      <Footnote color={HERO}>📎 {c.fileName}</Footnote>
+                    </button>
+                  ) : (
+                    <Footnote color={MUTED}>📎 {c.fileName}</Footnote>
+                  ))}
               </>
             }
+            onEdit={() => onEditCheckup(index)}
             onDelete={() => del("checkups", index)}
           />
         ))
@@ -832,7 +885,7 @@ function VetNotesScreen({
     <HealthDetailScreen
       open={open}
       onClose={onClose}
-      title="Notes for the vet"
+      title="Vet notes"
       subtitle={noteItems.length > 0 ? `${openCount} open · ${noteItems.length} total` : undefined}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
