@@ -63,6 +63,7 @@ export function AvatarSheet({ open, value, onConfirm, onClose }: AvatarSheetProp
           style={{
             position: "fixed",
             inset: 0,
+            minHeight: "100vh",
             zIndex: 1000,
             background: "rgba(0,0,0,0.45)",
             display: "flex",

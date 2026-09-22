@@ -498,6 +498,10 @@ select.form-input {
 .modal-overlay {
   position: fixed;
   inset: 0;
+  /* Cover the large viewport so the backdrop paints through the iOS bottom
+     safe-area inset (see .walk-sheet-scrim) instead of revealing the page. */
+  min-height: 100vh;
+  min-height: 100lvh;
   background: rgba(0, 0, 0, 0.3);
   z-index: 200;
   align-items: flex-end;
@@ -767,6 +771,13 @@ body.modal-open {
 .walk-sheet-scrim {
   position: fixed;
   inset: 0;
+  /* On iOS a `position: fixed; inset: 0` element resolves `bottom: 0` to the
+     *small* (visual) viewport, so it stops above the home-indicator / browser
+     toolbar inset and the brown page background shows through below the floating
+     sheet. Force coverage of the *large* viewport (full physical screen) so the
+     backdrop always paints through that bottom inset — no brown gap. */
+  min-height: 100vh;
+  min-height: 100lvh;
   /* Above the full-screen dog-sitter overlay (.sit, z 1000) and the minimised
      live-walk bar (z 1100) so a tracked walk stays visible in sitter mode. */
   z-index: 1200;
