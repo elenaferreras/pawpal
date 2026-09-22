@@ -921,6 +921,7 @@ button.wts-row {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-family: var(--font-ui);
   font-weight: 500;
   font-size: 17px;
   letter-spacing: -0.02em;
@@ -4202,51 +4203,292 @@ input.wts-field[type="time"] {
 .has-live-bar .sit {
   top: calc(56px + env(safe-area-inset-top, 0px));
 }
-.sit-banner {
-  position: sticky;
-  top: 0;
-  z-index: 2;
+/* Owner left a message — green highlight banner above the content. */
+.sit-note-banner {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
-  padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px;
-  background: color-mix(in srgb, var(--color-pawpal-page) 88%, transparent);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(233, 228, 196, 0.1);
+  padding: 14px 20px;
+  border-radius: 32px;
+  background: rgba(169, 231, 167, 0.2);
   color: var(--color-pawpal-hero);
 }
-.sit-banner-text {
+.sit-note-banner-icon {
   display: flex;
-  flex-direction: column;
-  min-width: 0;
+  flex-shrink: 0;
+  color: #a9e7a7;
 }
-.sit-banner-title {
+.sit-note-banner-text {
   font-family: var(--font-ui);
   font-weight: 700;
   font-size: 16px;
+  color: color-mix(in srgb, #a9e7a7 88%, white);
 }
-.sit-banner-sub {
-  font-size: 12px;
-  opacity: 0.6;
+/* Message variant (profile sheet): shows the full note, wraps, sits at top. */
+.sit-note-banner--message {
+  align-items: flex-start;
+  margin-bottom: 16px;
 }
-.sit-banner-end {
+.sit-note-banner--message .sit-note-banner-icon {
+  margin-top: 2px;
+}
+.sit-note-banner--message .sit-note-banner-text {
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+/* Owner-style sitter header: dog avatar + "Sitting for …" + bell. */
+.sit-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 2px 0 8px;
+}
+.sit-header-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  overflow: hidden;
   flex-shrink: 0;
-  border: 1px solid var(--color-data-yellow-3);
-  border-radius: 100px;
-  padding: 8px 18px;
-  background: transparent;
-  color: var(--color-data-yellow-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sit-header-title {
+  flex: 1;
+  min-width: 0;
   font-family: var(--font-ui);
   font-weight: 700;
-  cursor: pointer;
+  font-size: 34px;
+  line-height: 41px;
+  letter-spacing: -0.4px;
+  color: var(--color-pawpal-hero);
+  overflow: hidden;
+  white-space: nowrap;
 }
 .sit-body {
   display: flex;
   flex-direction: column;
   gap: 24px;
   padding: 24px 16px calc(24px + var(--safe-bottom));
+}
+/* ── Sitter dashboard (new design) ─────────────────────────────────────── */
+/* "Zipi's day so far" card with two stat tiles. */
+.sit-daycard {
+  background: var(--color-dash-surface);
+  border-radius: 32px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.sit-daycard-eyebrow {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-pawpal-hero) 65%, transparent);
+}
+.sit-daycard-tiles {
+  display: flex;
+  gap: 12px;
+}
+.sit-tile {
+  flex: 1;
+  min-width: 0;
+  border-radius: 24px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.sit-tile--steps {
+  background: color-mix(in srgb, var(--color-dash-walk) 26%, var(--color-pawpal-page));
+}
+.sit-tile--food {
+  background: color-mix(in srgb, var(--color-food) 26%, var(--color-pawpal-page));
+}
+.sit-tile-icon {
+  display: flex;
+}
+.sit-tile--steps .sit-tile-icon {
+  color: var(--color-dash-walk);
+}
+.sit-tile--food .sit-tile-icon {
+  color: var(--color-food);
+}
+.sit-tile-value {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 30px;
+  line-height: 1;
+  color: var(--color-pawpal-hero);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.sit-tile-unit {
+  font-size: 15px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--color-pawpal-hero) 62%, transparent);
+}
+/* Segmented control: "With you" | "All entries". */
+.sit-seg {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-pawpal-hero) 10%, transparent);
+}
+.sit-seg-btn {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 8px;
+  background: transparent;
+  color: var(--color-pawpal-hero);
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.sit-seg-btn.is-on {
+  background: var(--color-data-yellow-1);
+  color: var(--color-pawpal-page);
+}
+/* Today's activity feed. */
+.sit-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sit-feed-title {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--color-pawpal-hero);
+}
+.sit-feed-empty {
+  background: var(--color-dash-surface);
+  border-radius: 24px;
+  padding: 36px 20px;
+  text-align: center;
+  font-family: var(--font-ui);
+  font-size: 16px;
+  color: color-mix(in srgb, var(--color-pawpal-hero) 55%, transparent);
+}
+.sit-feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sit-feed-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--color-dash-surface);
+  border-radius: 20px;
+  padding: 14px 16px;
+}
+.sit-feed-icon {
+  display: flex;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: color-mix(in srgb, currentColor 16%, transparent);
+}
+.sit-feed-label {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--color-pawpal-hero);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sit-feed-you {
+  flex-shrink: 0;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--color-pawpal-page);
+  background: var(--color-data-yellow-1);
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+.sit-feed-time {
+  flex-shrink: 0;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  color: color-mix(in srgb, var(--color-pawpal-hero) 55%, transparent);
+}
+/* Fixed quick-add FAB, bottom-right (above the GooeyFab scrim). */
+.sit-fab-wrap {
+  position: fixed;
+  right: 20px;
+  bottom: calc(24px + var(--safe-bottom));
+  z-index: 400;
+}
+/* Option rows inside the walk / meal / profile sheets. */
+.sit-sheet-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 0 4px;
+}
+.sit-sheet-option {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  border: none;
+  border-radius: 20px;
+  padding: 16px;
+  background: color-mix(in srgb, var(--color-pawpal-hero) 8%, transparent);
+  cursor: pointer;
+  text-align: left;
+}
+.sit-sheet-option:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.sit-sheet-option-icon {
+  display: flex;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: color-mix(in srgb, currentColor 16%, transparent);
+}
+.sit-sheet-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.sit-sheet-option-title {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--color-pawpal-hero);
+}
+.sit-sheet-option-sub {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: color-mix(in srgb, var(--color-pawpal-hero) 60%, transparent);
 }
 .sit-hero {
   display: flex;
@@ -4351,11 +4593,14 @@ input.wts-field[type="time"] {
 }
 .sit-info-label {
   opacity: 0.6;
+  font-family: var(--font-ui);
   font-size: 14px;
+  color: var(--color-pawpal-hero);
   flex-shrink: 0;
 }
 .sit-info-value {
   text-align: right;
+  font-family: var(--font-ui);
   font-weight: 600;
   overflow-wrap: anywhere;
   white-space: pre-wrap;

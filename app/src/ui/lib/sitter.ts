@@ -269,10 +269,37 @@ export async function sitterLog(
   token: string,
   entry: SitterEntry,
 ): Promise<Database> {
+  return sitterMutate({ token, entry });
+}
+
+/** Edit a sitter-logged entry (matched by its `created` id). */
+export async function sitterUpdate(
+  token: string,
+  entry: SitterEntry,
+  created: string,
+): Promise<Database> {
+  return sitterMutate({ token, action: "update", created, entry });
+}
+
+/** Delete a sitter-logged entry (matched by its `created` id). */
+export async function sitterDelete(
+  token: string,
+  type: SitterEntry["type"],
+  created: string,
+): Promise<Database> {
+  return sitterMutate({ token, action: "delete", created, entry: { type, data: {} } as SitterEntry });
+}
+
+async function sitterMutate(body: {
+  token: string;
+  action?: "update" | "delete";
+  created?: string;
+  entry: SitterEntry;
+}): Promise<Database> {
   const res = await fetch(fnUrl("sitter-log"), {
     method: "POST",
     headers: { apikey: getSBConfig().key, "Content-Type": "application/json" },
-    body: JSON.stringify({ token, entry }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error((await errText(res)) || "Could not save. Try again.");
   const out = (await res.json()) as { snapshot: Database };

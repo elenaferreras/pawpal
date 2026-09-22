@@ -3,11 +3,13 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 interface GooeyFabProps {
   open: boolean;
   onClose: () => void;
-  onWalk: () => void;
-  onMeal: () => void;
-  onDiary: () => void;
-  onPoop: () => void;
-  onVet: () => void;
+  onWalk?: () => void;
+  onMeal?: () => void;
+  onDiary?: () => void;
+  onPoop?: () => void;
+  onVet?: () => void;
+  /** Tight two-bubble cluster that hugs the FAB (sitter's walk + meal menu). */
+  compact?: boolean;
 }
 
 interface Item {
@@ -59,14 +61,21 @@ export function GooeyFab({
   onDiary,
   onPoop,
   onVet,
+  compact,
 }: GooeyFabProps): React.ReactElement | null {
-  const items: Item[] = [
-    { key: "walk", label: "walks", color: "#8592E0", bx: 40, by: 0, onSelect: onWalk }, // blue
-    { key: "meal", label: "meals", color: "#E96A41", bx: 150, by: 14, onSelect: onMeal }, // red
-    { key: "vet", label: "health", color: "#EDD4FD", bx: 8, by: 88, onSelect: onVet }, // purple
-    { key: "poop", label: "bathroom", color: "#A9E7A7", bx: 82, by: 136, onSelect: onPoop }, // green
-    { key: "diary", label: "diary", color: "#FFFF83", bx: 162, by: 104, onSelect: onDiary }, // yellow
-  ];
+  // Compact mode tucks the two bubbles into a tight diagonal just up-and-left
+  // of the launcher; the full menu spreads five bubbles across the cluster box.
+  const walkPos = compact ? { bx: 112, by: 118 } : { bx: 40, by: 0 };
+  const mealPos = compact ? { bx: 176, by: 30 } : { bx: 150, by: 14 };
+  const items: Item[] = (
+    [
+      { key: "walk", label: "walks", color: "#8592E0", bx: walkPos.bx, by: walkPos.by, onSelect: onWalk }, // blue
+      { key: "meal", label: "meals", color: "#E96A41", bx: mealPos.bx, by: mealPos.by, onSelect: onMeal }, // red
+      { key: "vet", label: "health", color: "#EDD4FD", bx: 8, by: 88, onSelect: onVet }, // purple
+      { key: "poop", label: "bathroom", color: "#A9E7A7", bx: 82, by: 136, onSelect: onPoop }, // green
+      { key: "diary", label: "diary", color: "#FFFF83", bx: 162, by: 104, onSelect: onDiary }, // yellow
+    ] as Array<Omit<Item, "onSelect"> & { onSelect?: () => void }>
+  ).filter((it): it is Item => typeof it.onSelect === "function");
 
   const [render, setRender] = useState(open);
   const [visible, setVisible] = useState(false);

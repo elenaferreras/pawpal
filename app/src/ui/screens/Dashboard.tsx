@@ -7,6 +7,7 @@ import { WalksBarChart, type WalksBar } from "../components/WalksBarChart";
 import { DogFace } from "../avatar/DogAvatar";
 import { Eyebrow, CardTitle, StatNumber, Caption, Callout } from "../components/Typography";
 import { TopBar } from "../components/TopBar";
+import { FitText } from "../components/FitText";
 import { Icons } from "../lib/icons";
 import type { ScreenId } from "../types";
 
@@ -249,23 +250,23 @@ export function Dashboard({
             >
               <DogFace avatar={p.avatar} size={44} />
             </button>
-            <span
+            <FitText
+              max={34}
+              min={20}
               style={{
                 flex: 1,
                 minWidth: 0,
                 fontFamily: "var(--font-ui)",
                 fontWeight: 700,
-                fontSize: 34,
                 lineHeight: "41px",
                 letterSpacing: -0.4,
                 color: HERO,
                 overflow: "hidden",
-                textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
               }}
             >
               {p.name || "Dieguito"}
-            </span>
+            </FitText>
             <button
               type="button"
               aria-label="Notifications"

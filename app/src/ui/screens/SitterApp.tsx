@@ -4,15 +4,23 @@ import { useToast } from "../lib/toast";
 import { Icons } from "../lib/icons";
 import { DogFace } from "../avatar/DogAvatar";
 import { useLiveWalk, type TrackedWalk } from "../components/LiveWalk";
+import { TopBar } from "../components/TopBar";
+import { FitText } from "../components/FitText";
+import { GooeyFab } from "../components/GooeyFab";
+import { MotionSheet } from "../components/MotionSheet";
+import { WalkTrackSheet } from "../components/WalkTrackSheet";
+import { SwipeableRow } from "../components/SwipeableRow";
 import {
   clearSitterSession,
   saveSitterSession,
   sitterLog,
+  sitterUpdate,
+  sitterDelete,
   validateSitterSession,
   type SitterEntry,
   type SitterState,
 } from "../lib/sitter";
-import type { Database } from "../types";
+import type { Database, Walk } from "../types";
 
 interface SitterAppProps {
   state: SitterState;
@@ -45,6 +53,14 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
   const toast = useToast();
   const [snapshot, setSnapshot] = useState<Database>(state.snapshot);
   const [busy, setBusy] = useState<string | null>(null);
+  const [feedScope, setFeedScope] = useState<"mine" | "all">("mine");
+  const [fabOpen, setFabOpen] = useState(false);
+  const [mealSheet, setMealSheet] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [walkForm, setWalkForm] = useState<{ open: boolean; editCreated: string | null }>({
+    open: false,
+    editCreated: null,
+  });
 
   // Heartbeat: poll the server so a revoked (or expired) session signs the
   // sitter out promptly, even if they never log another activity. Runs on
@@ -75,9 +91,8 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
   const avatar = snapshot.profile?.avatar;
   const avatarBg = avatar?.bg ?? "var(--color-dash-pooped)";
   const todayISO = localISO(new Date());
-  const endsAt = fmtTime(state.session.expiresAt);
 
-  const { active: walkActive, start: startWalk, openSheet, registerExternalSave } = useLiveWalk();
+  const { registerExternalSave } = useLiveWalk();
 
   const today = useMemo(() => {
     const walks = (snapshot.walks ?? []).filter((w) => w.date === todayISO);
@@ -91,15 +106,6 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
     return { walks: walks.length, steps, mealSlots, poops };
   }, [snapshot, todayISO]);
 
-  // What this sitter has logged today (server-tagged `by: "sitter"`) — the
-  // "your shift" view of the time spent with the dog.
-  const mine = useMemo(() => {
-    const walks = (snapshot.walks ?? []).filter((w) => w.date === todayISO && w.by === "sitter").length;
-    const meals = (snapshot.meals ?? []).filter((m) => m.date === todayISO && m.by === "sitter").length;
-    const poops = (snapshot.bathroom ?? []).filter((b) => b.date === todayISO && b.by === "sitter").length;
-    return { walks, meals, poops, total: walks + meals + poops };
-  }, [snapshot, todayISO]);
-
   const mealsPerDay = snapshot.profile?.mealsPerDay || 4;
 
   const eatenSlots = useMemo(() => {
@@ -108,6 +114,54 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
       .map((m) => m.mealSlot as number);
     return new Set(slots);
   }, [snapshot, todayISO]);
+
+  const foodPct = Math.round((today.mealSlots / mealsPerDay) * 100);
+
+  // Today's combined activity (owner + sitter), newest first. Each row carries
+  // who logged it so the "With you" filter can hide the owner's entries.
+  const feed = useMemo(() => {
+    const walks = (snapshot.walks ?? [])
+      .filter((w) => w.date === todayISO)
+      .map((w) => ({
+        id: `walk-${w.created}`,
+        kind: "walk" as const,
+        time: w.time,
+        created: w.created,
+        mine: w.by === "sitter",
+        icon: Icons.footprints,
+        tone: WALK,
+        label: Number(w.steps) > 0 ? `Walk \u00b7 ${Number(w.steps).toLocaleString()} steps` : "Walk",
+      }));
+    const meals = (snapshot.meals ?? [])
+      .filter((m) => m.date === todayISO)
+      .map((m) => ({
+        id: `meal-${m.created}`,
+        kind: "meal" as const,
+        time: m.time,
+        created: m.created,
+        mine: m.by === "sitter",
+        icon: Icons.forkKnife,
+        tone: MEAL,
+        label: m.mealSlot != null ? `${ORDINALS[m.mealSlot] ?? `${m.mealSlot + 1}th`} meal` : "Meal",
+      }));
+    const poops = (snapshot.bathroom ?? [])
+      .filter((b) => b.date === todayISO)
+      .map((b) => ({
+        id: `poop-${b.created}`,
+        kind: "poop" as const,
+        time: b.time,
+        created: b.created,
+        mine: b.by === "sitter",
+        icon: Icons.toilet,
+        tone: POOP,
+        label: b.type === "pipi" ? "Pee" : b.type === "popo" ? "Poop" : "Bathroom",
+      }));
+    return [...walks, ...meals, ...poops].sort((a, b) =>
+      String(b.created ?? "").localeCompare(String(a.created ?? "")),
+    );
+  }, [snapshot, todayISO]);
+
+  const shownFeed = feedScope === "all" ? feed : feed.filter((e) => e.mine);
 
   const log = async (kind: string, entry: SitterEntry): Promise<void> => {
     if (busy) return;
@@ -131,12 +185,41 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
     }
   };
 
-  // Quick manual walk (no tracking) — a single tap logs "went on a walk".
-  const logWalk = (): Promise<void> =>
-    log("walk", {
-      type: "walk",
-      data: { date: todayISO, time: fmtTime(new Date().toISOString()), pipi: false, popo: false },
-    });
+  // Save a walk from the owner-style log form — new (append) or an edit of an
+  // existing sitter walk (matched by its `created` id), via the broker.
+  const submitWalk = async (fields: Partial<Walk>, editing: Walk | null): Promise<void> => {
+    try {
+      const next = editing
+        ? await sitterUpdate(state.session.token, { type: "walk", data: fields }, editing.created)
+        : await sitterLog(state.session.token, {
+            type: "walk",
+            data: { ...fields, time: fmtTime(new Date().toISOString()) },
+          });
+      setSnapshot(next);
+      saveSitterSession({ ...state, snapshot: next });
+      toast(editing ? "Walk updated \u{1F43E}" : `Walk logged \u2014 thanks for walking ${dog}! \u{1F43E}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Couldn't save the walk.";
+      if (/expired|no_session/i.test(msg)) {
+        toast("Your sitting session ended.");
+        end();
+        return;
+      }
+      toast(msg);
+    }
+  };
+
+  const deleteWalk = async (created: string): Promise<void> => {
+    try {
+      const next = await sitterDelete(state.session.token, "walk", created);
+      setSnapshot(next);
+      saveSitterSession({ ...state, snapshot: next });
+      toast("Walk deleted");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Couldn't delete the walk.";
+      toast(msg);
+    }
+  };
 
   // Log a specific meal slot (empty slots only — owner logs stay read-only).
   const logMealSlot = (slot: number): Promise<void> => {
@@ -152,12 +235,6 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
       },
     });
   };
-
-  const logPoop = (): Promise<void> =>
-    log("poop", {
-      type: "bathroom",
-      data: { date: todayISO, time: fmtTime(new Date().toISOString()), type: "popo" },
-    });
 
   // Persist a GPS/pedometer-tracked walk to the owner via the server broker.
   const saveTrackedWalk = useCallback(
@@ -182,6 +259,7 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
     return () => registerExternalSave(null, null);
   }, [registerExternalSave, saveTrackedWalk, avatar]);
 
+  // Sign the sitter out (used when the session expires mid-action).
   const end = (): void => {
     clearSitterSession();
     onEnd();
@@ -189,188 +267,244 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
 
   return (
     <div className="sit">
-      {/* Top bar */}
-      <div className="sit-banner">
-        <div className="sit-banner-text">
-          <span className="sit-banner-title">Sitting for {dog}</span>
-          <span className="sit-banner-sub">{`Ends ${endsAt} · read + log only`}</span>
-        </div>
-        <button type="button" className="sit-banner-end" onClick={end}>
-          End
-        </button>
-      </div>
+      {/* Owner-style header: the dog's avatar, "Sitting for …" and a bell. */}
+      <TopBar
+        title={`Sitting for ${dog}`}
+        largeTitle={
+          <div className="sit-header">
+            <button
+              type="button"
+              className="sit-header-avatar"
+              style={{ background: avatarBg }}
+              aria-label={`${dog}'s profile`}
+              onClick={() => setProfileOpen(true)}
+            >
+              <DogFace avatar={avatar} size={44} />
+            </button>
+            <FitText className="sit-header-title" max={34} min={20}>
+              Sitting for {dog}
+            </FitText>
+            <button type="button" aria-label="Notifications" className="glass-btn">
+              <Icon icon={Icons.bell} color="inherit" />
+            </button>
+          </div>
+        }
+      />
 
       <div className="sit-body">
-        {/* Hero — the pup you're caring for */}
-        <div className="sit-hero">
-          <div className="sit-avatar" style={{ background: avatarBg }}>
-            <DogFace avatar={avatar} size={96} />
-          </div>
-          <h1 className="sit-hello">
-            You&rsquo;re looking after
-            <br />
-            <span className="sit-dog">{dog}</span> today.
-          </h1>
-        </div>
-
-        {/* Your shift — the time you've spent with the dog */}
-        <div className="sit-shift">
-          <div className="sit-shift-head">
-            <span className="sit-shift-title">Your shift</span>
-            <span className="sit-shift-end">until {endsAt}</span>
-          </div>
-          <p className="sit-shift-sub">
-            {mine.total > 0
-              ? `You've logged ${mine.total} thing${mine.total === 1 ? "" : "s"} for ${dog} today.`
-              : `Nothing logged yet \u2014 start by taking ${dog} for a walk.`}
-          </p>
-          <div className="sit-shift-stats">
-            <ShiftStat label="Walks" value={mine.walks} tone={WALK} />
-            <ShiftStat label="Meals" value={mine.meals} tone={MEAL} />
-            <ShiftStat label="Poops" value={mine.poops} tone={POOP} />
-          </div>
-        </div>
-
-        {/* Today so far — the dog's full day (owner + sitter) */}
-        <div className="sit-summary">
-          <SummaryStat label="Walks" value={String(today.walks)} tone={WALK} />
-          <SummaryStat label="Meals" value={`${today.mealSlots}/${mealsPerDay}`} tone={MEAL} />
-          <SummaryStat label="Poops" value={String(today.poops)} tone={POOP} />
-        </div>
-
-        {/* Walk — start a tracked walk or log one quickly */}
-        <div className="sit-walk-card">
-          <div className="sit-walk-head">
-            <span className="sit-walk-title">
-              {walkActive ? "Walk in progress" : "Ready for a walk?"}
+        {/* Owner left a note for the sitter — surface it above the content. */}
+        {state.session.notes?.trim() ? (
+          <div className="sit-note-banner">
+            <span className="sit-note-banner-icon">
+              <Icon icon={Icons.chat} color="inherit" />
             </span>
-            <span className="sit-walk-sub">GPS &amp; step tracking</span>
+            <span className="sit-note-banner-text">You have a message from the owner</span>
           </div>
+        ) : null}
+
+        {/* Zipi's day so far — steps + food at a glance */}
+        <div className="sit-daycard">
+          <span className="sit-daycard-eyebrow">{dog}&rsquo;s day so far</span>
+          <div className="sit-daycard-tiles">
+            <div className="sit-tile sit-tile--steps">
+              <span className="sit-tile-icon">
+                <Icon icon={Icons.pawPrint} color="inherit" />
+              </span>
+              <span className="sit-tile-value">
+                {today.steps.toLocaleString()}
+                <span className="sit-tile-unit">steps</span>
+              </span>
+            </div>
+            <div className="sit-tile sit-tile--food">
+              <span className="sit-tile-icon">
+                <Icon icon={Icons.forkKnife} color="inherit" />
+              </span>
+              <span className="sit-tile-value">
+                {foodPct}%<span className="sit-tile-unit">of food</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Filter: this sitter's logs vs the dog's whole day */}
+        <div className="sit-seg" role="tablist" aria-label="Activity filter">
           <button
             type="button"
-            className="sit-walk-start"
-            aria-label={walkActive ? "Open the walk in progress" : `Start a tracked walk with ${dog}`}
-            onClick={() => (walkActive ? openSheet() : startWalk())}
+            role="tab"
+            aria-selected={feedScope === "mine"}
+            className={"sit-seg-btn" + (feedScope === "mine" ? " is-on" : "")}
+            onClick={() => setFeedScope("mine")}
           >
-            {walkActive ? (
-              <span>In progress</span>
-            ) : (
-              <>
-                <span>Start</span>
-                <span className="sit-walk-play">
-                  <Icon icon={Icons.play} color="inherit" />
-                </span>
-              </>
-            )}
+            With you
           </button>
           <button
             type="button"
-            className="sit-walk-log"
-            disabled={busy === "walk"}
-            onClick={() => void logWalk()}
+            role="tab"
+            aria-selected={feedScope === "all"}
+            className={"sit-seg-btn" + (feedScope === "all" ? " is-on" : "")}
+            onClick={() => setFeedScope("all")}
           >
-            {busy === "walk" ? "Saving\u2026" : "Log a walk without tracking"}
+            All entries
           </button>
         </div>
 
-        {/* Meals — mirrors the owner's dashboard widget; owner logs are read-only */}
-        <div className="sit-meals-card">
-          <div className="sit-meals-head">
-            <span className="sit-meals-title">Meals</span>
-            <span className="sit-meals-count">
-              {today.mealSlots}/{mealsPerDay}
-            </span>
-          </div>
-          <div className="sit-meals-row">
-            {Array.from({ length: mealsPerDay }, (_, slot) => {
-              const done = eatenSlots.has(slot);
-              return (
-                <div key={slot} className="sit-meal-slot">
-                  <button
-                    type="button"
-                    className={"sit-meal-dot" + (done ? " is-done" : "")}
-                    aria-pressed={done}
-                    disabled={done || busy === "meal"}
-                    aria-label={
-                      done
-                        ? `${ORDINALS[slot] ?? `Meal ${slot + 1}`} meal already logged`
-                        : `Log the ${ORDINALS[slot] ?? `${slot + 1}th`} meal`
-                    }
-                    onClick={() => void logMealSlot(slot)}
-                  >
-                    {done && <Icon icon={Icons.checkCircle} color="inherit" />}
-                  </button>
-                  <span className="sit-meal-label">{ORDINALS[slot] ?? slot + 1}</span>
-                </div>
-              );
-            })}
-          </div>
+        {/* Today's activity feed */}
+        <div className="sit-feed">
+          <span className="sit-feed-title">Today</span>
+          {shownFeed.length === 0 ? (
+            <div className="sit-feed-empty">Nothing logged yet.</div>
+          ) : (
+            <div className="sit-feed-list">
+              {shownFeed.map((e) => {
+                const row = (
+                  <div className="sit-feed-row">
+                    <span className="sit-feed-icon" style={{ color: e.tone }}>
+                      <Icon icon={e.icon} color="inherit" />
+                    </span>
+                    <span className="sit-feed-label">{e.label}</span>
+                    {feedScope === "all" && e.mine ? (
+                      <span className="sit-feed-you">You</span>
+                    ) : null}
+                    <span className="sit-feed-time">{e.time}</span>
+                  </div>
+                );
+                // Only the sitter's own walks can be edited or deleted.
+                if (e.kind === "walk" && e.mine) {
+                  return (
+                    <SwipeableRow
+                      key={e.id}
+                      background="var(--color-dash-surface)"
+                      style={{ borderRadius: 20 }}
+                      actions={[
+                        {
+                          label: "Edit",
+                          color: "#8592E0",
+                          icon: <Icon icon={Icons.pencilSimple} color="inherit" />,
+                          onAction: () => setWalkForm({ open: true, editCreated: e.created }),
+                        },
+                        {
+                          label: "Delete",
+                          color: "#ff3b30",
+                          icon: <Icon icon={Icons.trash} color="inherit" />,
+                          onAction: () => void deleteWalk(e.created),
+                        },
+                      ]}
+                    >
+                      {row}
+                    </SwipeableRow>
+                  );
+                }
+                return <div key={e.id}>{row}</div>;
+              })}
+            </div>
+          )}
         </div>
+      </div>
 
-        {/* Bathroom — quick poop logger */}
+      {/* Quick-add FAB — logs a walk or a meal via the owner-style menu */}
+      <div className="sit-fab-wrap">
         <button
           type="button"
-          className="sit-bath-card"
-          disabled={busy === "poop"}
-          onClick={() => void logPoop()}
+          className={"nav-fab nav-fab-grid" + (fabOpen ? " nav-fab-open" : "")}
+          aria-label={fabOpen ? "Close menu" : "Log an activity"}
+          aria-expanded={fabOpen}
+          onClick={() => setFabOpen((v) => !v)}
         >
-          <span className="sit-bath-title">{busy === "poop" ? "Saving\u2026" : "Mark a poop"}</span>
-          <span className="sit-bath-icon">
-            <Icon icon={Icons.toilet} color="inherit" />
-          </span>
+          <Icon icon={Icons.plus} color="inherit" />
         </button>
+      </div>
+      <GooeyFab
+        open={fabOpen}
+        onClose={() => setFabOpen(false)}
+        onWalk={() => setWalkForm({ open: true, editCreated: null })}
+        onMeal={() => setMealSheet(true)}
+        compact
+      />
 
-        {/* Emergency / owner info */}
+      {/* Owner-style walk log form — new walk or editing a logged one. */}
+      <WalkTrackSheet
+        open={walkForm.open}
+        onClose={() => setWalkForm({ open: false, editCreated: null })}
+        walks={snapshot.walks ?? []}
+        editCreated={walkForm.editCreated}
+        onSubmit={(fields, editing) => void submitWalk(fields, editing)}
+      />
+
+      {/* Log a meal */}
+      <MotionSheet
+        open={mealSheet}
+        onClose={() => setMealSheet(false)}
+        ariaLabel="Log a meal"
+        scrimClassName="walk-sheet-scrim"
+        sheetClassName="chooser-sheet"
+        title="Log a meal"
+        titleColor={HERO}
+        onCancel={() => setMealSheet(false)}
+      >
+        <div className="sit-sheet-options">
+          {Array.from({ length: mealsPerDay }, (_, slot) => {
+            const done = eatenSlots.has(slot);
+            return (
+              <button
+                key={slot}
+                type="button"
+                className="sit-sheet-option"
+                disabled={done || busy === "meal"}
+                onClick={() => {
+                  setMealSheet(false);
+                  void logMealSlot(slot);
+                }}
+              >
+                <span className="sit-sheet-option-icon" style={{ color: MEAL }}>
+                  <Icon icon={done ? Icons.checkCircle : Icons.forkKnife} color="inherit" />
+                </span>
+                <span className="sit-sheet-option-text">
+                  <span className="sit-sheet-option-title">
+                    {ORDINALS[slot] ?? `${slot + 1}th`} meal
+                  </span>
+                  <span className="sit-sheet-option-sub">
+                    {done ? "Already logged" : "Tap to mark as fed"}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </MotionSheet>
+
+      {/* Zipi's profile — feeding, vet & the owner's notes (from the avatar) */}
+      <MotionSheet
+        open={profileOpen}
+        onClose={() => setProfileOpen(false)}
+        ariaLabel={`${dog}'s profile`}
+        scrimClassName="walk-sheet-scrim"
+        sheetClassName="chooser-sheet"
+        title={dog}
+        titleColor={HERO}
+        onCancel={() => setProfileOpen(false)}
+      >
+        {/* The owner's message, surfaced in the green banner at the top. */}
+        {state.session.notes?.trim() ? (
+          <div className="sit-note-banner sit-note-banner--message">
+            <span className="sit-note-banner-icon">
+              <Icon icon={Icons.chat} color="inherit" />
+            </span>
+            <span className="sit-note-banner-text">{state.session.notes}</span>
+          </div>
+        ) : null}
         <div className="sit-info">
-          <InfoRow label="Feeding" value={`${mealsPerDay} meals \u00b7 ${snapshot.profile?.foodGoal || "—"} g/day`} />
+          <InfoRow label="Breed" value={snapshot.profile?.breed || "\u2014"} />
+          <InfoRow
+            label="Feeding"
+            value={`${mealsPerDay} meals \u00b7 ${snapshot.profile?.foodGoal || "\u2014"} g/day`}
+          />
           <InfoRow label="Vet" value={snapshot.profile?.vet || "Not provided"} />
           <InfoRow label="Vet phone" value={snapshot.profile?.vetPhone || "Not provided"} />
-          {state.session.notes?.trim() ? (
-            <InfoRow label="From the owner" value={state.session.notes} />
-          ) : null}
           {snapshot.vetRecords?.notes ? (
             <InfoRow label="Notes" value={snapshot.vetRecords.notes} />
           ) : null}
         </div>
-      </div>
-    </div>
-  );
-}
-
-function ShiftStat({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: number;
-  tone: string;
-}): React.ReactElement {
-  return (
-    <div className="sit-shift-stat">
-      <span className="sit-shift-stat-value" style={{ color: tone }}>
-        {value}
-      </span>
-      <span className="sit-shift-stat-label">{label}</span>
-    </div>
-  );
-}
-
-function SummaryStat({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string;
-  tone: string;
-}): React.ReactElement {
-  return (
-    <div className="sit-stat">
-      <span className="sit-stat-value" style={{ color: tone }}>
-        {value}
-      </span>
-      <span className="sit-stat-label">{label}</span>
+      </MotionSheet>
     </div>
   );
 }

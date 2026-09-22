@@ -26,6 +26,8 @@ Deno.serve(async (req) => {
   let body: {
     token?: string;
     ping?: boolean;
+    action?: string;
+    created?: string;
     entry?: { type?: string; data?: unknown };
   };
   try {
@@ -57,6 +59,7 @@ Deno.serve(async (req) => {
   const data = (body.entry?.data ?? {}) as Record<string, unknown>;
   const arrayKey = ARRAY_FOR[type];
   if (!arrayKey) return json({ error: "bad_request" }, 400);
+  const action = String(body.action ?? "append");
 
   // Validate the session.
   const sRes = await sb(
@@ -80,14 +83,30 @@ Deno.serve(async (req) => {
 
   // Append the sanitized entry, tagged as sitter-created.
   const list = Array.isArray(payload[arrayKey])
-    ? (payload[arrayKey] as unknown[])
+    ? (payload[arrayKey] as Array<Record<string, unknown>>)
     : [];
-  const entry = {
-    ...data,
-    created: new Date().toISOString(),
-    by: "sitter",
-  };
-  payload[arrayKey] = [...list, entry];
+
+  if (action === "update" || action === "delete") {
+    // Sitters may only edit/delete entries they logged themselves.
+    const created = String(body.created ?? "");
+    if (!created) return json({ error: "bad_request" }, 400);
+    const idx = list.findIndex((e) => e?.created === created && e?.by === "sitter");
+    if (idx < 0) return json({ error: "not_found" }, 404);
+    const next = [...list];
+    if (action === "delete") {
+      next.splice(idx, 1);
+    } else {
+      next[idx] = { ...next[idx], ...data, created, by: "sitter" };
+    }
+    payload[arrayKey] = next;
+  } else {
+    const entry = {
+      ...data,
+      created: new Date().toISOString(),
+      by: "sitter",
+    };
+    payload[arrayKey] = [...list, entry];
+  }
 
   // Write it back.
   const wRes = await sb("pawpal_data", {
@@ -101,22 +120,24 @@ Deno.serve(async (req) => {
   });
   if (!wRes.ok) return json({ error: "write_failed" }, 500);
 
-  // Notify the owner (best-effort) that their sitter logged something — this
-  // reaches their phone even when the PawPal app is closed.
-  const profile = (payload.profile ?? {}) as { name?: string };
-  const dog = profile.name?.trim();
-  const who = dog ? `${dog}'s sitter` : "Your sitter";
-  const what =
-    type === "walk"
-      ? "logged a walk \u{1F43E}"
-      : type === "meal"
-        ? "logged a meal \u{1F356}"
-        : "logged a bathroom break \u{1F4A9}";
-  await sendOwnerPush(session.owner_row_key, {
-    title: "Sitter update \u{1F43E}",
-    body: `${who} ${what}.`,
-    tag: "sitter-activity",
-  });
+  // Notify the owner (best-effort) only when something new is logged — edits
+  // and deletions shouldn't ping their phone.
+  if (action === "append") {
+    const profile = (payload.profile ?? {}) as { name?: string };
+    const dog = profile.name?.trim();
+    const who = dog ? `${dog}'s sitter` : "Your sitter";
+    const what =
+      type === "walk"
+        ? "logged a walk \u{1F43E}"
+        : type === "meal"
+          ? "logged a meal \u{1F356}"
+          : "logged a bathroom break \u{1F4A9}";
+    await sendOwnerPush(session.owner_row_key, {
+      title: "Sitter update \u{1F43E}",
+      body: `${who} ${what}.`,
+      tag: "sitter-activity",
+    });
+  }
 
   return json({ ok: true, snapshot: payload });
 });

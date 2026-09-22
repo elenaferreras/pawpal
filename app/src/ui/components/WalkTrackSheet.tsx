@@ -30,6 +30,13 @@ interface WalkTrackSheetProps {
   prefillDate?: string | null;
   /** Open on the "Log a walk" chooser step, which morphs into the activity form. */
   startInChooser?: boolean;
+  /** Injected walk list (e.g. a sitter's snapshot) used instead of the local DB. */
+  walks?: Walk[];
+  /** Edit the injected walk with this `created` id (used with {@link walks}). */
+  editCreated?: string | null;
+  /** When set, saving calls this instead of writing to the local DB. Receives the
+   *  assembled fields and the walk being edited (null for a new entry). */
+  onSubmit?: (fields: Partial<Walk>, editing: Walk | null) => void;
 }
 
 const DARK = "var(--color-pawpal-page)"; // #352B25
@@ -82,14 +89,21 @@ function activitySummary(w: Walk): string {
  * (re-opening a day edits it). Fields: date, amount of walks, steps, walker,
  * location, weather + terrain (multiselect), socialised, and a poop count.
  */
-export function WalkTrackSheet({ open, onClose, editIndex, prefillDate, startInChooser }: WalkTrackSheetProps): React.ReactElement {
+export function WalkTrackSheet({ open, onClose, editIndex, prefillDate, startInChooser, walks, editCreated, onSubmit }: WalkTrackSheetProps): React.ReactElement {
   const { db, update } = useDb();
   const toast = useToast();
   const { walkers } = useWalkers();
   const { start: startLiveWalk } = useLiveWalk();
 
+  // Sitter mode injects its own walk list + save callback; otherwise use the DB.
+  const walksList = walks ?? db.walks;
+
   const editWalk =
-    editIndex != null && editIndex >= 0 && editIndex < db.walks.length ? db.walks[editIndex] : null;
+    editCreated != null
+      ? walksList.find((w) => w.created === editCreated) ?? null
+      : editIndex != null && editIndex >= 0 && editIndex < walksList.length
+        ? walksList[editIndex]
+        : null;
 
   // "choose" shows the two options (live GPS vs the day's activity) and morphs
   // into "form" — the same sheet growing into the activity editor.
@@ -111,7 +125,7 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate, startInC
 
   /** The day's aggregate walk (the manual, non-GPS entry) for a given date. */
   const aggregateIndexFor = (iso: string): number =>
-    db.walks.findIndex((w) => w.date === iso && !isLiveEntry(w));
+    walksList.findIndex((w) => w.date === iso && !isLiveEntry(w));
 
   const loadFrom = (w: Walk): void => {
     setDateISO(w.date || localISO(new Date()));
@@ -134,14 +148,14 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate, startInC
       loadFrom(editWalk);
     } else {
       const startDate = prefillDate || localISO(new Date());
-      const existing = db.walks[aggregateIndexFor(startDate)];
+      const existing = walksList[aggregateIndexFor(startDate)];
       if (existing) {
         // Re-opening a day that already has an aggregate → edit it.
         loadFrom(existing);
       } else {
         // Fresh day: carry forward the last aggregate's conditions/walker so a
         // routine day is a couple of taps; outcomes start empty.
-        const last = db.walks
+        const last = walksList
           .filter((w) => w.created && !isLiveEntry(w))
           .sort((a, b) => (b.created || "").localeCompare(a.created || ""))[0];
         setDateISO(startDate);
@@ -160,7 +174,7 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate, startInC
     weatherTouched.current = false;
     locationTouched.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, editIndex]);
+  }, [open, editIndex, editCreated]);
 
   // For a new day, fill weather + location from the user's current position.
   // Prefill only — a manual edit or an existing entry wins.
@@ -185,7 +199,7 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate, startInC
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, editIndex]);
+  }, [open, editIndex, editCreated]);
 
   const save = (): void => {
     const trimmedNotes = notes.trim();
@@ -222,6 +236,14 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate, startInC
       sentToVet: sendToVet && trimmedNotes !== "",
     };
 
+    // Sitter mode: hand the assembled fields back to the caller (which persists
+    // via the sitter broker) instead of touching the owner's local DB.
+    if (onSubmit) {
+      onSubmit(fields, editWalk);
+      onClose();
+      return;
+    }
+
     // Upsert: edit the targeted walk, else the day's existing aggregate, else add.
     const targetIndex = editIndex != null && editWalk ? editIndex : aggregateIndexFor(dateISO);
     if (targetIndex >= 0) {
@@ -249,7 +271,7 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate, startInC
   };
 
   const existingForDate = aggregateIndexFor(dateISO) >= 0 || (editWalk != null);
-  const existingAgg = editWalk ?? db.walks[aggregateIndexFor(dateISO)] ?? null;
+  const existingAgg = editWalk ?? walksList[aggregateIndexFor(dateISO)] ?? null;
 
   return (
     <MotionSheet
