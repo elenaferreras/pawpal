@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useDragControls, useReducedMotion } from "moti
 import { Icon } from "@astryxdesign/core/Icon";
 import { Icons } from "../lib/icons";
 import { useScrollLock } from "../lib/scrollLock";
+import { getOverlayRoot } from "../lib/overlayRoot";
 import type { Avatar } from "../types";
 import { DogAvatar } from "./DogAvatar";
 import {
@@ -231,7 +232,7 @@ export function AvatarSheet({ open, value, onConfirm, onClose }: AvatarSheetProp
         </motion.div>
       )}
     </AnimatePresence>,
-    document.body,
+    getOverlayRoot(),
   );
 }
 

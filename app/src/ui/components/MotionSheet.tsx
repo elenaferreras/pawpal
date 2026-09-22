@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Icon } from "@astryxdesign/core/Icon";
 import { Icons } from "../lib/icons";
 import { useScrollLock } from "../lib/scrollLock";
+import { getOverlayRoot } from "../lib/overlayRoot";
 
 interface MotionSheetProps {
   open: boolean;
@@ -167,6 +168,6 @@ export function MotionSheet({
         </motion.div>
       )}
     </AnimatePresence>,
-    document.body,
+    getOverlayRoot(),
   );
 }
