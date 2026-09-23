@@ -293,7 +293,19 @@ export function Dashboard({
         animate="show"
       >
         <motion.div variants={CARD_ITEM} style={{ padding: "0 16px" }}>
-          <div style={{ background: HERO, borderRadius: 32, padding: 24 }}>
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label="View walks"
+            onClick={() => onNavigate("walks")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onNavigate("walks");
+              }
+            }}
+            style={{ background: HERO, borderRadius: 32, padding: 24, cursor: "pointer" }}
+          >
           {/* Week carousel — each panel is one Monday → Sunday week. */}
           <div
             ref={weekScrollRef}
@@ -327,19 +339,12 @@ export function Dashboard({
             ))}
           </div>
 
-          <button
-            type="button"
-            onClick={() => onNavigate("walks")}
-            aria-label="View walks"
+          <div
             style={{
               marginTop: 20,
               display: "block",
               width: "100%",
               textAlign: "left",
-              border: "none",
-              background: "none",
-              padding: 0,
-              cursor: "pointer",
             }}
           >
             <Eyebrow color={MUTED} size={13} tracking={0.6} style={{ paddingLeft: 0 }}>
@@ -353,7 +358,7 @@ export function Dashboard({
                 steps
               </StatNumber>
             </div>
-          </button>
+          </div>
         </div>
         </motion.div>
 

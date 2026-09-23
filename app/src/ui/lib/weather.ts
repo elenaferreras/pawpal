@@ -52,12 +52,43 @@ export async function autoWeather(lat: number, lng: number): Promise<WeatherKey 
   }
 }
 
-export function currentPosition(): Promise<GeolocationPosition> {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error("no geolocation"));
-      return;
+// Remember once we've shown the native geolocation prompt, so a user who
+// dismisses it (state stays "prompt") isn't re-asked on every visit.
+const GEO_ASKED_KEY = "pawpal_geo_asked";
+
+export async function currentPosition(): Promise<GeolocationPosition> {
+  if (!navigator.geolocation) throw new Error("no geolocation");
+
+  let state: PermissionState | null = null;
+  try {
+    if (navigator.permissions?.query) {
+      state = (await navigator.permissions.query({ name: "geolocation" as PermissionName })).state;
     }
+  } catch {
+    /* Permissions API unavailable — fall through to the one-time guard. */
+  }
+
+  if (state === "denied") throw new Error("geolocation denied");
+
+  // Only ever trigger the native prompt once. When already granted we fetch
+  // silently; otherwise ("prompt" or unknown) we ask a single time, then never
+  // auto-prompt again on later visits.
+  if (state !== "granted") {
+    let asked = false;
+    try {
+      asked = localStorage.getItem(GEO_ASKED_KEY) === "1";
+    } catch {
+      /* storage blocked — treat as not asked */
+    }
+    if (asked) throw new Error("geolocation not granted");
+    try {
+      localStorage.setItem(GEO_ASKED_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return new Promise((resolve, reject) => {
     navigator.geolocation.getCurrentPosition(resolve, reject, { maximumAge: 600_000, timeout: 8000 });
   });
 }

@@ -33,6 +33,8 @@ interface BottomNavProps {
   menuOpen?: boolean;
   /** Hide the nav entirely (e.g. on Settings, which closes with its own ✕). */
   hidden?: boolean;
+  /** First-run attention bounce on the launcher until the user opens the menu. */
+  hint?: boolean;
 }
 
 export function BottomNav({
@@ -42,6 +44,7 @@ export function BottomNav({
   onAction,
   menuOpen = false,
   hidden = false,
+  hint = false,
 }: BottomNavProps): React.ReactElement | null {
   if (hidden) return null;
 
@@ -49,13 +52,14 @@ export function BottomNav({
   // menu (grid icon); on any other screen it becomes a Home button back to Today.
   if (variant === "trigger") {
     const goHome = !menuOpen && current !== "home";
+    const bounce = hint && !menuOpen && !goHome;
     return (
       <nav className={"nav nav--trigger" + (menuOpen ? " nav-open" : "")}>
         <button
           type="button"
           aria-label={menuOpen ? "Close menu" : goHome ? "Home" : "Open menu"}
           aria-expanded={menuOpen}
-          className={"nav-fab nav-fab-grid"}
+          className={"nav-fab nav-fab-grid" + (bounce ? " nav-fab-grid--hint" : "")}
           onClick={goHome ? () => onNavigate?.("home") : onAction}
         >
           <Icon

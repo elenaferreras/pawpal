@@ -220,6 +220,34 @@ button {
 .nav-fab-grid:active {
   transform: scale(0.92);
 }
+/* First-run attention: a gentle bounce loop until the menu is opened once. */
+.nav-fab-grid--hint {
+  animation: nav-fab-bounce 1.6s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+}
+.nav-fab-grid--hint:active {
+  animation: none;
+}
+@keyframes nav-fab-bounce {
+  0%,
+  40%,
+  100% {
+    transform: translateY(0);
+  }
+  12% {
+    transform: translateY(-14px);
+  }
+  24% {
+    transform: translateY(-6px);
+  }
+  32% {
+    transform: translateY(-2px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-fab-grid--hint {
+    animation: none;
+  }
+}
 .scroll {
   padding: 4px 0 8px;
 }
@@ -794,19 +822,22 @@ body.modal-open {
   position: relative;
   width: min(560px, calc(100% - 12px));
   /* Cap the height so a tall form never slides its top (header actions) under
-     the iOS status bar / notch, while the bottom keeps a uniform 6px float gap. */
+     the iOS status bar / notch. */
   max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 18px);
-  /* Uniform 6px float gap on every side (sides come from the width calc). The
-     home-indicator inset is handled by the body's bottom padding, not by a big
-     bottom margin — otherwise the safe area shows as a brown band under the
-     sheet on notched phones. */
-  margin-bottom: 6px;
+  /* A `position: fixed` scrim resolves `bottom: 0` to the *small* viewport on
+     iOS, so it (and this sheet at its flex-end) stops above the home-indicator
+     inset and the brown page shows through. Pull the sheet down by that inset so
+     its own opaque surface paints over the region — the body's safe-area padding
+     keeps content clear of the indicator. Desktop (inset 0) is unaffected. */
+  margin-bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   background: color-mix(in srgb, var(--sheet-surface) 95%, transparent);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
   backdrop-filter: blur(12px) saturate(180%);
-  border-radius: 40px;
+  /* Bottom corners square: the sheet now reaches (and extends past) the physical
+     bottom edge, so rounded bottom corners would only expose scrim triangles. */
+  border-radius: 40px 40px 0 0;
   overflow: hidden;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.5),

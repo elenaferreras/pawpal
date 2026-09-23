@@ -97,6 +97,8 @@ function Shell(): React.ReactElement {
   const [authResolving, setAuthResolving] = useState(() => hasPendingOAuth());
   const [modal, setModal] = useState<QuickModal>("none");
   const [trackOpen, setTrackOpen] = useState(false);
+  // First-run bounce on the track-menu launcher until the user opens it once.
+  const [hintTrack, setHintTrack] = useState(() => !localStorage.getItem("pawpal_seen_track_menu"));
   const [editWalkIndex, setEditWalkIndex] = useState<number | null>(null);
   // Date to pre-fill when logging a new walk (e.g. the selected calendar day).
   const [walkPrefillDate, setWalkPrefillDate] = useState<string | null>(null);
@@ -503,8 +505,17 @@ function Shell(): React.ReactElement {
             variant="trigger"
             current={screen === "settings" ? "home" : screen.startsWith("settings") ? "settings" : screen}
             onNavigate={navigate}
-            onAction={() => setTrackOpen((v) => !v)}
+            onAction={() => {
+              setTrackOpen((v) => {
+                if (!v && hintTrack) {
+                  setHintTrack(false);
+                  localStorage.setItem("pawpal_seen_track_menu", "1");
+                }
+                return !v;
+              });
+            }}
             menuOpen={trackOpen}
+            hint={hintTrack}
             hidden={screen.startsWith("settings-")}
           />
 

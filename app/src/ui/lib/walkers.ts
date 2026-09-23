@@ -7,7 +7,7 @@
 import { useEffect, useState } from "react";
 import { getCurrentUser, getOwnerName } from "./auth";
 import { listCoOwnerInvites, type CoOwnerInviteRow } from "./coowner";
-import { listInvites } from "./sitter";
+import { listInvites, inviteStatus } from "./sitter";
 
 export type WalkerKind = "you" | "coowner" | "sitter";
 
@@ -68,7 +68,9 @@ export function useWalkers(): { walkers: Walker[]; loaded: boolean } {
       }
       for (const inv of sitRows) {
         const alias = inv.alias?.trim();
-        if (!alias || inv.revoked_at) continue;
+        // Only sitters with a live (claimed, unexpired) session — not old or
+        // pending invites.
+        if (!alias || inviteStatus(inv) !== "active") continue;
         list.push({ name: alias, kind: "sitter" });
       }
       setExtra(list);
