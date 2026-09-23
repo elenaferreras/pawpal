@@ -73,6 +73,16 @@ export function DbProvider({ children }: { children: ReactNode }): ReactNode {
       const prevOwner = getDataOwner();
       if (prevOwner === newKey) return; // same identity — nothing to do
 
+      // Signing out of an account drops us to the anonymous device identity.
+      // Start from a clean slate rather than re-pulling the shared device cloud
+      // row: that row can hold a previous session's residue, which would then
+      // be adopted by the next account created on this device (data leak).
+      if (newKey.startsWith("device_") && prevOwner?.startsWith("user_")) {
+        setDataOwner(newKey);
+        replace(defaultDatabase());
+        return;
+      }
+
       let remote: Partial<Database> | null = null;
       try {
         remote = await syncFromSupabase();

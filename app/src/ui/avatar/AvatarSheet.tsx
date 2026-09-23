@@ -197,6 +197,8 @@ export function AvatarSheet({ open, value, onConfirm, onClose }: AvatarSheetProp
             gap: 12,
             padding: "0 16px 8px",
             justifyItems: "center",
+            // Keep aspect-ratio tiles square; iOS Safari stretches them to ovals otherwise.
+            alignItems: "start",
             boxSizing: "border-box",
           }}
         >

@@ -151,6 +151,28 @@ export async function revokeInvite(inviteId: string): Promise<void> {
   if (!res.ok) throw new Error((await errText(res)) || "Could not revoke invite.");
 }
 
+/** Revive a spent (expired/revoked) invite with a fresh expiry so the same
+ *  code can be reused. Resets any prior claim so a sitter can join again. */
+export async function reactivateInvite(
+  inviteId: string,
+  durationPreset: DurationPreset,
+  opts: { customExpiresAt?: string } = {},
+): Promise<void> {
+  const res = await ownerPost({
+    action: "reactivate",
+    inviteId,
+    durationPreset,
+    customExpiresAt: expiryFor(durationPreset, opts.customExpiresAt),
+  });
+  if (!res.ok) throw new Error((await errText(res)) || "Could not reactivate invite.");
+}
+
+/** Permanently delete an invite and any of its sessions (owner only). */
+export async function deleteInvite(inviteId: string): Promise<void> {
+  const res = await ownerPost({ action: "delete", inviteId });
+  if (!res.ok) throw new Error((await errText(res)) || "Could not delete invite.");
+}
+
 /** Update an existing invite's alias and/or expiry (owner only). */
 export async function updateInvite(
   inviteId: string,

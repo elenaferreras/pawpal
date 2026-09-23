@@ -3612,6 +3612,8 @@ input.wts-field[type="time"] {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
+  /* Keep aspect-ratio tiles square; iOS Safari stretches them to ovals otherwise. */
+  align-items: start;
 }
 .fyp-tile {
   position: relative;

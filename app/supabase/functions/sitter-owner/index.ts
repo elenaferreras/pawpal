@@ -7,7 +7,10 @@
 //     → { inviteId, code, expiresAt, permissions }
 //   { action: "update", inviteId: string, alias?: string|null, notes?: string|null,
 //     durationPreset?: ..., customExpiresAt?: ISO } → { ok: true }
+//   { action: "reactivate", inviteId: string, durationPreset: ...,
+//     customExpiresAt?: ISO } → { ok: true, expiresAt }
 //   { action: "revoke", inviteId: string } → { ok: true }
+//   { action: "delete", inviteId: string } → { ok: true }
 import {
   durationToExpiry,
   generateCode,
@@ -115,6 +118,40 @@ Deno.serve(async (req) => {
     return json({ ok: true });
   }
 
+  if (action === "reactivate") {
+    const inviteId = body.inviteId ? String(body.inviteId) : "";
+    if (!inviteId) return json({ error: "bad_request" }, 400);
+
+    const expiresAt = durationToExpiry(
+      String(body.durationPreset ?? ""),
+      body.customExpiresAt ? String(body.customExpiresAt) : undefined,
+    );
+    if (!expiresAt) return json({ error: "invalid_duration" }, 400);
+
+    // Revive a spent invite: extend its expiry and reset claim/revoke state so
+    // the same code can be handed out again. Only the owner may do this.
+    const res = await sb(
+      `sitter_invites?id=eq.${inviteId}&owner_user_id=eq.${user.id}`,
+      {
+        method: "PATCH",
+        prefer: "return=representation",
+        body: JSON.stringify({
+          expires_at: expiresAt,
+          revoked_at: null,
+          claimed_at: null,
+          claimed_by: null,
+        }),
+      },
+    );
+    if (!res.ok) return json({ error: "reactivate_failed" }, 500);
+    const rows = (await res.json()) as unknown[];
+    if (rows.length === 0) return json({ error: "not_found" }, 404);
+
+    // Clear any stale sessions so the sitter starts a fresh claim.
+    await sb(`sitter_sessions?invite_id=eq.${inviteId}`, { method: "DELETE" });
+    return json({ ok: true, expiresAt });
+  }
+
   if (action === "revoke") {
     const inviteId = body.inviteId ? String(body.inviteId) : "";
     if (!inviteId) return json({ error: "bad_request" }, 400);
@@ -134,6 +171,22 @@ Deno.serve(async (req) => {
 
     // Kill any live sessions for this invite.
     await sb(`sitter_sessions?invite_id=eq.${inviteId}`, { method: "DELETE" });
+    return json({ ok: true });
+  }
+
+  if (action === "delete") {
+    const inviteId = body.inviteId ? String(body.inviteId) : "";
+    if (!inviteId) return json({ error: "bad_request" }, 400);
+
+    // Remove any sessions first, then the invite row itself.
+    await sb(`sitter_sessions?invite_id=eq.${inviteId}`, { method: "DELETE" });
+    const res = await sb(
+      `sitter_invites?id=eq.${inviteId}&owner_user_id=eq.${user.id}`,
+      { method: "DELETE", prefer: "return=representation" },
+    );
+    if (!res.ok) return json({ error: "delete_failed" }, 500);
+    const rows = (await res.json()) as unknown[];
+    if (rows.length === 0) return json({ error: "not_found" }, 404);
     return json({ ok: true });
   }
 

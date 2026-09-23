@@ -142,6 +142,16 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
     };
     update((d) => {
       d.profile = profile;
+      // Seed the weight history with the onboarding weight, stamped now, so the
+      // first data point reflects when the user actually entered it.
+      d.weightLog ??= [];
+      if (d.weightLog.length === 0) {
+        const kg = parseFloat(weight.replace(",", "."));
+        if (Number.isFinite(kg) && kg > 0) {
+          const now = new Date();
+          d.weightLog.push({ date: now.toISOString().split("T")[0], kg, created: now.toISOString() });
+        }
+      }
     });
     toast(`Welcome to PawPal, ${profile.name}! 🐾`);
     onDone();
@@ -307,7 +317,7 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
         avatarUrl={AVATAR_STICKERS.find((s) => s.id === sticker)?.url}
         avatarBg={bg}
         onBack={back}
-        onNext={() => go(needsAccount ? ACCOUNT_STEP : NOTIF_STEP)}
+        onNext={() => go(needsAccount ? ACCOUNT_STEP : FINISH_STEP)}
       />
     );
   } else if (step === ACCOUNT_STEP) {
@@ -316,7 +326,7 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
       <AccountStep
         dogName={dogName}
         onBack={() => go(REVIEW_STEP)}
-        onCreated={() => go(NOTIF_STEP)}
+        onCreated={() => go(FINISH_STEP)}
       />
     );
   } else if (step === NOTIF_STEP) {

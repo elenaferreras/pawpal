@@ -12,9 +12,11 @@ import { Icons } from "../lib/icons";
 import { PanelTitle, PanelText } from "../screens/settings/shared";
 import {
   createInvite,
+  deleteInvite,
   formatCode,
   inviteStatus,
   listInvites,
+  reactivateInvite,
   revokeInvite,
   sitterLink,
   updateInvite,
@@ -56,6 +58,7 @@ export function InviteSitter(): React.ReactElement {
   const [invites, setInvites] = useState<InviteRow[]>([]);
   const [choosing, setChoosing] = useState(false);
   const [editing, setEditing] = useState<InviteRow | null>(null);
+  const [reactivating, setReactivating] = useState<InviteRow | null>(null);
   const [preset, setPreset] = useState<DurationPreset>("tonight");
   const [alias, setAlias] = useState("");
   const [notes, setNotes] = useState("");
@@ -94,6 +97,25 @@ export function InviteSitter(): React.ReactElement {
   const create = async (): Promise<void> => {
     setBusy(true);
     try {
+      if (reactivating) {
+        // Refresh name/notes if changed, then revive with a new expiry.
+        await updateInvite(reactivating.id, {
+          alias: alias.trim(),
+          notes: notes.trim() || null,
+        });
+        await reactivateInvite(reactivating.id, preset, {
+          customExpiresAt:
+            preset === "custom" ? new Date(customAt).toISOString() : undefined,
+        });
+        setChoosing(false);
+        setReactivating(null);
+        const rows = await listInvites();
+        setInvites(rows);
+        setShowQr(false);
+        setDetailInvite(rows.find((r) => r.id === reactivating.id) ?? null);
+        toast("Sitter reactivated");
+        return;
+      }
       if (editing) {
         await updateInvite(editing.id, {
           alias: alias.trim(),
@@ -131,10 +153,23 @@ export function InviteSitter(): React.ReactElement {
   // Open the chooser sheet pre-filled to edit an existing invite's name/expiry.
   const openEdit = (inv: InviteRow): void => {
     setEditing(inv);
+    setReactivating(null);
     setAlias(inv.alias ?? "");
     setNotes(inv.notes ?? "");
     setPreset("custom");
     setCustomAt(toLocalDatetime(inv.expires_at));
+    setDetailInvite(null);
+    setChoosing(true);
+  };
+
+  // Open the chooser to revive a spent invite with a fresh duration.
+  const openReactivate = (inv: InviteRow): void => {
+    setReactivating(inv);
+    setEditing(null);
+    setAlias(inv.alias ?? "");
+    setNotes(inv.notes ?? "");
+    setPreset("tonight");
+    setCustomAt("");
     setDetailInvite(null);
     setChoosing(true);
   };
@@ -148,6 +183,18 @@ export function InviteSitter(): React.ReactElement {
       toast("Access ended");
     } catch (e) {
       toast(e instanceof Error ? e.message : "Could not revoke.");
+    }
+  };
+
+  const remove = async (id: string): Promise<void> => {
+    if (!window.confirm("Delete this sitter permanently?")) return;
+    try {
+      await deleteInvite(id);
+      setDetailInvite(null);
+      void refresh();
+      toast("Sitter deleted");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not delete.");
     }
   };
 
@@ -172,6 +219,9 @@ export function InviteSitter(): React.ReactElement {
   }
 
   const active = invites.filter((i) => inviteStatus(i) === "pending" || inviteStatus(i) === "active");
+  const inactive = invites.filter(
+    (i) => inviteStatus(i) === "expired" || inviteStatus(i) === "revoked",
+  );
 
   // Keep the last-opened invite around so the detail sheet keeps its content
   // while MotionSheet plays its slide-out exit animation.
@@ -227,6 +277,7 @@ export function InviteSitter(): React.ReactElement {
           variant={active.length > 0 ? "secondary" : "primary"}
           onClick={() => {
             setEditing(null);
+            setReactivating(null);
             setPreset("tonight");
             setAlias("");
             setNotes("");
@@ -234,6 +285,36 @@ export function InviteSitter(): React.ReactElement {
           }}
           fullWidth
         />
+
+        {/* Past codes — expired or revoked; can be reactivated or deleted */}
+        {inactive.length > 0 && (
+          <VStack gap={0.5}>
+            <PanelText style={{ opacity: 0.8 }}>Past sitters</PanelText>
+            {inactive.map((inv) => (
+              <button
+                key={inv.id}
+                type="button"
+                className="invite-row-btn"
+                onClick={() => {
+                  setShowQr(false);
+                  setDetailInvite(inv);
+                }}
+              >
+                <span className="invite-row-info">
+                  <PanelTitle>{inv.alias || formatCode(inv.code)}</PanelTitle>
+                  <PanelText>
+                    {inviteStatus(inv) === "revoked" ? "Access ended" : "Expired"}
+                    {" · "}
+                    {fmtWhen(inv.expires_at)}
+                  </PanelText>
+                </span>
+                <span className="invite-row-caret" aria-hidden>
+                  <Icon icon={Icons.caretRight} color="inherit" />
+                </span>
+              </button>
+            ))}
+          </VStack>
+        )}
 
       {/* Invite detail — bottom sheet with the code + actions */}
       <MotionSheet
@@ -248,10 +329,15 @@ export function InviteSitter(): React.ReactElement {
               <VStack gap={0.5}>
                 <PanelTitle>{shownDetail.alias || "Sitter code"}</PanelTitle>
                 <PanelText>
-                  {inviteStatus(shownDetail) === "active"
-                    ? `In use${shownDetail.claimed_by ? ` · ${shownDetail.claimed_by}` : ""}`
-                    : "Not used yet"}{" "}
-                  · ends {fmtWhen(shownDetail.expires_at)}
+                  {inviteStatus(shownDetail) === "revoked"
+                    ? `Access ended · ${fmtWhen(shownDetail.expires_at)}`
+                    : inviteStatus(shownDetail) === "expired"
+                      ? `Expired · ${fmtWhen(shownDetail.expires_at)}`
+                      : `${
+                          inviteStatus(shownDetail) === "active"
+                            ? `In use${shownDetail.claimed_by ? ` · ${shownDetail.claimed_by}` : ""}`
+                            : "Not used yet"
+                        } · ends ${fmtWhen(shownDetail.expires_at)}`}
                 </PanelText>
               </VStack>
 
@@ -266,109 +352,134 @@ export function InviteSitter(): React.ReactElement {
                 </div>
               )}
 
-              <div
-                style={{
-                  alignSelf: "center",
-                  position: "relative",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                }}
-              >
-                <div className="invite-code">{formatCode(shownDetail.code)}</div>
-                <button
-                  type="button"
-                  className="invite-kebab"
-                  aria-label="Code actions"
-                  aria-haspopup="menu"
-                  aria-expanded={menuOpen}
-                  onClick={() => setMenuOpen((v) => !v)}
-                >
-                  <Icon icon={Icons.moreVertical} color="inherit" />
-                </button>
-
-                <AnimatePresence>
-                  {menuOpen && (
-                    <>
-                      <div
-                        className="ios-menu-scrim"
-                        onClick={() => setMenuOpen(false)}
-                      />
-                      <motion.div
-                        className="ios-menu"
-                        role="menu"
-                        initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.85 }}
-                        animate={reduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1 }}
-                        exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.85 }}
-                        transition={{ type: "spring", stiffness: 500, damping: 32 }}
+              {inviteStatus(shownDetail) !== "expired" &&
+                inviteStatus(shownDetail) !== "revoked" && (
+                  <>
+                    <div
+                      style={{
+                        alignSelf: "center",
+                        position: "relative",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                      }}
+                    >
+                      <div className="invite-code">{formatCode(shownDetail.code)}</div>
+                      <button
+                        type="button"
+                        className="invite-kebab"
+                        aria-label="Code actions"
+                        aria-haspopup="menu"
+                        aria-expanded={menuOpen}
+                        onClick={() => setMenuOpen((v) => !v)}
                       >
-                        <button
-                          type="button"
-                          role="menuitem"
-                          className="ios-menu-item"
-                          onClick={() => {
-                            setMenuOpen(false);
-                            void copy(formatCode(shownDetail.code), "Code");
-                          }}
-                        >
-                          <span>Copy code</span>
-                          <Icon icon={Icons.copy} color="inherit" />
-                        </button>
-                        <button
-                          type="button"
-                          role="menuitem"
-                          className="ios-menu-item"
-                          onClick={() => {
-                            setMenuOpen(false);
-                            void copy(sitterLink(shownDetail.code), "Link");
-                          }}
-                        >
-                          <span>Copy link</span>
-                          <Icon icon={Icons.link} color="inherit" />
-                        </button>
-                        <button
-                          type="button"
-                          role="menuitem"
-                          className="ios-menu-item"
-                          onClick={() => {
-                            setMenuOpen(false);
-                            setShowQr((v) => !v);
-                          }}
-                        >
-                          <span>{showQr ? "Hide QR code" : "Show QR code"}</span>
-                          <Icon icon={Icons.qrCode} color="inherit" />
-                        </button>
-                      </motion.div>
-                    </>
-                  )}
-                </AnimatePresence>
-              </div>
+                        <Icon icon={Icons.moreVertical} color="inherit" />
+                      </button>
 
-              {showQr && (
-                <div className="invite-qr" style={{ alignSelf: "center" }}>
-                  <QRCodeSVG
-                    value={sitterLink(shownDetail.code)}
-                    size={168}
-                    level="M"
-                    marginSize={2}
-                    fgColor="#352b25"
-                    bgColor="#ffffff"
+                      <AnimatePresence>
+                        {menuOpen && (
+                          <>
+                            <div
+                              className="ios-menu-scrim"
+                              onClick={() => setMenuOpen(false)}
+                            />
+                            <motion.div
+                              className="ios-menu"
+                              role="menu"
+                              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.85 }}
+                              animate={reduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1 }}
+                              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.85 }}
+                              transition={{ type: "spring", stiffness: 500, damping: 32 }}
+                            >
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className="ios-menu-item"
+                                onClick={() => {
+                                  setMenuOpen(false);
+                                  void copy(formatCode(shownDetail.code), "Code");
+                                }}
+                              >
+                                <span>Copy code</span>
+                                <Icon icon={Icons.copy} color="inherit" />
+                              </button>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className="ios-menu-item"
+                                onClick={() => {
+                                  setMenuOpen(false);
+                                  void copy(sitterLink(shownDetail.code), "Link");
+                                }}
+                              >
+                                <span>Copy link</span>
+                                <Icon icon={Icons.link} color="inherit" />
+                              </button>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className="ios-menu-item"
+                                onClick={() => {
+                                  setMenuOpen(false);
+                                  setShowQr((v) => !v);
+                                }}
+                              >
+                                <span>{showQr ? "Hide QR code" : "Show QR code"}</span>
+                                <Icon icon={Icons.qrCode} color="inherit" />
+                              </button>
+                            </motion.div>
+                          </>
+                        )}
+                      </AnimatePresence>
+                    </div>
+
+                    {showQr && (
+                      <div className="invite-qr" style={{ alignSelf: "center" }}>
+                        <QRCodeSVG
+                          value={sitterLink(shownDetail.code)}
+                          size={168}
+                          level="M"
+                          marginSize={2}
+                          fgColor="#352b25"
+                          bgColor="#ffffff"
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+
+              {inviteStatus(shownDetail) === "expired" ||
+              inviteStatus(shownDetail) === "revoked" ? (
+                <>
+                  <Button
+                    label="Reactivate sitter"
+                    variant="primary"
+                    onClick={() => openReactivate(shownDetail)}
+                    fullWidth
                   />
-                </div>
+                  <Button
+                    label="Delete sitter"
+                    variant="destructive"
+                    onClick={() => void remove(shownDetail.id)}
+                    fullWidth
+                  />
+                </>
+              ) : (
+                <>
+                  <Button
+                    label="Edit name & duration"
+                    variant="secondary"
+                    onClick={() => openEdit(shownDetail)}
+                    fullWidth
+                  />
+                  <Button
+                    label="Revoke access"
+                    variant="destructive"
+                    onClick={() => void revoke(shownDetail.id)}
+                    fullWidth
+                  />
+                </>
               )}
-
-              <Button
-                label="Edit name & duration"
-                variant="secondary"
-                onClick={() => openEdit(shownDetail)}
-                fullWidth
-              />
-              <Button
-                label="Revoke access"
-                variant="destructive"
-                onClick={() => void revoke(shownDetail.id)}
-                fullWidth
-              />
             </VStack>
         )}
       </MotionSheet>
@@ -379,18 +490,29 @@ export function InviteSitter(): React.ReactElement {
         onClose={() => {
           setChoosing(false);
           setEditing(null);
+          setReactivating(null);
         }}
-        ariaLabel={editing ? "Edit invite" : "Choose invite duration"}
+        ariaLabel={
+          reactivating
+            ? "Reactivate sitter"
+            : editing
+              ? "Edit invite"
+              : "Choose invite duration"
+        }
         scrimClassName="walk-sheet-scrim"
         sheetClassName="chooser-sheet"
       >
             <VStack gap={2}>
               <VStack gap={0.5}>
-                <PanelTitle>{editing ? "Edit invite" : "How long?"}</PanelTitle>
+                <PanelTitle>
+                  {reactivating ? "Reactivate" : editing ? "Edit invite" : "How long?"}
+                </PanelTitle>
                 <PanelText>
-                  {editing
-                    ? "Update the sitter's name or when their access ends."
-                    : "Pick how long the sitter's access should last."}
+                  {reactivating
+                    ? "Pick how long this sitter's renewed access should last."
+                    : editing
+                      ? "Update the sitter's name or when their access ends."
+                      : "Pick how long the sitter's access should last."}
                 </PanelText>
               </VStack>
 
@@ -444,13 +566,17 @@ export function InviteSitter(): React.ReactElement {
               <VStack gap={1.5}>
                 <Button
                   label={
-                    editing
+                    reactivating
                       ? busy
-                        ? "Saving…"
-                        : "Save changes"
-                      : busy
-                        ? "Creating…"
-                        : "Create invite"
+                        ? "Reactivating…"
+                        : "Reactivate sitter"
+                      : editing
+                        ? busy
+                          ? "Saving…"
+                          : "Save changes"
+                        : busy
+                          ? "Creating…"
+                          : "Create invite"
                   }
                   variant="primary"
                   onClick={() => void create()}
@@ -463,6 +589,7 @@ export function InviteSitter(): React.ReactElement {
                   onClick={() => {
                     setChoosing(false);
                     setEditing(null);
+                    setReactivating(null);
                   }}
                   fullWidth
                 />
