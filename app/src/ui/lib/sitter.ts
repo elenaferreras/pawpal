@@ -348,7 +348,7 @@ async function sitterMutate(body: {
  */
 export async function validateSitterSession(
   token: string,
-): Promise<{ ok: boolean; notes?: string | null }> {
+): Promise<{ ok: boolean; notes?: string | null; profile?: Database["profile"] }> {
   try {
     const res = await fetch(fnUrl("sitter-log"), {
       method: "POST",
@@ -356,8 +356,11 @@ export async function validateSitterSession(
       body: JSON.stringify({ token, ping: true }),
     });
     if (res.ok) {
-      const out = (await res.json()) as { notes?: string | null };
-      return { ok: true, notes: out.notes ?? null };
+      const out = (await res.json()) as {
+        notes?: string | null;
+        profile?: Database["profile"] | null;
+      };
+      return { ok: true, notes: out.notes ?? null, profile: out.profile ?? undefined };
     }
     // Session gone (revoked) or expired → end the guest session.
     if (res.status === 401 || res.status === 410) return { ok: false };

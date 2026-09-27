@@ -133,12 +133,14 @@ export function TextRow({
   onChange,
   placeholder = "Add",
   inputMode,
+  icon,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   inputMode?: "text" | "numeric";
+  icon?: AppIconName;
 }): React.ReactElement {
   const [editing, setEditing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -150,6 +152,7 @@ export function TextRow({
       <span className="wts-row-label">{label}</span>
       {editing ? (
         <span className="wts-chip" style={{ maxWidth: "62vw" }}>
+          {icon && <Icon icon={Icons[icon]} width={16} height={16} color="inherit" />}
           <span className="wts-chip-autosize" data-value={value || placeholder}>
             <input
               ref={inputRef}
@@ -174,6 +177,7 @@ export function TextRow({
           style={{ border: "none", cursor: "pointer" }}
           onClick={() => setEditing(true)}
         >
+          {icon && <Icon icon={Icons[icon]} width={16} height={16} color="inherit" />}
           <span className="wts-chip-text">{value || placeholder}</span>
         </button>
       )}

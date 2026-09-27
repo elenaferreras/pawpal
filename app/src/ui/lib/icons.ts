@@ -69,6 +69,7 @@ import {
   Waves,
   Footprints,
   PersonStanding,
+  Navigation,
 } from "lucide-react";
 
 export const Icons = {
@@ -139,6 +140,7 @@ export const Icons = {
   waves: Waves,
   footprints: Footprints,
   personWalking: PersonStanding,
+  navigation: Navigation,
 } as const;
 
 export type AppIconName = keyof typeof Icons;

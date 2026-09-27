@@ -201,6 +201,8 @@ export function Dashboard({
   // Quick-log a poop onto today's own daily walk aggregate (create it if none).
   const addPoop = (): void => {
     const selfId = myLoggerId() ?? primaryOwnerId();
+    let targetId = "";
+    let wasNew = false;
     update((d) => {
       const idx = d.walks.findIndex(
         (w) =>
@@ -210,12 +212,14 @@ export function Dashboard({
       );
       if (idx >= 0) {
         const existing = d.walks[idx];
+        targetId = existing.created;
         d.walks[idx] = {
           ...existing,
           poops: (existing.poops ?? 0) + 1,
           loggedBy: existing.loggedBy ?? selfId,
         };
       } else {
+        wasNew = true;
         const walk: Walk = {
           date: todayISO,
           time: nowTime(),
@@ -229,11 +233,23 @@ export function Dashboard({
           loggedBy: selfId,
           created: new Date().toISOString(),
         };
+        targetId = walk.created;
         d.walks.push(walk);
       }
     });
+    const undo = (): void => {
+      update((d) => {
+        const i = d.walks.findIndex((w) => w.created === targetId);
+        if (i < 0) return;
+        if (wasNew) {
+          d.walks.splice(i, 1);
+        } else {
+          d.walks[i] = { ...d.walks[i], poops: Math.max(0, (d.walks[i].poops ?? 0) - 1) };
+        }
+      });
+    };
     const total = todayActivity.poops + 1;
-    toast(`💩 ${total} poop${total === 1 ? "" : "s"} today`);
+    toast(`💩 ${total} poop${total === 1 ? "" : "s"} today`, { label: "Undo", onClick: undo });
   };
 
   const toggleMeal = (slot: number): void => {

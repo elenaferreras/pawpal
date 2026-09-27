@@ -2982,6 +2982,26 @@ input.wts-field[type="time"] {
   max-width: min(340px, calc(100vw - 32px));
   text-align: center;
 }
+.notif:has(.notif-action) {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+}
+.notif-action {
+  pointer-events: auto;
+  flex-shrink: 0;
+  border: none;
+  background: var(--color-pawpal-page, #352b25);
+  color: var(--color-pawpal-hero, #e9e4c4);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
 .notif.show {
   opacity: 1;
   transform: translate(-50%, 0);

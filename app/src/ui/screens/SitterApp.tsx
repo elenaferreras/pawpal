@@ -9,6 +9,7 @@ import { FitText } from "../components/FitText";
 import { GooeyFab } from "../components/GooeyFab";
 import { MotionSheet } from "../components/MotionSheet";
 import { WalkTrackSheet } from "../components/WalkTrackSheet";
+import { WalkEntry } from "../components/WalkEntry";
 import { SwipeableRow } from "../components/SwipeableRow";
 import {
   clearSitterSession,
@@ -75,15 +76,31 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
     let stopped = false;
     const check = async (): Promise<void> => {
       if (document.visibilityState !== "visible") return;
-      const { ok, notes: latest } = await validateSitterSession(state.session.token);
+      const { ok, notes: latest, profile } = await validateSitterSession(state.session.token);
       if (!ok && !stopped) {
         clearSitterSession();
         toast("Your sitting access was ended by the owner.");
         onEnd();
         return;
       }
+      if (stopped) return;
+      // Track owner profile edits (e.g. a change to meals per day) so the
+      // sitter's meal options match the current amount.
+      if (profile) {
+        setSnapshot((prev) => {
+          if (JSON.stringify(prev.profile) === JSON.stringify(profile)) return prev;
+          const next = { ...prev, profile };
+          snapshotRef.current = next;
+          saveSitterSession({
+            ...state,
+            session: { ...state.session, notes: latest ?? state.session.notes },
+            snapshot: next,
+          });
+          return next;
+        });
+      }
       // Surface an owner message written or edited after this sitter claimed.
-      if (!stopped && latest !== undefined) {
+      if (latest !== undefined) {
         setNotes((prev) => {
           if (prev === latest) return prev;
           saveSitterSession({
@@ -154,6 +171,7 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
         icon: Icons.footprints,
         tone: WALK,
         label: Number(w.steps) > 0 ? `Walk \u00b7 ${Number(w.steps).toLocaleString()} steps` : "Walk",
+        walk: w,
       }));
     const meals = (snapshot.meals ?? [])
       .filter((m) => m.date === todayISO)
@@ -383,6 +401,44 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
           ) : (
             <div className="sit-feed-list">
               {shownFeed.map((e) => {
+                // Walk rows reuse the owner's WalkEntry styling (thumbnail +
+                // steps/walks + avatars). Only the sitter's own walks swipe.
+                if (e.kind === "walk") {
+                  const entry = <WalkEntry walk={e.walk} avatar={avatar} />;
+                  if (e.mine) {
+                    return (
+                      <SwipeableRow
+                        key={e.id}
+                        background="var(--color-dash-surface)"
+                        style={{ borderRadius: 20 }}
+                        actions={[
+                          {
+                            label: "Edit",
+                            color: "#8592E0",
+                            icon: <Icon icon={Icons.pencilSimple} color="inherit" />,
+                            onAction: () => setWalkForm({ open: true, editCreated: e.created }),
+                          },
+                          {
+                            label: "Delete",
+                            color: "#ff3b30",
+                            icon: <Icon icon={Icons.trash} color="inherit" />,
+                            onAction: () => void deleteWalk(e.created),
+                          },
+                        ]}
+                      >
+                        {entry}
+                      </SwipeableRow>
+                    );
+                  }
+                  return (
+                    <div
+                      key={e.id}
+                      style={{ background: "var(--color-dash-surface)", borderRadius: 20 }}
+                    >
+                      {entry}
+                    </div>
+                  );
+                }
                 const row = (
                   <div className="sit-feed-row">
                     <span className="sit-feed-icon" style={{ color: e.tone }}>
@@ -395,32 +451,6 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
                     <span className="sit-feed-time">{e.time}</span>
                   </div>
                 );
-                // Only the sitter's own walks can be edited or deleted.
-                if (e.kind === "walk" && e.mine) {
-                  return (
-                    <SwipeableRow
-                      key={e.id}
-                      background="var(--color-dash-surface)"
-                      style={{ borderRadius: 20 }}
-                      actions={[
-                        {
-                          label: "Edit",
-                          color: "#8592E0",
-                          icon: <Icon icon={Icons.pencilSimple} color="inherit" />,
-                          onAction: () => setWalkForm({ open: true, editCreated: e.created }),
-                        },
-                        {
-                          label: "Delete",
-                          color: "#ff3b30",
-                          icon: <Icon icon={Icons.trash} color="inherit" />,
-                          onAction: () => void deleteWalk(e.created),
-                        },
-                      ]}
-                    >
-                      {row}
-                    </SwipeableRow>
-                  );
-                }
                 return <div key={e.id}>{row}</div>;
               })}
             </div>
@@ -455,6 +485,7 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
         walks={snapshot.walks ?? []}
         editCreated={walkForm.editCreated}
         loggerId={state.session.sitterId}
+        selfName={sitterName}
         onSubmit={(fields, editing) => void submitWalk(fields, editing)}
       />
 

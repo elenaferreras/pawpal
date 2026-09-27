@@ -47,18 +47,31 @@ Deno.serve(async (req) => {
   // edited) after the sitter claimed shows up without them re-claiming.
   if (body.ping) {
     const sRes = await sb(
-      `sitter_sessions?token=eq.${token}&select=expires_at,sitter_invites(notes)&limit=1`,
+      `sitter_sessions?token=eq.${token}&select=expires_at,owner_row_key,sitter_invites(notes)&limit=1`,
     );
     if (!sRes.ok) return json({ error: "lookup_failed" }, 500);
     const [row] = (await sRes.json()) as Array<{
       expires_at: string;
+      owner_row_key: string;
       sitter_invites: { notes: string | null } | null;
     }>;
     if (!row) return json({ error: "no_session" }, 401);
     if (new Date(row.expires_at) <= new Date()) {
       return json({ error: "session_expired" }, 410);
     }
-    return json({ ok: true, notes: row.sitter_invites?.notes ?? null });
+    // Echo the owner's current profile so the sitter's view (e.g. meals per
+    // day) tracks owner edits without them re-claiming.
+    let profile: Record<string, unknown> | null = null;
+    const pRes = await sb(
+      `pawpal_data?id=eq.${row.owner_row_key}&select=payload&limit=1`,
+    );
+    if (pRes.ok) {
+      const pRows = (await pRes.json()) as Array<{
+        payload?: { profile?: Record<string, unknown> };
+      }>;
+      profile = pRows[0]?.payload?.profile ?? null;
+    }
+    return json({ ok: true, notes: row.sitter_invites?.notes ?? null, profile });
   }
 
   const type = String(body.entry?.type ?? "");

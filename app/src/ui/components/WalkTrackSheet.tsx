@@ -39,6 +39,9 @@ interface WalkTrackSheetProps {
    *  only your own entry and creates a fresh one when the day's walk is
    *  someone else's. */
   loggerId?: string | null;
+  /** Display name for the current user in the "Walked by" picker. Sitter mode
+   *  passes the sitter's name so it reads their name instead of "You". */
+  selfName?: string;
   /** When set, saving calls this instead of writing to the local DB. Receives the
    *  assembled fields and the walk being edited (null for a new entry). */
   onSubmit?: (fields: Partial<Walk>, editing: Walk | null) => void;
@@ -94,11 +97,17 @@ function activitySummary(w: Walk): string {
  * (re-opening a day edits it). Fields: date, amount of walks, steps, walker,
  * location, weather + terrain (multiselect), socialised, and a poop count.
  */
-export function WalkTrackSheet({ open, onClose, editIndex, prefillDate, startInChooser, walks, editCreated, loggerId, onSubmit }: WalkTrackSheetProps): React.ReactElement {
+export function WalkTrackSheet({ open, onClose, editIndex, prefillDate, startInChooser, walks, editCreated, loggerId, selfName, onSubmit }: WalkTrackSheetProps): React.ReactElement {
   const { db, update } = useDb();
   const toast = useToast();
-  const { walkers } = useWalkers();
+  const { walkers: baseWalkers } = useWalkers();
   const { start: startLiveWalk } = useLiveWalk();
+
+  // The current user's display name in the picker (sitter's name when given).
+  const selfWalkerName = selfName?.trim() || myWalkerName();
+  const walkers = selfName?.trim()
+    ? baseWalkers.map((w) => (w.kind === "you" ? { ...w, name: selfWalkerName } : w))
+    : baseWalkers;
 
   // Sitter mode injects its own walk list + save callback; otherwise use the DB.
   const walksList = walks ?? db.walks;
@@ -169,7 +178,7 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate, startInC
         setSteps("");
         setPoops(0);
         setSocialised(false);
-        setAssignee(myWalkerName());
+        setAssignee(selfWalkerName);
         setLocation("");
         setWeather([]);
         setTerrain([]);
@@ -331,6 +340,7 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate, startInC
                 setLocation(v);
               }}
               placeholder="Add"
+              icon="navigation"
             />
             <MultiSelectRow
               label="Weather"
