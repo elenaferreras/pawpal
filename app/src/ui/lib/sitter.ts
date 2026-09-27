@@ -233,8 +233,13 @@ export interface SitterSession {
   expiresAt: string;
   permissions: { log?: boolean };
   dogName: string | null;
+  /** The owner-set label for this sitter (e.g. "Grandma"), shown in the header. */
+  sitterName: string | null;
   notes: string | null;
   ownerRowKey: string;
+  /** Stable id for this sitter (the invite id); stamped on walks they log so
+   *  each sitter keeps a separate daily aggregate. */
+  sitterId: string;
 }
 
 export interface SitterState {
@@ -268,8 +273,10 @@ export async function claimInvite(
     expiresAt: string;
     permissions: { log?: boolean };
     dogName: string | null;
+    alias?: string | null;
     notes?: string | null;
     ownerRowKey: string;
+    sitterId?: string;
     snapshot: Database | null;
   };
   const state: SitterState = {
@@ -278,8 +285,10 @@ export async function claimInvite(
       expiresAt: out.expiresAt,
       permissions: out.permissions,
       dogName: out.dogName,
+      sitterName: out.alias ?? null,
       notes: out.notes ?? null,
       ownerRowKey: out.ownerRowKey,
+      sitterId: out.sitterId ?? "sitter",
     },
     snapshot: out.snapshot ?? ({} as Database),
   };
@@ -329,24 +338,32 @@ async function sitterMutate(body: {
 }
 
 /**
- * Confirm a sitter session is still valid on the server. Returns `false` once
- * the owner has revoked the invite (session deleted) or it has expired, so the
- * sitter app can sign the guest out promptly. Network errors return `true` to
- * avoid kicking a sitter out over a transient blip.
+ * Confirm a sitter session is still valid on the server. Returns `ok: false`
+ * once the owner has revoked the invite (session deleted) or it has expired, so
+ * the sitter app can sign the guest out promptly. Also echoes back the invite's
+ * current `notes` so an owner message written or edited after the sitter
+ * claimed appears without re-claiming (`notes` is `undefined` when unknown, e.g.
+ * a network blip). Network errors report `ok: true` to avoid kicking a sitter
+ * out over a transient blip.
  */
-export async function validateSitterSession(token: string): Promise<boolean> {
+export async function validateSitterSession(
+  token: string,
+): Promise<{ ok: boolean; notes?: string | null }> {
   try {
     const res = await fetch(fnUrl("sitter-log"), {
       method: "POST",
       headers: { apikey: getSBConfig().key, "Content-Type": "application/json" },
       body: JSON.stringify({ token, ping: true }),
     });
-    if (res.ok) return true;
+    if (res.ok) {
+      const out = (await res.json()) as { notes?: string | null };
+      return { ok: true, notes: out.notes ?? null };
+    }
     // Session gone (revoked) or expired → end the guest session.
-    if (res.status === 401 || res.status === 410) return false;
-    return true;
+    if (res.status === 401 || res.status === 410) return { ok: false };
+    return { ok: true };
   } catch {
-    return true;
+    return { ok: true };
   }
 }
 
@@ -369,6 +386,8 @@ export function loadSitterSession(): SitterState | null {
       clearSitterSession();
       return null;
     }
+    // Older cached sessions predate per-sitter ids; fall back to the shared bucket.
+    state.session.sitterId ??= "sitter";
     return state;
   } catch {
     return null;

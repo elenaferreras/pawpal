@@ -1939,6 +1939,11 @@ button.wts-row {
   padding: 0 24px calc(24px + env(safe-area-inset-bottom, 12px));
   animation: pawpal-sheet-up 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+/* Headerless chooser sheets (no grabber/title bar) have no top spacer, so their
+   content sits flush against the rounded top edge. Give them a top padding. */
+.chooser-sheet:not(:has(.sheet-header)) {
+  padding-top: 24px;
+}
 .wts-field::placeholder {
   color: rgba(53, 43, 37, 0.55);
 }
@@ -3362,9 +3367,12 @@ input.wts-field[type="time"] {
   font-size: 16px;
 }
 .invite-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   border-radius: 16px;
-  padding: 12px 16px;
-  background: rgba(233, 228, 196, 0.06);
+  padding: 16px;
+  background: rgba(169, 231, 167, 0.2);
   border: 1px solid rgba(233, 228, 196, 0.12);
 }
 .oba-input-suffix {
@@ -4251,10 +4259,19 @@ input.wts-field[type="time"] {
   display: flex;
   align-items: center;
   gap: 12px;
+  width: 100%;
   padding: 14px 20px;
   border-radius: 32px;
   background: rgba(169, 231, 167, 0.2);
   color: var(--color-pawpal-hero);
+  text-align: left;
+}
+button.sit-note-banner {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+button.sit-note-banner:active {
+  background: rgba(169, 231, 167, 0.32);
 }
 .sit-note-banner-icon {
   display: flex;
@@ -4928,7 +4945,9 @@ input.wts-field[type="time"] {
 }
 .ios-menu {
   position: absolute;
-  top: calc(100% + 8px);
+  /* Open upward: the kebab sits near the sheet's bottom, so a downward menu
+     would be clipped by the sheet edge. */
+  bottom: calc(100% + 8px);
   right: 0;
   z-index: 41;
   min-width: 220px;
@@ -4941,7 +4960,7 @@ input.wts-field[type="time"] {
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   overflow: hidden;
-  transform-origin: top right;
+  transform-origin: bottom right;
 }
 .ios-menu-item {
   display: flex;

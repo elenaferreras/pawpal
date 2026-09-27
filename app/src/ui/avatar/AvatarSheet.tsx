@@ -7,11 +7,7 @@ import { useScrollLock } from "../lib/scrollLock";
 import { getOverlayRoot } from "../lib/overlayRoot";
 import type { Avatar } from "../types";
 import { DogAvatar } from "./DogAvatar";
-import {
-  AVATAR_BG_COLORS,
-  DEFAULT_AVATAR_BG,
-  type AvatarParts,
-} from "./presets";
+import { AVATAR_BG_COLORS, DEFAULT_AVATAR_BG } from "./presets";
 import { AVATAR_STICKERS } from "./stickers";
 
 const DARK = "#352B25";
@@ -29,7 +25,6 @@ interface AvatarSheetProps {
  * colour and a preset dog, then confirm with ✓ or cancel with ✕.
  */
 export function AvatarSheet({ open, value, onConfirm, onClose }: AvatarSheetProps): React.ReactElement {
-  const [parts, setParts] = useState<AvatarParts>(() => toParts(value));
   const [bg, setBg] = useState<string>(value.bg ?? DEFAULT_AVATAR_BG);
   const [sticker, setSticker] = useState<string | undefined>(value.sticker);
   const reduceMotion = useReducedMotion();
@@ -40,14 +35,13 @@ export function AvatarSheet({ open, value, onConfirm, onClose }: AvatarSheetProp
   // Re-sync the draft whenever the sheet is (re)opened.
   useEffect(() => {
     if (open) {
-      setParts(toParts(value));
       setBg(value.bg ?? DEFAULT_AVATAR_BG);
       setSticker(value.sticker);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const preview: Avatar = { ...parts, bg, sticker };
+  const preview: Avatar = { bg, sticker };
 
   return createPortal(
     <AnimatePresence>
@@ -273,8 +267,4 @@ function RoundIconButton({
       <Icon icon={icon} color="inherit" />
     </button>
   );
-}
-
-function toParts(a: Avatar): AvatarParts {
-  return { head: a.head, body: a.body, colour: a.colour, eyes: a.eyes, nose: a.nose };
 }

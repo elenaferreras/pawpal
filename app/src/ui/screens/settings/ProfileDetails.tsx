@@ -19,11 +19,6 @@ interface ProfileDetailsProps {
 
 /** Fallback avatar for the picker when the pet has none saved yet. */
 const DEFAULT_AVATAR: Avatar = {
-  head: "Normal",
-  body: "Normal",
-  colour: "orange",
-  eyes: "Normal",
-  nose: "Normal",
   bg: DEFAULT_AVATAR_BG,
 };
 

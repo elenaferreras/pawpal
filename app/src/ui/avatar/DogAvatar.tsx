@@ -1,7 +1,5 @@
-import { useMemo } from "react";
 import type { Avatar } from "../types";
-import { buildDogSVG, buildDogFace } from "./build";
-import { stickerUrl } from "./stickers";
+import { stickerUrlOrDefault } from "./stickers";
 
 interface DogAvatarProps {
   avatar: Avatar;
@@ -9,19 +7,18 @@ interface DogAvatarProps {
   className?: string;
 }
 
-// Full standing dog, composed from the original Figma SVG parts.
+// Dog avatar — a hand-drawn sticker (falls back to the default dog sticker).
 export function DogAvatar({ avatar, size, className }: DogAvatarProps): React.ReactElement {
-  const sticker = stickerUrl(avatar.sticker);
-  const html = useMemo(() => buildDogSVG(avatar, size), [avatar, size]);
-  if (sticker) {
-    return (
-      <div className={className}>
-        <img src={sticker} alt="" width={size} height={size} style={{ display: "block" }} />
-      </div>
-    );
-  }
   return (
-    <div className={className} dangerouslySetInnerHTML={{ __html: html }} />
+    <div className={className}>
+      <img
+        src={stickerUrlOrDefault(avatar.sticker)}
+        alt=""
+        width={size}
+        height={size}
+        style={{ display: "block" }}
+      />
+    </div>
   );
 }
 
@@ -31,18 +28,17 @@ interface DogFaceProps {
   className?: string;
 }
 
-// Circular head-only face for compact spots (home header).
+// Circular avatar for compact spots (home header) — same sticker art.
 export function DogFace({ avatar, size, className }: DogFaceProps): React.ReactElement {
-  const sticker = stickerUrl(avatar?.sticker);
-  const html = useMemo(() => buildDogFace(avatar, size), [avatar, size]);
-  if (sticker) {
-    return (
-      <div className={className}>
-        <img src={sticker} alt="" width={size} height={size} style={{ display: "block" }} />
-      </div>
-    );
-  }
   return (
-    <div className={className} dangerouslySetInnerHTML={{ __html: html }} />
+    <div className={className}>
+      <img
+        src={stickerUrlOrDefault(avatar?.sticker)}
+        alt=""
+        width={size}
+        height={size}
+        style={{ display: "block" }}
+      />
+    </div>
   );
 }

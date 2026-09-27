@@ -1,24 +1,9 @@
 // Core domain types for PawPal, mirroring the original localStorage schema.
 
-export type ColourKey =
-  | "orange"
-  | "darkbrown"
-  | "lightbrown"
-  | "yellow"
-  | "lightbrown2"
-  | "darkgrey"
-  | "black"
-  | "white";
-
 export interface Avatar {
-  head: string;
-  body: string;
-  colour: string;
-  eyes: string;
-  nose: string;
   /** Background circle colour (hex) shown behind the dog. */
   bg?: string;
-  /** When set, render this hand-drawn sticker instead of the composed dog. */
+  /** Hand-drawn dog sticker id to render (falls back to a default when unset). */
   sticker?: string;
 }
 
@@ -68,6 +53,10 @@ export interface Walk {
   sentToVet?: boolean;
   /** Set when the entry was logged by a dog-sitter (server-tagged). */
   by?: "sitter";
+  /** Stable id of who logged this entry: an owner/co-owner auth uid, or a
+   *  sitter's invite id. Groups the day's activity per person. Un-migrated
+   *  entries fall back to the primary owner (or the sitter bucket). */
+  loggedBy?: string;
   // --- Legacy / live-GPS-session fields (kept for old data + LiveWalk routes) ---
   duration?: number | string;
   distance?: number | string;

@@ -269,13 +269,28 @@ export async function reconcileFromCloud(
   const addWalks = newEntries(local.walks, cloud.walks);
   const addMeals = newEntries(local.meals, cloud.meals);
   const addBath = newEntries(local.bathroom, cloud.bathroom);
-  if (addWalks.length + addMeals.length + addBath.length === 0) return false;
+  // Profile details (meals per day, weight, vet, etc.) are shared between
+  // co-owners. This cloud version is newer than anything we've written or seen,
+  // so adopt its profile (last-writer-wins) when it differs from ours.
+  const cloudProfile = cloud.profile;
+  const profileChanged =
+    cloudProfile != null &&
+    JSON.stringify(cloudProfile) !== JSON.stringify(local.profile);
+  if (addWalks.length + addMeals.length + addBath.length === 0 && !profileChanged)
+    return false;
 
   update((d) => {
     if (addWalks.length) d.walks = [...d.walks, ...addWalks];
     if (addMeals.length) d.meals = [...d.meals, ...addMeals];
     if (addBath.length) d.bathroom = [...d.bathroom, ...addBath];
+    if (profileChanged && cloudProfile) d.profile = cloudProfile;
   });
+
+  // A co-owner's profile edit that changes the meal count must refresh this
+  // device's server-side reminder mirror so meal reminders match.
+  if (profileChanged && cloudProfile) {
+    window.dispatchEvent(new CustomEvent("pawpal:profile-synced"));
+  }
 
   // Notify the owner about activities a sitter just logged.
   notifySitterActivity(local, addWalks, addMeals, addBath);

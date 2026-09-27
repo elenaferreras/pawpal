@@ -26,7 +26,7 @@ Live at: https://elenaferreras.github.io/pawpal/
     Notifications, OnboardingProposal, SitterApp, SitterClaim, `settings/*`
   - `src/ui/components/` — BottomNav, GooeyFab, WalkTrackSheet, MotionSheet,
     RouteMap, LiveWalk, form modals, etc.
-  - `src/ui/avatar/` — sticker-based dog avatar (presets, stickers, DogAvatar)
+  - `src/ui/avatar/` — sticker-based dog avatar (stickers, DogAvatar, AvatarSheet)
   - `src/ui/lib/` — store (DB context), auth, supabase, notifications, push,
     sitter, geo, date, export, theme
   - `src/code.ts` — service worker source

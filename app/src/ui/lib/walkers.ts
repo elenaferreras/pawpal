@@ -5,9 +5,11 @@
 // (ephemeral, log-only) known from their invite alias. A walk stores the
 // walker's display name in `Walk.assignee`.
 import { useEffect, useState } from "react";
-import { getCurrentUser, getOwnerName } from "./auth";
+import type { Walk } from "../types";
+import { getCurrentUser, getCurrentUserId, getOwnerName } from "./auth";
 import { listCoOwnerInvites, type CoOwnerInviteRow } from "./coowner";
 import { listInvites, inviteStatus } from "./sitter";
+import { getRowKey } from "./supabase";
 
 export type WalkerKind = "you" | "coowner" | "sitter";
 
@@ -31,6 +33,37 @@ export function myWalkerName(): string {
 /** Owner-chosen name if set, else the joined account's email, else a fallback. */
 function coownerName(inv: CoOwnerInviteRow): string {
   return (inv.label || inv.claimed_by || "Co-owner").trim();
+}
+
+// ── Logger identity (who logged an entry) ───────────────────────────────────
+// A day's activity is grouped per person: the owner, each co-owner, and each
+// sitter get their own entry. `Walk.loggedBy` stores that person's stable id —
+// an auth uid for owners/co-owners, an invite id for sitters.
+
+/** Bucket id for old sitter entries logged before per-sitter attribution. */
+const SITTER_LEGACY_ID = "sitter";
+
+/** The signed-in user's logger id (owner or co-owner). Null when signed out. */
+export function myLoggerId(): string | null {
+  return getCurrentUserId();
+}
+
+/** The primary owner's uid, derived from the (possibly shared) data row key. */
+export function primaryOwnerId(): string {
+  return getRowKey().replace(/^user_/, "");
+}
+
+/** Who logged a walk, as a stable id. Un-attributed non-sitter walks predate
+ *  per-logger tracking and belong to the primary owner. */
+export function walkLoggerId(w: Walk): string {
+  if (w.loggedBy) return w.loggedBy;
+  if (w.by === "sitter") return SITTER_LEGACY_ID;
+  return primaryOwnerId();
+}
+
+/** Whether a walk was logged by the current user (logger id `myId`). */
+export function isMyWalk(w: Walk, myId: string | null): boolean {
+  return myId != null && walkLoggerId(w) === myId;
 }
 
 function dedupe(list: Walker[]): Walker[] {

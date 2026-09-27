@@ -69,7 +69,7 @@ export function GooeyFab({
   const mealPos = compact ? { bx: 176, by: 30 } : { bx: 150, by: 14 };
   const items: Item[] = (
     [
-      { key: "walk", label: "walks", color: "#8592E0", bx: walkPos.bx, by: walkPos.by, onSelect: onWalk }, // blue
+      { key: "walk", label: "walks", color: "var(--color-dash-walk)", bx: walkPos.bx, by: walkPos.by, onSelect: onWalk }, // blue
       { key: "meal", label: "meals", color: "#E96A41", bx: mealPos.bx, by: mealPos.by, onSelect: onMeal }, // red
       { key: "vet", label: "health", color: "#EDD4FD", bx: 8, by: 88, onSelect: onVet }, // purple
       { key: "poop", label: "bathroom", color: "#A9E7A7", bx: 82, by: 136, onSelect: onPoop }, // green

@@ -17,7 +17,7 @@ import { reverseGeocode } from "../lib/geo";
 import { Icon } from "@astryxdesign/core/Icon";
 import { Icons, type AppIconName } from "../lib/icons";
 import { nowTime } from "../lib/date";
-import { useWalkers, myWalkerName, walkerAvatar, type Walker } from "../lib/walkers";
+import { useWalkers, myWalkerName, walkerAvatar, walkLoggerId, primaryOwnerId, type Walker } from "../lib/walkers";
 import { useLiveWalk } from "./LiveWalk";
 import type { Database, Walk } from "../types";
 
@@ -34,6 +34,11 @@ interface WalkTrackSheetProps {
   walks?: Walk[];
   /** Edit the injected walk with this `created` id (used with {@link walks}). */
   editCreated?: string | null;
+  /** Stable id of the current user (owner/co-owner auth uid, or sitter invite
+   *  id). The day's aggregate is scoped to this person, so tapping "+" edits
+   *  only your own entry and creates a fresh one when the day's walk is
+   *  someone else's. */
+  loggerId?: string | null;
   /** When set, saving calls this instead of writing to the local DB. Receives the
    *  assembled fields and the walk being edited (null for a new entry). */
   onSubmit?: (fields: Partial<Walk>, editing: Walk | null) => void;
@@ -89,7 +94,7 @@ function activitySummary(w: Walk): string {
  * (re-opening a day edits it). Fields: date, amount of walks, steps, walker,
  * location, weather + terrain (multiselect), socialised, and a poop count.
  */
-export function WalkTrackSheet({ open, onClose, editIndex, prefillDate, startInChooser, walks, editCreated, onSubmit }: WalkTrackSheetProps): React.ReactElement {
+export function WalkTrackSheet({ open, onClose, editIndex, prefillDate, startInChooser, walks, editCreated, loggerId, onSubmit }: WalkTrackSheetProps): React.ReactElement {
   const { db, update } = useDb();
   const toast = useToast();
   const { walkers } = useWalkers();
@@ -97,6 +102,10 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate, startInC
 
   // Sitter mode injects its own walk list + save callback; otherwise use the DB.
   const walksList = walks ?? db.walks;
+
+  // The current person's logger id: the day's aggregate is scoped to them so
+  // each of owner / co-owner / sitter keeps a separate daily entry.
+  const selfId = loggerId != null ? loggerId : primaryOwnerId();
 
   const editWalk =
     editCreated != null
@@ -123,9 +132,9 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate, startInC
   const weatherTouched = useRef(false);
   const locationTouched = useRef(false);
 
-  /** The day's aggregate walk (the manual, non-GPS entry) for a given date. */
+  /** The day's aggregate walk (the manual, non-GPS entry) THIS person logged. */
   const aggregateIndexFor = (iso: string): number =>
-    walksList.findIndex((w) => w.date === iso && !isLiveEntry(w));
+    walksList.findIndex((w) => w.date === iso && !isLiveEntry(w) && walkLoggerId(w) === selfId);
 
   const loadFrom = (w: Walk): void => {
     setDateISO(w.date || localISO(new Date()));
@@ -247,7 +256,7 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate, startInC
       update((d) => {
         const existing = d.walks[targetIndex];
         if (!existing) return;
-        d.walks[targetIndex] = { ...existing, ...fields };
+        d.walks[targetIndex] = { ...existing, ...fields, loggedBy: existing.loggedBy ?? selfId };
         syncVetNote(d, existing.created);
       });
       toast("Activity updated! 🦮");
@@ -256,6 +265,7 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate, startInC
     }
     const walk: Walk = {
       ...fields,
+      loggedBy: selfId,
       time: nowTime(),
       created: new Date().toISOString(),
     };

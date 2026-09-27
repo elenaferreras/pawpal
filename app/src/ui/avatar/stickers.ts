@@ -39,3 +39,11 @@ export function stickerUrl(id: string | undefined): string | undefined {
   if (!id) return undefined;
   return AVATAR_STICKERS.find((s) => s.id === id)?.url;
 }
+
+/** Fallback sticker used when an avatar has no sticker chosen. */
+export const DEFAULT_STICKER_ID = AVATAR_STICKERS[0].id;
+
+/** Resolve a sticker id to its URL, falling back to the default dog sticker. */
+export function stickerUrlOrDefault(id: string | undefined): string {
+  return stickerUrl(id) ?? AVATAR_STICKERS[0].url;
+}

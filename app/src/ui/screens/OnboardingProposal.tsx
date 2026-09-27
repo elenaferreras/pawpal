@@ -13,15 +13,7 @@ import { requestNotificationPermission, saveNotifConfig } from "../lib/notificat
 import { requestPasswordReset, signIn, signInWithGoogle, signUp } from "../lib/auth";
 import { syncFromSupabase } from "../lib/supabase";
 import { COMMON_BREEDS, OTHER_BREED } from "../lib/breeds";
-import type { Avatar, Database, Profile } from "../types";
-
-const DEFAULT_AVATAR: Avatar = {
-  head: "Normal",
-  body: "Normal",
-  colour: "orange",
-  eyes: "Normal",
-  nose: "Normal",
-};
+import type { Database, Profile } from "../types";
 
 const MEAL_OPTIONS = [1, 2, 3, 4];
 const RECOMMENDED_MEALS = 2;
@@ -78,7 +70,6 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
   // Slide direction for the step transition: 1 = forward, -1 = back.
   const [direction, setDirection] = useState(1);
 
-  const avatar = DEFAULT_AVATAR;
   const [sticker, setSticker] = useState<string>(AVATAR_STICKERS[0].id);
   const [bg, setBg] = useState<string>(DEFAULT_AVATAR_BG);
   const [name, setName] = useState("");
@@ -136,7 +127,7 @@ export function OnboardingProposal({ onDone, onDogSit }: OnboardingProposalProps
       mealsPerDay,
       vet,
       vetPhone,
-      avatar: { ...avatar, sticker, bg },
+      avatar: { sticker, bg },
       emoji: "🐕",
       onboarded: true,
     };

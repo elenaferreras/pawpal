@@ -254,9 +254,8 @@ export function InviteSitter(): React.ReactElement {
                 }}
               >
                 <span className="invite-row-info">
-                  <PanelTitle>{formatCode(inv.code)}</PanelTitle>
+                  <PanelTitle>{inv.alias || formatCode(inv.code)}</PanelTitle>
                   <PanelText>
-                    {inv.alias ? `${inv.alias} · ` : ""}
                     {inviteStatus(inv) === "active"
                       ? `In use${inv.claimed_by ? ` · ${inv.claimed_by}` : ""}`
                       : "Not used yet"}{" "}
@@ -343,10 +342,18 @@ export function InviteSitter(): React.ReactElement {
 
               {shownDetail.notes?.trim() && (
                 <div className="invite-notes">
-                  <PanelText style={{ opacity: 0.8, marginBottom: 4 }}>
+                  <PanelText style={{ opacity: 0.8, color: "color-mix(in srgb, #a9e7a7 88%, white)" }}>
                     Notes for the sitter
                   </PanelText>
-                  <PanelText style={{ whiteSpace: "pre-wrap" }}>
+                  <PanelText
+                    style={{
+                      whiteSpace: "pre-wrap",
+                      fontSize: 15,
+                      fontWeight: 600,
+                      lineHeight: 1.4,
+                      color: "color-mix(in srgb, #a9e7a7 88%, white)",
+                    }}
+                  >
                     {shownDetail.notes}
                   </PanelText>
                 </div>
@@ -467,7 +474,7 @@ export function InviteSitter(): React.ReactElement {
               ) : (
                 <>
                   <Button
-                    label="Edit name & duration"
+                    label="Edit"
                     variant="secondary"
                     onClick={() => openEdit(shownDetail)}
                     fullWidth

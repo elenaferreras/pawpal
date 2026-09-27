@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@astryxdesign/core/Icon";
 import { useToast } from "../lib/toast";
 import { Icons } from "../lib/icons";
@@ -52,6 +52,7 @@ function fmtTime(iso: string): string {
 export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement {
   const toast = useToast();
   const [snapshot, setSnapshot] = useState<Database>(state.snapshot);
+  const [notes, setNotes] = useState<string | null>(state.session.notes);
   const [busy, setBusy] = useState<string | null>(null);
   const [feedScope, setFeedScope] = useState<"mine" | "all">("mine");
   const [fabOpen, setFabOpen] = useState(false);
@@ -62,6 +63,11 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
     editCreated: null,
   });
 
+  // Latest snapshot for the heartbeat closure, which only re-runs on token
+  // change and would otherwise persist a stale snapshot to sessionStorage.
+  const snapshotRef = useRef(snapshot);
+  snapshotRef.current = snapshot;
+
   // Heartbeat: poll the server so a revoked (or expired) session signs the
   // sitter out promptly, even if they never log another activity. Runs on
   // mount, whenever the tab becomes visible, and every 20s while visible.
@@ -69,11 +75,24 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
     let stopped = false;
     const check = async (): Promise<void> => {
       if (document.visibilityState !== "visible") return;
-      const ok = await validateSitterSession(state.session.token);
+      const { ok, notes: latest } = await validateSitterSession(state.session.token);
       if (!ok && !stopped) {
         clearSitterSession();
         toast("Your sitting access was ended by the owner.");
         onEnd();
+        return;
+      }
+      // Surface an owner message written or edited after this sitter claimed.
+      if (!stopped && latest !== undefined) {
+        setNotes((prev) => {
+          if (prev === latest) return prev;
+          saveSitterSession({
+            ...state,
+            session: { ...state.session, notes: latest },
+            snapshot: snapshotRef.current,
+          });
+          return latest;
+        });
       }
     };
     void check();
@@ -88,6 +107,10 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
   }, [state.session.token, onEnd, toast]);
 
   const dog = snapshot.profile?.name || state.session.dogName || "this pup";
+  const sitterName = state.session.sitterName?.trim();
+  // Header reads "Sitter & Dog" when the owner named this sitter, else falls
+  // back to "Sitting for Dog".
+  const headerTitle = sitterName ? `${sitterName} & ${dog}` : `Sitting for ${dog}`;
   const avatar = snapshot.profile?.avatar;
   const avatarBg = avatar?.bg ?? "var(--color-dash-pooped)";
   const todayISO = localISO(new Date());
@@ -267,9 +290,9 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
 
   return (
     <div className="sit">
-      {/* Owner-style header: the dog's avatar, "Sitting for …" and a bell. */}
+      {/* Owner-style header: the dog's avatar, "Sitter & Dog" and a bell. */}
       <TopBar
-        title={`Sitting for ${dog}`}
+        title={headerTitle}
         largeTitle={
           <div className="sit-header">
             <button
@@ -282,7 +305,7 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
               <DogFace avatar={avatar} size={44} />
             </button>
             <FitText className="sit-header-title" max={34} min={20}>
-              Sitting for {dog}
+              {headerTitle}
             </FitText>
             <button type="button" aria-label="Notifications" className="glass-btn">
               <Icon icon={Icons.bell} color="inherit" />
@@ -292,14 +315,18 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
       />
 
       <div className="sit-body">
-        {/* Owner left a note for the sitter — surface it above the content. */}
-        {state.session.notes?.trim() ? (
-          <div className="sit-note-banner">
+        {/* Owner left a note for the sitter — tap to read it in the profile sheet. */}
+        {notes?.trim() ? (
+          <button
+            type="button"
+            className="sit-note-banner"
+            onClick={() => setProfileOpen(true)}
+          >
             <span className="sit-note-banner-icon">
               <Icon icon={Icons.chat} color="inherit" />
             </span>
             <span className="sit-note-banner-text">You have a message from the owner</span>
-          </div>
+          </button>
         ) : null}
 
         {/* Zipi's day so far — steps + food at a glance */}
@@ -427,6 +454,7 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
         onClose={() => setWalkForm({ open: false, editCreated: null })}
         walks={snapshot.walks ?? []}
         editCreated={walkForm.editCreated}
+        loggerId={state.session.sitterId}
         onSubmit={(fields, editing) => void submitWalk(fields, editing)}
       />
 
@@ -484,12 +512,12 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
         onCancel={() => setProfileOpen(false)}
       >
         {/* The owner's message, surfaced in the green banner at the top. */}
-        {state.session.notes?.trim() ? (
+        {notes?.trim() ? (
           <div className="sit-note-banner sit-note-banner--message">
             <span className="sit-note-banner-icon">
               <Icon icon={Icons.chat} color="inherit" />
             </span>
-            <span className="sit-note-banner-text">{state.session.notes}</span>
+            <span className="sit-note-banner-text">{notes}</span>
           </div>
         ) : null}
         <div className="sit-info">

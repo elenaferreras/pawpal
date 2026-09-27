@@ -8,6 +8,7 @@ import { json, preflight, sb } from "../_shared/util.ts";
 import { sendOwnerPush } from "../_shared/push.ts";
 
 interface SessionRow {
+  invite_id: string;
   owner_row_key: string;
   permissions: { log?: boolean } & Record<string, unknown>;
   expires_at: string;
@@ -41,18 +42,23 @@ Deno.serve(async (req) => {
 
   // Heartbeat: the sitter app polls this to confirm its session is still alive.
   // Revoking an invite deletes the session row, so a revoked sitter gets
-  // "no_session" here and is signed out even if they never log anything.
+  // "no_session" here and is signed out even if they never log anything. We
+  // also echo back the invite's current notes so an owner message written (or
+  // edited) after the sitter claimed shows up without them re-claiming.
   if (body.ping) {
     const sRes = await sb(
-      `sitter_sessions?token=eq.${token}&select=expires_at&limit=1`,
+      `sitter_sessions?token=eq.${token}&select=expires_at,sitter_invites(notes)&limit=1`,
     );
     if (!sRes.ok) return json({ error: "lookup_failed" }, 500);
-    const [row] = (await sRes.json()) as Array<{ expires_at: string }>;
+    const [row] = (await sRes.json()) as Array<{
+      expires_at: string;
+      sitter_invites: { notes: string | null } | null;
+    }>;
     if (!row) return json({ error: "no_session" }, 401);
     if (new Date(row.expires_at) <= new Date()) {
       return json({ error: "session_expired" }, 410);
     }
-    return json({ ok: true });
+    return json({ ok: true, notes: row.sitter_invites?.notes ?? null });
   }
 
   const type = String(body.entry?.type ?? "");
@@ -63,7 +69,7 @@ Deno.serve(async (req) => {
 
   // Validate the session.
   const sRes = await sb(
-    `sitter_sessions?token=eq.${token}&select=owner_row_key,permissions,expires_at&limit=1`,
+    `sitter_sessions?token=eq.${token}&select=invite_id,owner_row_key,permissions,expires_at&limit=1`,
   );
   if (!sRes.ok) return json({ error: "lookup_failed" }, 500);
   const [session] = (await sRes.json()) as SessionRow[];
@@ -104,6 +110,8 @@ Deno.serve(async (req) => {
       ...data,
       created: new Date().toISOString(),
       by: "sitter",
+      // Stable per-sitter id so each sitter keeps a separate daily aggregate.
+      loggedBy: session.invite_id,
     };
     payload[arrayKey] = [...list, entry];
   }

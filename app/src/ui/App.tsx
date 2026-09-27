@@ -9,6 +9,7 @@ import { ToastProvider, useToast } from "./lib/toast";
 import { ConfirmProvider } from "./components/ConfirmDialog";
 import { getNotifConfig, setupReminderChecks } from "./lib/notifications";
 import { completeOAuthRedirect, hasPendingOAuth, isSignedIn } from "./lib/auth";
+import { myLoggerId } from "./lib/walkers";
 import {
   getRowKey,
   reconcileFromCloud,
@@ -245,7 +246,11 @@ function Shell(): React.ReactElement {
     };
     sync();
     window.addEventListener("pawpal:auth", sync);
-    return () => window.removeEventListener("pawpal:auth", sync);
+    window.addEventListener("pawpal:profile-synced", sync);
+    return () => {
+      window.removeEventListener("pawpal:auth", sync);
+      window.removeEventListener("pawpal:profile-synced", sync);
+    };
   }, [getDb]);
 
   // Losing the session (explicit sign-out or an expired/revoked token) must
@@ -556,6 +561,7 @@ function Shell(): React.ReactElement {
             startInChooser={modal === "walk-choose"}
             editIndex={editWalkIndex}
             prefillDate={walkPrefillDate}
+            loggerId={myLoggerId()}
             onClose={() => {
               setModal("none");
               setEditWalkIndex(null);

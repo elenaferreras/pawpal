@@ -14,7 +14,7 @@ import { StatNumber } from "./Typography";
 import { TopBar, TopBarAction, TopBarButton } from "./TopBar";
 import { DogFace } from "../avatar/DogAvatar";
 import { fmtDate } from "../lib/date";
-import { useWalkers, walkerAvatar } from "../lib/walkers";
+import { useWalkers, walkerAvatar, myLoggerId, isMyWalk } from "../lib/walkers";
 import { getSharedRowKey } from "../lib/supabase";
 import type { Walk } from "../types";
 
@@ -77,6 +77,9 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
   const toast = useToast();
   const confirm = useConfirm();
   const { active: walkActive, coords, openSheet, markerHtml, accuracy } = useLiveWalk();
+  // Only the person who logged an entry may edit or delete it; everyone else's
+  // walks (co-owners', sitters') are read-only here.
+  const myId = myLoggerId();
   const [selected, setSelected] = useState<number | null>(null);
   const [filter, setFilter] = useState<WalkFilter>("today");
   const [mapWalk, setMapWalk] = useState<Walk | null>(null);
@@ -641,34 +644,41 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
                   gap: 4,
                 }}
               >
-                {group.items.map(({ w, index }, i) => (
+                {group.items.map(({ w, index }, i) => {
+                  const mine = isMyWalk(w, myId);
+                  return (
                   <RevealItem key={index} index={i}>
                     <SwipeableRow
                       background="var(--color-settings-group)"
                       style={{ borderRadius: 32 }}
-                      actions={[
-                        ...(onEdit
+                      actions={
+                        mine
                           ? [
+                              ...(onEdit
+                                ? [
+                                    {
+                                      label: "Edit",
+                                      color: "#8592E0",
+                                      icon: <Icon icon={Icons.pencilSimple} color="inherit" />,
+                                      onAction: () => onEdit(index),
+                                    },
+                                  ]
+                                : []),
                               {
-                                label: "Edit",
-                                color: "#8592E0",
-                                icon: <Icon icon={Icons.pencilSimple} color="inherit" />,
-                                onAction: () => onEdit(index),
+                                label: "Delete",
+                                color: "#ff3b30",
+                                icon: <Icon icon={Icons.trash} color="inherit" />,
+                                onAction: () => delWalk(index),
                               },
                             ]
-                          : []),
-                        {
-                          label: "Delete",
-                          color: "#ff3b30",
-                          icon: <Icon icon={Icons.trash} color="inherit" />,
-                          onAction: () => delWalk(index),
-                        },
-                      ]}
+                          : []
+                      }
                     >
                       <WalkEntry walk={w} avatar={db.profile.avatar} onOpenMap={setMapWalk} />
                     </SwipeableRow>
                   </RevealItem>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ))
