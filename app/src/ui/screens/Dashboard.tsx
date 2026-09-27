@@ -10,12 +10,13 @@ import { TopBar } from "../components/TopBar";
 import { FitText } from "../components/FitText";
 import { Icons } from "../lib/icons";
 import { dogStepsFromHuman } from "../lib/dogSteps";
-import type { ScreenId } from "../types";
+import { myLoggerId, primaryOwnerId, walkLoggerId, myWalkerName } from "../lib/walkers";
+import { nowTime } from "../lib/date";
+import type { ScreenId, Walk } from "../types";
 
 interface DashboardProps {
   onNavigate: (id: ScreenId) => void;
   onLogWalk: () => void;
-  onLogBathroom: () => void;
   /** Opens Settings with a circular reveal from the tapped avatar. */
   onOpenSettings?: (origin: { x: number; y: number }) => void;
   /** Opens the notifications page with a circular reveal from the tapped bell. */
@@ -64,7 +65,6 @@ function localISO(d: Date): string {
 export function Dashboard({
   onNavigate,
   onLogWalk,
-  onLogBathroom,
   onOpenSettings,
   onOpenNotifications,
   onOpenVetNotes,
@@ -134,20 +134,40 @@ export function Dashboard({
   // Horizontal scroll carousel state — one snap panel per week.
   const weekScrollRef = useRef<HTMLDivElement>(null);
   const [activeWeek, setActiveWeek] = useState(0);
+  // Stay pinned to the latest (current) week until the user scrolls to an older
+  // one. This lets an async cloud pull that prepends older weeks re-assert the
+  // current week without yanking the user away from a week they chose.
+  const pinnedToLatest = useRef(true);
 
-  // Land on the current week (rightmost panel) whenever the week set changes.
+  // Land on the current week (rightmost panel). Runs on mount and whenever the
+  // week data changes — a cloud sync can bring in older walks after first paint,
+  // which prepends panels and (on iOS WebKit) lets scroll-snap clamp a single
+  // programmatic scroll to an adjacent panel. We disable snap while jumping and
+  // re-assert after paint so we reliably land on the current week.
   useLayoutEffect(() => {
     const el = weekScrollRef.current;
-    if (!el) return;
+    if (!el || weeks.length === 0 || !pinnedToLatest.current) return;
+    const prevSnap = el.style.scrollSnapType;
+    el.style.scrollSnapType = "none";
     el.scrollLeft = el.scrollWidth;
     setActiveWeek(weeks.length - 1);
-  }, [weeks.length]);
+    const raf = requestAnimationFrame(() => {
+      el.scrollLeft = el.scrollWidth;
+      el.style.scrollSnapType = prevSnap;
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      el.style.scrollSnapType = prevSnap;
+    };
+  }, [weeks]);
 
   const onWeekScroll = (): void => {
     const el = weekScrollRef.current;
     if (!el || el.clientWidth === 0) return;
     const idx = Math.round(el.scrollLeft / (el.clientWidth + WEEK_GAP));
-    setActiveWeek(Math.max(0, Math.min(weeks.length - 1, idx)));
+    const clamped = Math.max(0, Math.min(weeks.length - 1, idx));
+    setActiveWeek(clamped);
+    pinnedToLatest.current = clamped === weeks.length - 1;
   };
 
   const current = weeks[activeWeek] ?? weeks[weeks.length - 1];
@@ -177,6 +197,44 @@ export function Dashboard({
       poops: entries.reduce((a, w) => a + (w.poops ?? 0), 0),
     };
   }, [db.walks, todayISO]);
+
+  // Quick-log a poop onto today's own daily walk aggregate (create it if none).
+  const addPoop = (): void => {
+    const selfId = myLoggerId() ?? primaryOwnerId();
+    update((d) => {
+      const idx = d.walks.findIndex(
+        (w) =>
+          w.date === todayISO &&
+          !(Array.isArray(w.gpsRoute) && w.gpsRoute.length > 1) &&
+          walkLoggerId(w) === selfId,
+      );
+      if (idx >= 0) {
+        const existing = d.walks[idx];
+        d.walks[idx] = {
+          ...existing,
+          poops: (existing.poops ?? 0) + 1,
+          loggedBy: existing.loggedBy ?? selfId,
+        };
+      } else {
+        const walk: Walk = {
+          date: todayISO,
+          time: nowTime(),
+          steps: "",
+          friends: false,
+          weather: [],
+          notes: "",
+          walksCount: 1,
+          poops: 1,
+          assignee: myWalkerName(),
+          loggedBy: selfId,
+          created: new Date().toISOString(),
+        };
+        d.walks.push(walk);
+      }
+    });
+    const total = todayActivity.poops + 1;
+    toast(`💩 ${total} poop${total === 1 ? "" : "s"} today`);
+  };
 
   const toggleMeal = (slot: number): void => {
     update((d) => {
@@ -461,7 +519,7 @@ export function Dashboard({
 
         {/* Pooped + Trained */}
         <div style={{ flex: "1 1 0", minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
-          <QuickCard label="Bathroom" bg="#A9E7A7" onClick={onLogBathroom} />
+          <QuickCard label="Bathroom" bg="#A9E7A7" onClick={addPoop} />
           <QuickCard
             label="Training"
             bg="var(--color-dash-trained)"

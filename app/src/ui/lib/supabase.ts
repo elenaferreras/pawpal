@@ -152,6 +152,27 @@ export function autoSyncToSupabase(db: Database): void {
           ? shared.replace(/^user_/, "")
           : getCurrentUserId();
         const payload = JSON.parse(JSON.stringify(db)) as Database;
+        // Merge-before-overwrite: this push replaces the whole shared row, so
+        // first pull the current cloud version and fold in any activity entries
+        // (meals/walks/bathroom) another co-owner or a sitter added that we
+        // don't have locally yet. Without this, a co-owner's logged meal could
+        // be wiped by another co-owner's push — risking an overfed dog.
+        let mergedRemote = false;
+        try {
+          const meta = await fetchCloudMeta();
+          if (meta?.payload) {
+            const c = meta.payload;
+            const mWalks = newEntries(payload.walks, c.walks);
+            const mMeals = newEntries(payload.meals, c.meals);
+            const mBath = newEntries(payload.bathroom, c.bathroom);
+            if (mWalks.length) payload.walks = [...payload.walks, ...mWalks];
+            if (mMeals.length) payload.meals = [...payload.meals, ...mMeals];
+            if (mBath.length) payload.bathroom = [...payload.bathroom, ...mBath];
+            mergedRemote = mWalks.length + mMeals.length + mBath.length > 0;
+          }
+        } catch {
+          // Offline or fetch failed — fall back to pushing local as-is.
+        }
         // Strip photos to avoid hitting row-size limits.
         payload.bathroom = payload.bathroom.map((b) => ({ ...b, photos: [] }));
         const updatedAt = new Date().toISOString();
@@ -175,11 +196,15 @@ export function autoSyncToSupabase(db: Database): void {
           // The local data is now confirmed to belong to this identity.
           setDataOwner(rowKey);
           // Remember the version we just wrote so the live poll can tell our
-          // own pushes apart from a sitter's remote changes.
-          try {
-            localStorage.setItem(CLOUD_SEEN_KEY, updatedAt);
-          } catch {
-            /* ignore */
+          // own pushes apart from a sitter's remote changes. When we folded in
+          // remote-only entries, leave the marker so the next reconcile pulls
+          // those entries into this device's local copy too.
+          if (!mergedRemote) {
+            try {
+              localStorage.setItem(CLOUD_SEEN_KEY, updatedAt);
+            } catch {
+              /* ignore */
+            }
           }
           const t = new Date().toLocaleTimeString([], {
             hour: "2-digit",

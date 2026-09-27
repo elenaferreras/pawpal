@@ -378,7 +378,6 @@ function Shell(): React.ReactElement {
           navigate("vet");
         }}
         onLogWalk={logWalk}
-        onLogBathroom={() => setModal("poop")}
       />
     ) : tabKey === "walks" ? (
       <WalksStats

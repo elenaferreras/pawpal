@@ -528,9 +528,6 @@ export function SitterApp({ state, onEnd }: SitterAppProps): React.ReactElement 
           />
           <InfoRow label="Vet" value={snapshot.profile?.vet || "Not provided"} />
           <InfoRow label="Vet phone" value={snapshot.profile?.vetPhone || "Not provided"} />
-          {snapshot.vetRecords?.notes ? (
-            <InfoRow label="Notes" value={snapshot.vetRecords.notes} />
-          ) : null}
         </div>
       </MotionSheet>
     </div>
