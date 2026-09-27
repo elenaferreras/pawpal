@@ -16,6 +16,24 @@ export function saveNotifConfig(cfg: NotifConfig): void {
   localStorage.setItem("pawpal_notif_config", JSON.stringify(cfg));
 }
 
+/**
+ * Evenly-spaced meal times for a given meal count, spread across the day
+ * (08:00–20:00). Used to recompute reminder times when the meals-per-day
+ * count changes so all reminders are redistributed, not just truncated.
+ */
+export function mealTimesFor(count: number): string[] {
+  if (count <= 1) return ["12:00"];
+  const START = 8 * 60; // 08:00
+  const END = 20 * 60; // 20:00
+  const step = (END - START) / (count - 1);
+  return Array.from({ length: count }, (_, i) => {
+    const total = Math.round(START + step * i);
+    const h = Math.floor(total / 60);
+    const m = total % 60;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  });
+}
+
 export async function requestNotificationPermission(): Promise<boolean> {
   if (!("Notification" in window)) return false;
   if (Notification.permission === "granted") return true;

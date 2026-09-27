@@ -142,8 +142,8 @@ export function Settings({ onNavigate, onBack }: SettingsProps): React.ReactElem
           />
         </GroupCard>
 
-        {/* Sharing & backup */}
-        <SectionLabel>Sharing &amp; backup</SectionLabel>
+        {/* Sharing */}
+        <SectionLabel>Sharing</SectionLabel>
         <GroupCard>
           <SettingsRow
             isFirst
@@ -160,7 +160,13 @@ export function Settings({ onNavigate, onBack }: SettingsProps): React.ReactElem
             subtitle="Share full access with another owner"
             onClick={() => onNavigate("settings-coowners")}
           />
+        </GroupCard>
+
+        {/* Backup */}
+        <SectionLabel>Backup</SectionLabel>
+        <GroupCard>
           <SettingsRow
+            isFirst
             icon={Icons.refresh}
             iconBg="var(--color-track-notes)"
             label="Cloud sync"

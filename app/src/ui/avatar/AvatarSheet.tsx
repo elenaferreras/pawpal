@@ -91,36 +91,23 @@ export function AvatarSheet({ open, value, onConfirm, onClose }: AvatarSheetProp
               background: "rgba(245,245,245,0.96)",
               backdropFilter: "blur(20px)",
               WebkitBackdropFilter: "blur(20px)",
-              borderTopLeftRadius: 34,
-              borderTopRightRadius: 34,
-              boxShadow: "0px -8px 40px rgba(0,0,0,0.18)",
-              paddingBottom: "calc(20px + env(safe-area-inset-bottom, 0px))",
-              maxHeight: "92vh",
-              overflowY: "auto",
-              overflowX: "hidden",
+              height: "100vh",
+              maxHeight: "100vh",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
               boxSizing: "border-box",
             }}
           >
-        {/* Grabber — drag-to-dismiss starts here so scrolling the body never moves the sheet. */}
+        {/* Toolbar: ✕ · title · ✓ — also the drag-to-dismiss zone (no grabber). */}
         <div
           onPointerDown={draggable ? (e) => dragControls.start(e) : undefined}
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            paddingTop: 8,
-            touchAction: draggable ? "none" : undefined,
-          }}
-        >
-          <div style={{ width: 36, height: 5, borderRadius: 100, background: "rgba(0,0,0,0.2)" }} />
-        </div>
-
-        {/* Toolbar: ✕ · title · ✓ */}
-        <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             padding: "10px 16px",
+            touchAction: draggable ? "none" : undefined,
           }}
         >
           <RoundIconButton label="Cancel" bg={DARK} color="#fff" icon={Icons.x} onClick={onClose} />
@@ -136,6 +123,16 @@ export function AvatarSheet({ open, value, onConfirm, onClose }: AvatarSheetProp
           />
         </div>
 
+        {/* Scrolling body — header above stays pinned. */}
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: "auto",
+            overflowX: "hidden",
+            paddingBottom: "calc(20px + env(safe-area-inset-bottom, 0px))",
+          }}
+        >
         {/* Selected preview */}
         <div style={{ display: "flex", justifyContent: "center", padding: "8px 0 16px" }}>
           <div
@@ -231,6 +228,7 @@ export function AvatarSheet({ open, value, onConfirm, onClose }: AvatarSheetProp
             );
           })}
         </div>
+        </div>
           </motion.div>
         </motion.div>
       )}
@@ -256,6 +254,7 @@ function RoundIconButton({
     <button
       type="button"
       aria-label={label}
+      onPointerDown={(e) => e.stopPropagation()}
       onClick={onClick}
       style={{
         width: 40,

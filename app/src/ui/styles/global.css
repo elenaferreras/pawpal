@@ -824,19 +824,14 @@ body.modal-open {
   /* Cap the height so a tall form never slides its top (header actions) under
      the iOS status bar / notch. */
   max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 18px);
-  /* A `position: fixed` scrim resolves `bottom: 0` to the *small* viewport on
-     iOS, so it (and this sheet at its flex-end) stops above the home-indicator
-     inset and the brown page shows through. Pull the sheet down by that inset so
-     its own opaque surface paints over the region — the body's safe-area padding
-     keeps content clear of the indicator. Desktop (inset 0) is unaffected. */
-  margin-bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
+  margin-bottom: 0;
   display: flex;
   flex-direction: column;
   background: color-mix(in srgb, var(--sheet-surface) 95%, transparent);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
   backdrop-filter: blur(12px) saturate(180%);
-  /* Bottom corners square: the sheet now reaches (and extends past) the physical
-     bottom edge, so rounded bottom corners would only expose scrim triangles. */
+  /* Bottom corners square: the sheet reaches the physical bottom edge, so
+     rounded bottom corners would only expose scrim triangles. */
   border-radius: 40px 40px 0 0;
   overflow: hidden;
   box-shadow:
@@ -844,7 +839,15 @@ body.modal-open {
     inset 1px 0 0 rgba(255, 255, 255, 0.28),
     inset -1px 0 0 rgba(53, 43, 37, 0.06),
     inset 0 -1px 0 rgba(53, 43, 37, 0.08),
-    0 16px 40px rgba(0, 0, 0, 0.28);
+    0 16px 40px rgba(0, 0, 0, 0.28),
+    /* Opaque surface "skirt" painted below the sheet's bottom edge. On iOS a
+       `position: fixed` scrim can resolve `bottom: 0` to the *small* viewport,
+       so the sheet at its flex-end stops just above the home-indicator inset and
+       the dark scrim/brown page shows through as a band under the sheet. A solid
+       box-shadow paints OUTSIDE the element's overflow and doesn't depend on how
+       the scrim resolves its bottom, so it reliably fills that inset with the
+       sheet's own colour. */
+    0 80px 0 0 var(--sheet-surface);
 }
 .form-sheet .sheet-body {
   padding-bottom: max(20px, calc(20px + env(safe-area-inset-bottom, 0px)));
@@ -1906,12 +1909,19 @@ button.wts-row {
   color: color-mix(in srgb, var(--color-track-poop) 90%, white);
 }
 /* Single-field edit sheet (Figma node 223:2507) — full-screen editor. */
-/* Single-field editor. A compact floating form sheet (shares `.form-sheet`
-   layout) that hugs the bottom just above the keyboard, so the input stays
-   visible without scrolling and the cream surface fills down to the keyboard
-   (no dark page background showing behind the iOS input accessory bar). */
+/* Single-field editor. Fills the whole screen (not a compact bottom sheet) so
+   the lone input sits high with the on-screen keyboard open beneath it. The
+   cream surface covers the status-bar inset via the header's top padding. */
 .field-sheet {
   --sheet-surface: var(--color-pawpal-hero);
+  width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin-bottom: 0;
+  border-radius: 0;
+}
+.field-sheet .sheet-header {
+  padding-top: max(10px, calc(10px + env(safe-area-inset-top, 0px)));
 }
 /* "Log a walk" chooser sheet (new design). */
 .chooser-sheet {

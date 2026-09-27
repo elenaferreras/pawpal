@@ -56,7 +56,6 @@ export function MotionSheet({
   scrimStyle,
   sheetClassName,
   sheetStyle,
-  hideHandle,
   title,
   titleColor,
   onCancel,
@@ -70,7 +69,7 @@ export function MotionSheet({
 }: MotionSheetProps): React.ReactElement {
   const reduceMotion = useReducedMotion();
   const dragControls = useDragControls();
-  const showHandle = !reduceMotion && !hideHandle;
+  const showHandle = false;
   const draggable = !reduceMotion;
   // Leading X shows for any sheet that can cancel or confirm; trailing check
   // only when a confirm handler is supplied.

@@ -8,6 +8,8 @@ import { Button } from "../../components/Button";
 import { Group, NavRow } from "../../components/SheetForm";
 import { FieldEditSheet, type FieldEditType } from "../../components/FieldEditSheet";
 import { COMMON_BREEDS } from "../../lib/breeds";
+import { getNotifConfig, mealTimesFor, saveNotifConfig } from "../../lib/notifications";
+import { syncReminderPrefs } from "../../lib/push";
 import type { Avatar, Profile } from "../../types";
 import { SettingsPage } from "./shared";
 
@@ -127,6 +129,7 @@ export function ProfileDetails({ onBack }: ProfileDetailsProps): React.ReactElem
 
   const saveField = (key: EditableField["key"], raw: string): void => {
     const value = raw.trim();
+    let newMealsPerDay: number | null = null;
     update((d) => {
       const next: Profile = d.profile;
       if (key === "foodGoal") {
@@ -137,12 +140,26 @@ export function ProfileDetails({ onBack }: ProfileDetailsProps): React.ReactElem
         next.mealsPerDay = Number.isNaN(parsed)
           ? next.mealsPerDay
           : Math.min(4, Math.max(1, parsed));
+        newMealsPerDay = next.mealsPerDay;
       } else if (key === "weight") {
         next.weight = value;
       } else {
         next[key] = value;
       }
     });
+    // Changing the meal count redistributes the meal reminder times evenly
+    // across the day instead of just dropping the trailing slots.
+    if (newMealsPerDay != null && newMealsPerDay !== p.mealsPerDay) {
+      const cfg = getNotifConfig();
+      if (cfg.mealReminders) {
+        const nextCfg = {
+          ...cfg,
+          mealReminders: { ...cfg.mealReminders, times: mealTimesFor(newMealsPerDay) },
+        };
+        saveNotifConfig(nextCfg);
+        void syncReminderPrefs(nextCfg, newMealsPerDay);
+      }
+    }
     setEditing(null);
     toast("Profile saved! 🐾");
   };

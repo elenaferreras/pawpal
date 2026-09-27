@@ -9,6 +9,7 @@ import { Eyebrow, CardTitle, StatNumber, Caption, Callout } from "../components/
 import { TopBar } from "../components/TopBar";
 import { FitText } from "../components/FitText";
 import { Icons } from "../lib/icons";
+import { dogStepsFromHuman } from "../lib/dogSteps";
 import type { ScreenId } from "../types";
 
 interface DashboardProps {
@@ -355,9 +356,15 @@ export function Dashboard({
                 {average.toLocaleString("de-DE")}
               </StatNumber>
               <StatNumber color={MUTED} weight={400} style={{ fontFamily: "var(--font-ui)", opacity: 0.6, fontSize: "clamp(30px, 9.5vw, 44px)" }}>
-                steps
+                steps{average > 0 ? "*" : ""}
               </StatNumber>
             </div>
+            {average > 0 && (
+              <Caption color={MUTED} weight={600} style={{ fontFamily: "var(--font-ui)", fontSize: 14, opacity: 0.6, marginTop: 4 }}>
+                * that's ≈ {dogStepsFromHuman(average, p).toLocaleString("de-DE")} steps for{" "}
+                {p.name || "your pup"}
+              </Caption>
+            )}
           </div>
         </div>
         </motion.div>
@@ -393,7 +400,7 @@ export function Dashboard({
           }}
         >
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-            <CardTitle weight={400} style={{ fontFamily: "var(--font-ui)" }}>
+            <CardTitle weight={600} style={{ fontFamily: "var(--font-ui)" }}>
               {todayActivity.hasData ? "Today's walks" : "Today's activity"}
             </CardTitle>
             {todayActivity.hasData && (
@@ -403,7 +410,7 @@ export function Dashboard({
                   width: 34,
                   height: 34,
                   borderRadius: "50%",
-                  background: HERO,
+                  background: "rgba(53, 43, 37, 0.12)",
                   color: DARK,
                   display: "flex",
                   alignItems: "center",
@@ -411,34 +418,34 @@ export function Dashboard({
                   flexShrink: 0,
                 }}
               >
-                <Icon icon={Icons.pencilSimple} color="inherit" />
+                <Icon icon={Icons.caretRight} color="inherit" />
               </span>
             )}
           </div>
 
           {todayActivity.hasData ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+                background: "linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.28))",
+                borderRadius: 20,
+                padding: "14px 16px",
+              }}
+            >
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <Icon icon={Icons.footprints} color="inherit" />
-                <StatNumber color={DARK} weight={400} style={{ fontFamily: "var(--font-ui)", fontSize: 26, lineHeight: 1 }}>
-                  {todayActivity.walks}
-                </StatNumber>
-                <Callout color={DARK} style={{ opacity: 0.7 }}>
-                  {todayActivity.walks === 1 ? "walk" : "walks"}
+                <Icon icon={Icons.personWalking} color="inherit" />
+                <Callout color={DARK} weight={500} style={{ fontSize: 18 }}>
+                  {todayActivity.walks} {todayActivity.walks === 1 ? "walk" : "walks"}
                 </Callout>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <Icon icon={Icons.toilet} color="inherit" />
-                <StatNumber color={DARK} weight={400} style={{ fontFamily: "var(--font-ui)", fontSize: 26, lineHeight: 1 }}>
-                  {todayActivity.poops}
-                </StatNumber>
-                <Callout color={DARK} style={{ opacity: 0.7 }}>
-                  {todayActivity.poops === 1 ? "poop" : "poops"}
+                <Callout color={DARK} weight={500} style={{ fontSize: 18 }}>
+                  {todayActivity.poops} {todayActivity.poops === 1 ? "poop" : "poops"}
                 </Callout>
               </div>
-              <Caption color={DARK} style={{ opacity: 0.55 }}>
-                {todayActivity.steps.toLocaleString("de-DE")} steps
-              </Caption>
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
