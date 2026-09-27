@@ -833,10 +833,7 @@ body.modal-open {
   /* Bottom corners square: the sheet reaches the physical bottom edge, so
      rounded bottom corners would only expose scrim triangles. */
   border-radius: 40px 40px 0 0;
-  /* NOT overflow:hidden — that would clip the ::after safe-area skirt below. The
-     header covers the rounded top corners and .sheet-scroll clips its own body,
-     so no clipping is needed here. */
-  overflow: visible;
+  overflow: hidden;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.5),
     inset 1px 0 0 rgba(255, 255, 255, 0.28),
@@ -844,21 +841,20 @@ body.modal-open {
     inset 0 -1px 0 rgba(53, 43, 37, 0.08),
     0 16px 40px rgba(0, 0, 0, 0.28);
 }
-/* Opaque surface "skirt" painted just below the sheet's bottom edge. On iOS a
-   `position: fixed` scrim can resolve `bottom: 0` to the *small* viewport, so the
-   sheet at its flex-end stops above the home-indicator inset and the dark
-   scrim/brown page shows through as a band under the sheet. A real painted
-   pseudo-element (NOT a box-shadow — WebKit drops outset shadows on
-   backdrop-filter elements) fills that inset with the sheet's own colour. It
-   bleeds a few px past the side gaps so the band reaches the screen edges. */
-.form-sheet::after {
-  content: "";
-  position: absolute;
-  left: -8px;
-  right: -8px;
-  top: 100%;
-  height: 140px;
-  background: var(--sheet-surface);
+/* Opaque bottom safe-area fill for floating sheets. Fixed to the layout-viewport
+   bottom and painted in the sheet's surface colour (set inline from JS). It is a
+   scrim sibling — NOT a child of the `.form-sheet` — because iOS/WebKit clips the
+   descendants (and pseudo-elements / box-shadows) of a `backdrop-filter` element
+   to its box, which is why earlier ::after / box-shadow skirts vanished on the
+   device. The sheet paints on top; this only shows in the home-indicator /
+   Safari-toolbar inset the sheet can't reach, killing the brown page band. */
+.sheet-safe-fill {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 160px;
+  z-index: 0;
   pointer-events: none;
 }
 .form-sheet .sheet-body {

@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useDragControls, useReducedMotion } from "motion/react";
 import { createPortal } from "react-dom";
 import { Icon } from "@astryxdesign/core/Icon";
@@ -77,6 +78,19 @@ export function MotionSheet({
   const showCancel = onCancel != null || showConfirm;
   useScrollLock(open);
 
+  // Read the sheet's surface colour so the bottom safe-area fill (a scrim
+  // sibling, NOT a descendant of the backdrop-filtered sheet, which WebKit would
+  // clip) can paint the iOS home-indicator inset in the sheet's own colour.
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const [surface, setSurface] = useState("");
+  useLayoutEffect(() => {
+    if (!open) return;
+    const el = sheetRef.current;
+    if (!el) return;
+    const val = getComputedStyle(el).getPropertyValue("--sheet-surface").trim();
+    if (val) setSurface(val);
+  }, [open]);
+
   return createPortal(
     <AnimatePresence>
       {open && (
@@ -89,7 +103,13 @@ export function MotionSheet({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
         >
+          {/* Opaque bottom fill (fixed to the layout-viewport bottom) that paints
+              the iOS home-indicator / Safari-toolbar inset in the sheet's colour.
+              Rendered as a scrim child — NOT inside the sheet — because WebKit
+              clips descendants of a `backdrop-filter` element to its box. */}
+          {surface && <div className="sheet-safe-fill" aria-hidden style={{ background: surface }} />}
           <motion.div
+            ref={sheetRef}
             className={sheetClassName}
             style={sheetStyle}
             role="dialog"
