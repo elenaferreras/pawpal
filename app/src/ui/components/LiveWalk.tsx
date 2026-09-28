@@ -14,11 +14,12 @@ import { autoWeather } from "../lib/weather";
 import { Icon } from "@astryxdesign/core/Icon";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
-import { myLoggerId, primaryOwnerId } from "../lib/walkers";
 import { MotionSheet } from "./MotionSheet";
 import { RouteMap } from "./RouteMap";
 import { Icons, type AppIconName } from "../lib/icons";
-import { stickerUrlOrDefault } from "../avatar/stickers";
+import { myLoggerId, primaryOwnerId } from "../lib/walkers";
+import { buildDogSVG, buildDogFace } from "../avatar/build";
+import { stickerUrl } from "../avatar/stickers";
 import type { Avatar, GpsCoord, Walk } from "../types";
 
 type Phase = "idle" | "active" | "summary";
@@ -373,13 +374,19 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
         })()
       : "—";
 
-  // The live map's "you are here" pin uses the dog's own sticker so the walk
-  // feels personal. Falls back to the default dog sticker when none is set.
+  // The live map's "you are here" pin uses the dog's own avatar so the walk
+  // feels personal. Mirrors <DogAvatar>: a chosen sticker wins, otherwise the
+  // full standing dog. The inner art is kept smaller than the circle (~the same
+  // 112/136 ratio as the avatar editor) so the round mask never clips it.
   const markerHtml = useMemo(() => {
     const av = externalAvatar ?? db.profile.avatar;
     const bg = av?.bg ?? "var(--color-data-yellow-3)";
-    const sticker = stickerUrlOrDefault(av?.sticker);
-    const inner = `<img src="${sticker}" alt="" style="display:block;width:34px;height:34px;object-fit:contain" />`;
+    const sticker = stickerUrl(av?.sticker);
+    const inner = sticker
+      ? `<img src="${sticker}" alt="" style="display:block;width:34px;height:34px;object-fit:contain" />`
+      : av
+        ? buildDogSVG(av, 28)
+        : buildDogFace(undefined, 26);
     return `<div class="lw-pin-inner" style="background:${bg}">${inner}</div>`;
   }, [db.profile.avatar, externalAvatar]);
 

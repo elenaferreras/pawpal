@@ -2975,7 +2975,7 @@ input.wts-field[type="time"] {
     opacity 0.24s ease,
     transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
   pointer-events: none;
-  max-width: min(340px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
   text-align: center;
 }
 .notif:has(.notif-action) {

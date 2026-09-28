@@ -40,7 +40,6 @@ export function Bathroom({ onAdd, onEdit }: BathroomProps): React.ReactElement {
   const { db, update } = useDb();
   const toast = useToast();
   const confirm = useConfirm();
-  const name = db.profile.name.trim() || "Zipi";
 
   const history = db.bathroom
     .map((b, index) => ({ b, index }))
@@ -76,7 +75,7 @@ export function Bathroom({ onAdd, onEdit }: BathroomProps): React.ReactElement {
       }}
     >
       <TopBar
-        title={name}
+        title="Bathroom logs"
         action={
           <TopBarButton
             icon={Icons.plus}

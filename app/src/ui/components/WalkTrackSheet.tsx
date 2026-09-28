@@ -171,17 +171,20 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate, startInC
         // Re-opening a day that already has an aggregate → edit it.
         loadFrom(existing);
       } else {
-        // Fresh day: conditions (weather + location) are auto-filled from the
-        // user's current position below, not carried over from the last walk.
+        // Fresh day: carry forward the last aggregate's conditions/steps so a
+        // routine day is a couple of taps; outcomes (poops, social) start empty.
+        const last = walksList
+          .filter((w) => w.created && !isLiveEntry(w))
+          .sort((a, b) => (b.created || "").localeCompare(a.created || ""))[0];
         setDateISO(startDate);
         setWalksCount(1);
-        setSteps("");
+        setSteps(last?.steps ? String(last.steps) : "");
         setPoops(0);
         setSocialised(false);
         setAssignee(selfWalkerName);
-        setLocation("");
-        setWeather([]);
-        setTerrain([]);
+        setLocation(last?.location ?? "");
+        setWeather(last?.weather ?? []);
+        setTerrain(last?.terrain ?? []);
         setNotes("");
         setSendToVet(false);
       }

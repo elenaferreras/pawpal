@@ -253,6 +253,7 @@ export function Dashboard({
   };
 
   const toggleMeal = (slot: number): void => {
+    const wasEaten = db.meals.some((m) => m.date === todayISO && m.mealSlot === slot);
     update((d) => {
       const has = d.meals.some((m) => m.date === todayISO && m.mealSlot === slot);
       if (has) {
@@ -269,6 +270,15 @@ export function Dashboard({
         });
       }
     });
+    if (!wasEaten) {
+      const undo = (): void => {
+        update((d) => {
+          d.meals = d.meals.filter((m) => !(m.date === todayISO && m.mealSlot === slot));
+        });
+      };
+      const label = ORDINALS[slot] ?? `Meal ${slot + 1}`;
+      toast(`🍖 ${label} meal fed`, { label: "Undo", onClick: undo });
+    }
   };
 
   const vetNoteItems = db.vetRecords.noteItems;

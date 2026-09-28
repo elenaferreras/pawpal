@@ -52,65 +52,12 @@ export async function autoWeather(lat: number, lng: number): Promise<WeatherKey 
   }
 }
 
-// Remember once we've shown the native geolocation prompt, so a user who
-// dismisses it (state stays "prompt") isn't re-asked on every visit.
-const GEO_ASKED_KEY = "pawpal_geo_asked";
-// Remember once a fetch succeeded. iOS Safari (incl. Home Screen PWA) has no
-// geolocation Permissions API, so `state` never reads "granted" there; without
-// this flag the one-time-ask guard below would permanently block auto-fill
-// after the first prompt even though the user granted access.
-const GEO_GRANTED_KEY = "pawpal_geo_granted";
-
-function readFlag(key: string): boolean {
-  try {
-    return localStorage.getItem(key) === "1";
-  } catch {
-    return false;
-  }
-}
-
-function writeFlag(key: string): void {
-  try {
-    localStorage.setItem(key, "1");
-  } catch {
-    /* storage blocked — ignore */
-  }
-}
-
-export async function currentPosition(): Promise<GeolocationPosition> {
-  if (!navigator.geolocation) throw new Error("no geolocation");
-
-  let state: PermissionState | null = null;
-  try {
-    if (navigator.permissions?.query) {
-      state = (await navigator.permissions.query({ name: "geolocation" as PermissionName })).state;
-    }
-  } catch {
-    /* Permissions API unavailable — fall through to the one-time guard. */
-  }
-
-  if (state === "denied") throw new Error("geolocation denied");
-
-  // Skip the one-time-ask guard when we already know access was granted —
-  // either the Permissions API says so, or a previous fetch succeeded (the
-  // only signal available on iOS). In that case the browser won't re-prompt.
-  const granted = state === "granted" || readFlag(GEO_GRANTED_KEY);
-
-  // Otherwise ("prompt" or unknown) trigger the native prompt at most once, so
-  // a user who dismisses it isn't re-asked on every later visit.
-  if (!granted) {
-    if (readFlag(GEO_ASKED_KEY)) throw new Error("geolocation not granted");
-    writeFlag(GEO_ASKED_KEY);
-  }
-
+export function currentPosition(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        writeFlag(GEO_GRANTED_KEY);
-        resolve(pos);
-      },
-      reject,
-      { maximumAge: 600_000, timeout: 8000 },
-    );
+    if (!navigator.geolocation) {
+      reject(new Error("no geolocation"));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(resolve, reject, { maximumAge: 600_000, timeout: 8000 });
   });
 }
