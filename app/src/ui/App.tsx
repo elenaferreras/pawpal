@@ -388,7 +388,7 @@ function Shell(): React.ReactElement {
         onEdit={(i) => openTrackWalk(i)}
       />
     ) : tabKey === "food" ? (
-      <Food onAdd={() => setModal("food")} />
+      <Food />
     ) : tabKey === "bathroom" ? (
       <Bathroom
         onAdd={() => {

@@ -850,8 +850,12 @@ body.modal-open {
    Safari-toolbar inset the sheet can't reach, killing the brown page band. */
 .sheet-safe-fill {
   position: fixed;
-  left: 0;
-  right: 0;
+  /* Match the sheet's width/position so the fill only paints under the sheet.
+     Full-bleed left/right would bleed the sheet colour out past the sheet's
+     sides (a blue rectangle on wider viewports). */
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(560px, calc(100% - 12px));
   bottom: 0;
   height: 160px;
   z-index: 0;
@@ -2975,6 +2979,7 @@ input.wts-field[type="time"] {
     opacity 0.24s ease,
     transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
   pointer-events: none;
+  width: max-content;
   max-width: calc(100vw - 32px);
   text-align: center;
 }
@@ -3661,17 +3666,21 @@ input.wts-field[type="time"] {
   /* Keep aspect-ratio tiles square; iOS Safari stretches them to ovals otherwise. */
   align-items: start;
 }
+/* Lock every sticker tile to a 1:1 circle. The tile is NOT a flex container:
+   on iOS Safari, `aspect-ratio` is ignored when the element also flexes and its
+   content (a portrait-ish dog drawing) drives a taller box, so the circle turns
+   oval. The image is taken out of flow (absolutely positioned) so it can never
+   dictate the tile's height, leaving `aspect-ratio: 1/1` to define a perfect
+   circle at any column width. */
 .fyp-tile {
   position: relative;
   aspect-ratio: 1 / 1;
   width: 100%;
-  padding: 12px;
+  padding: 0;
   border: none;
   border-radius: 50%;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  overflow: hidden;
   transition: transform 0.14s ease, box-shadow 0.18s ease, background 0.2s ease;
 }
 .fyp-tile:active {
@@ -3682,8 +3691,10 @@ input.wts-field[type="time"] {
   transform: translateY(-1px);
 }
 .fyp-tile-img {
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  inset: 12px;
+  width: calc(100% - 24px);
+  height: calc(100% - 24px);
   object-fit: contain;
   display: block;
 }

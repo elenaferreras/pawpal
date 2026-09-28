@@ -1,17 +1,11 @@
 import { Icon } from "@astryxdesign/core/Icon";
 import { useDb } from "../lib/store";
 import { useToast } from "../lib/toast";
-import { MealsWidget } from "../components/MealsWidget";
+import { MealBowl } from "../components/MealBowl";
 import { CardStagger } from "../components/CardStagger";
-import { CardTitle } from "../components/Typography";
-import { TopBar, TopBarButton } from "../components/TopBar";
+import { TopBar } from "../components/TopBar";
 import { Icons } from "../lib/icons";
-import { fmtDate } from "../lib/date";
 import type { Meal } from "../types";
-
-interface FoodProps {
-  onAdd: () => void;
-}
 
 const FOOD = "var(--color-food)"; // #E96A41 orange
 const DARK = "var(--color-pawpal-page)"; // #352B25 page background
@@ -33,37 +27,14 @@ const TIMES: Record<number, string[]> = {
   5: ["07:00", "10:00", "13:00", "17:00", "20:00"],
 };
 
-/** Dark pill showing a single line of the current meal plan. */
-function PlanField({ children }: { children: React.ReactNode }): React.ReactElement {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        minHeight: 54,
-        padding: "8px 20px",
-        borderRadius: 46,
-        background: DARK,
-        width: "100%",
-        boxSizing: "border-box",
-      }}
-    >
-      <span style={{ fontFamily: "var(--font-ui)", fontWeight: 400, fontSize: 20, color: CREAM }}>
-        {children}
-      </span>
-    </div>
-  );
-}
-
 /**
  * Meals screen (Figma node 58:1372).
  *
- * Dark page with a large "{name}'s Meals" title and an add button, an orange
- * "Current meal plan" card summarising the daily goal, and an orange meal
- * schedule whose rows can be checked off. The pacman MealsWidget peeks out of
- * the dark surface beneath the schedule to show today's progress.
+ * Dark page with a large "{name}'s Meals" title, a dark "MEAL PLAN" card whose
+ * bowl empties of kibble as meals are fed, and an orange meal schedule whose
+ * rows can be checked off. At-a-glance only — no history.
  */
-export function Food({ onAdd }: FoodProps): React.ReactElement {
+export function Food(): React.ReactElement {
   const { db, update } = useDb();
   const toast = useToast();
   const p = db.profile;
@@ -71,7 +42,9 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
   const n = p.mealsPerDay || 4;
   const fGoal = p.foodGoal || 300;
   const portion = Math.round(fGoal / n);
-  const today = new Date().toISOString().split("T")[0];
+  // Local YYYY-MM-DD (matches the Dashboard meal circles, not UTC).
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const todayMeals = db.meals.filter((m) => m.date === today);
   const doneSlots = new Set(todayMeals.filter((m) => m.mealSlot != null).map((m) => m.mealSlot));
   const names = NAMES[n] || NAMES[4];
@@ -95,25 +68,9 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
 
   const undo = (slot: number): void => {
     update((d) => {
-      const idx = d.meals.findIndex((m) => m.date === today && m.mealSlot === slot);
-      if (idx > -1) d.meals.splice(idx, 1);
+      d.meals = d.meals.filter((m) => !(m.date === today && m.mealSlot === slot));
     });
   };
-
-  const delMeal = (index: number): void => {
-    if (!window.confirm("Delete this meal?")) return;
-    update((d) => {
-      d.meals.splice(index, 1);
-    });
-    toast("Meal deleted");
-  };
-
-  const history = db.meals
-    .map((m, index) => ({ m, index }))
-    .sort(
-      (a, b) =>
-        new Date(b.m.created || b.m.date).getTime() - new Date(a.m.created || a.m.date).getTime(),
-    );
 
   return (
     <div
@@ -123,22 +80,73 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
         paddingBottom: "calc(96px + env(safe-area-inset-bottom, 20px))",
       }}
     >
-      <TopBar
-        title={`${name}\u2019s Meals`}
-        action={
-          <TopBarButton
-            icon={Icons.plus}
-            label="Log meal"
-            onClick={onAdd}
-            color="var(--color-food)"
-          />
-        }
-      />
+      <TopBar title={`${name}\u2019s Meals`} />
       <CardStagger style={{ padding: "0 16px" }}>
-      {/* Current meal plan */}
+      {/* Meal plan — dark card whose bowl empties as meals are fed */}
       <div
         style={{
           marginTop: 12,
+          background: WIDGET_DARK,
+          borderRadius: 40,
+          padding: 20,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <MealBowl fed={doneSlots.size} total={n} width={132} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minWidth: 0 }}>
+          <span
+            style={{
+              fontFamily: "var(--font-ui)",
+              fontSize: 13,
+              fontWeight: 600,
+              letterSpacing: "0.08em",
+              color: CREAM,
+              opacity: 0.8,
+            }}
+          >
+            MEAL PLAN
+          </span>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+            <span
+              style={{
+                fontFamily: "var(--font-ui)",
+                fontSize: 40,
+                fontWeight: 700,
+                lineHeight: 1,
+                color: CREAM,
+              }}
+            >
+              {fGoal}
+            </span>
+            <span style={{ fontFamily: "var(--font-ui)", fontSize: 16, color: CREAM }}>
+              gr of kibble
+            </span>
+          </div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+            <span
+              style={{
+                fontFamily: "var(--font-ui)",
+                fontSize: 40,
+                fontWeight: 700,
+                lineHeight: 1,
+                color: CREAM,
+              }}
+            >
+              {n}
+            </span>
+            <span style={{ fontFamily: "var(--font-ui)", fontSize: 16, color: CREAM }}>
+              {n === 1 ? "serving" : "servings"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Meal schedule — tap a row to log or undo today's meal */}
+      <div
+        style={{
+          marginTop: 8,
           background: FOOD,
           borderRadius: 40,
           padding: "20px 16px",
@@ -147,37 +155,6 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
           gap: 8,
         }}
       >
-        <CardTitle color={DARK} size={24} weight={400} style={{ padding: "0 8px" }}>
-          Current meal plan
-        </CardTitle>
-        <PlanField>
-          {fGoal}g of kibble in {n} servings
-        </PlanField>
-        <PlanField>{portion}g per meal</PlanField>
-      </div>
-
-      {/* Meal schedule — orange list over a dark surface with the pacman widget */}
-      <div
-        style={{
-          marginTop: 8,
-          background: WIDGET_DARK,
-          borderRadius: 40,
-          padding: 8,
-          display: "flex",
-          flexDirection: "column",
-          gap: 4,
-        }}
-      >
-        <div
-          style={{
-            background: FOOD,
-            borderRadius: 34,
-            padding: "20px 16px",
-            display: "flex",
-            flexDirection: "column",
-            gap: 8,
-          }}
-        >
           {names.map((mealName, i) => {
             const done = doneSlots.has(i);
             return (
@@ -220,115 +197,7 @@ export function Food({ onAdd }: FoodProps): React.ReactElement {
               </button>
             );
           })}
-        </div>
-
-        {/* Today's progress — the pacman widget, blended into the dark surface */}
-        <div style={{ padding: "8px 8px 4px" }}>
-          <MealsWidget eaten={doneSlots.size} total={n} />
-        </div>
       </div>
-
-      {/* Meal history */}
-      {history.length > 0 && (
-        <>
-          <CardTitle
-            color={CREAM}
-            size={20}
-            weight={400}
-            style={{ display: "block", margin: "24px 8px 12px" }}
-          >
-            Meal history
-          </CardTitle>
-          <div
-            style={{
-              background: "var(--color-dash-surface)",
-              borderRadius: 24,
-              overflow: "hidden",
-            }}
-          >
-            {history.map(({ m, index }, i) => (
-              <div
-                key={index}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: 12,
-                  borderTop: i === 0 ? undefined : "1px solid rgba(233,228,196,0.12)",
-                }}
-              >
-                <span
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 36,
-                    height: 36,
-                    borderRadius: 12,
-                    background: FOOD,
-                    color: "#fff",
-                    flexShrink: 0,
-                  }}
-                >
-                  <Icon icon={Icons.forkKnife} color="inherit" />
-                </span>
-                <span style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
-                  <span
-                    style={{
-                      fontFamily: "var(--font-ui)",
-                      fontSize: 15,
-                      fontWeight: 500,
-                      color: CREAM,
-                    }}
-                  >
-                    {m.type || "Meal"} {m.notes ? `· ${m.notes}` : ""}
-                  </span>
-                  <span
-                    style={{
-                      fontFamily: "var(--font-ui)",
-                      fontSize: 13,
-                      color: "var(--color-pawpal-muted)",
-                    }}
-                  >
-                    {fmtDate(m.date)} {m.time}
-                  </span>
-                </span>
-                <span
-                  style={{
-                    fontFamily: "var(--font-ui)",
-                    fontSize: 15,
-                    fontWeight: 600,
-                    color: CREAM,
-                    flexShrink: 0,
-                  }}
-                >
-                  {m.amount}g
-                </span>
-                <button
-                  type="button"
-                  aria-label="Delete meal"
-                  onClick={() => delMeal(index)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 32,
-                    height: 32,
-                    borderRadius: "50%",
-                    border: "none",
-                    background: "transparent",
-                    color: "var(--color-pawpal-muted)",
-                    cursor: "pointer",
-                    flexShrink: 0,
-                  }}
-                >
-                  <Icon icon={Icons.x} color="inherit" size="sm" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
       </CardStagger>
     </div>
   );

@@ -11,6 +11,7 @@ import { Group, NavRow } from "../components/SheetForm";
 import { GroomingHub } from "../components/GroomingHub";
 import { FieldEditSheet } from "../components/FieldEditSheet";
 import { HealthDetailScreen } from "../components/HealthDetailScreen";
+import { SettingsRow } from "./settings/shared";
 import { DogFace } from "../avatar/DogAvatar";
 import type { RecordType } from "../components/VetAddModal";
 import { WeightChart } from "../components/WeightChart";
@@ -614,13 +615,15 @@ export function Vet({
       <div style={{ padding: "0 16px" }}>
 
       <CardStagger>
-      {/* Overview widgets — Pet ID, Vet notes & Weight */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 20 }}>
-        <HubCard
+      {/* Overview — identity, notes & grooming as a grouped list */}
+      <SectionLabel>Overview</SectionLabel>
+      <GroupCard>
+        <SettingsRow
+          isFirst
           icon={Icons.idCard}
-          accent={ACCENT.petid}
-          title="Pet ID"
-          summary={
+          iconBg={ACCENT.petid}
+          label="Pet ID"
+          subtitle={
             db.profile.microchip?.trim()
               ? documents.length > 0
                 ? `Chip & ${documents.length} file${documents.length !== 1 ? "s" : ""}`
@@ -629,25 +632,36 @@ export function Vet({
           }
           onClick={() => setPetIdOpen(true)}
         />
-        <HubCard
+        <SettingsRow
           icon={Icons.note}
-          accent={ACCENT.notes}
-          title="Vet notes"
-          summary={
+          iconBg={ACCENT.notes}
+          label="Vet notes"
+          subtitle={
             noteItems.length === 0
               ? "No notes yet"
               : `${noteItems.filter((n) => !n.done).length} open · ${noteItems.length} total`
           }
           onClick={() => setNotesOpen(true)}
         />
+        <SettingsRow
+          icon={Icons.scissors}
+          iconBg={ACCENT.bath}
+          label="Grooming"
+          subtitle={lastGroomingActivity ? `Last ${fmtDate(lastGroomingActivity)}` : "Not logged yet"}
+          onClick={() => setGroomingOpen(true)}
+        />
+      </GroupCard>
+
+      {/* Weight — chart widget */}
+      <SectionLabel>Weight</SectionLabel>
         <button
           type="button"
           onClick={() => setWeightOpen(true)}
           style={{
-            gridColumn: "1 / -1",
             display: "flex",
             flexDirection: "column",
             gap: 10,
+            width: "100%",
             padding: 18,
             border: "none",
             cursor: "pointer",
@@ -702,26 +716,16 @@ export function Vet({
             <WeightChart data={weightAsc} height={132} showAxis color="var(--color-track-meds)" />
           )}
         </button>
-      </div>
 
-      {/* Grooming — baths, nail trims & haircuts in one place */}
-      <SectionLabel>Grooming</SectionLabel>
-      <HubCard
-        icon={Icons.scissors}
-        accent={ACCENT.bath}
-        title="Grooming"
-        summary={lastGroomingActivity ? `Last ${fmtDate(lastGroomingActivity)}` : "Not logged yet"}
-        onClick={() => setGroomingOpen(true)}
-      />
-
-      {/* Summary cards — each opens its full detail screen */}
+      {/* Summary rows — each opens its full detail screen */}
       <SectionLabel>Health records</SectionLabel>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <HubCard
+      <GroupCard>
+        <SettingsRow
+          isFirst
           icon={Icons.bell}
-          accent={ACCENT.reminder}
-          title="Reminders & meds"
-          summary={
+          iconBg={ACCENT.reminder}
+          label="Reminders & meds"
+          subtitle={
             nextReminder
               ? `Next: ${nextReminder.r.title}${nextReminder.r.date ? ` · ${fmtDate(nextReminder.r.date)}` : ""}`
               : medications.length > 0
@@ -730,11 +734,11 @@ export function Vet({
           }
           onClick={() => setDetail("care")}
         />
-        <HubCard
+        <SettingsRow
           icon={Icons.syringe}
-          accent={ACCENT.vaccine}
-          title="Vaccinations"
-          summary={
+          iconBg={ACCENT.vaccine}
+          label="Vaccinations"
+          subtitle={
             sortedVaccines.length === 0
               ? "None recorded"
               : `${sortedVaccines.length} recorded${
@@ -743,14 +747,14 @@ export function Vet({
           }
           onClick={() => setDetail("vaccines")}
         />
-        <HubCard
+        <SettingsRow
           icon={Icons.clipboardText}
-          accent={ACCENT.checkup}
-          title="Checkups"
-          summary={sortedCheckups.length === 0 ? "None recorded" : `${sortedCheckups.length} recorded`}
+          iconBg={ACCENT.checkup}
+          label="Checkups"
+          subtitle={sortedCheckups.length === 0 ? "None recorded" : `${sortedCheckups.length} recorded`}
           onClick={() => setDetail("checkups")}
         />
-      </div>
+      </GroupCard>
       </CardStagger>
 
       <VetNotesScreen
@@ -970,58 +974,6 @@ function VetNotesScreen({
 /** Uppercase muted section label — matches settings/dashboard eyebrows. */
 function SectionLabel({ children }: { children: ReactNode }): React.ReactElement {
   return <Eyebrow style={{ display: "block", margin: "24px 4px 8px" }}>{children}</Eyebrow>;
-}
-
-/** Widget-style tile on the Health hub — opens a detail screen. Sits in a grid. */
-function HubCard({
-  icon,
-  accent,
-  title,
-  summary,
-  onClick,
-}: {
-  icon: IconComponent;
-  accent: string;
-  title: string;
-  summary: string;
-  onClick: () => void;
-}): React.ReactElement {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "flex-start",
-        gap: 12,
-        width: "100%",
-        minHeight: 128,
-        padding: 16,
-        border: "none",
-        cursor: "pointer",
-        textAlign: "left",
-        background: SURFACE,
-        borderRadius: 24,
-      }}
-    >
-      <IconChip icon={icon} accent={accent} />
-      <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: "auto", minWidth: 0 }}>
-        <Headline color={HERO}>{title}</Headline>
-        <Footnote
-          color={MUTED}
-          style={{
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-          }}
-        >
-          {summary}
-        </Footnote>
-      </div>
-    </button>
-  );
 }
 
 /** Pet ID detail screen: pet identity header, microchip & vet, and documents. */

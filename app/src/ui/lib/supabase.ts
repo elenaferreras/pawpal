@@ -12,6 +12,13 @@ const SB_KEY = "sb_publishable_l2TVcGUHf5UiqQDJaGZHeQ_AV9n9zFp";
 // the live poll tell our own pushes apart from a sitter's remote changes.
 const CLOUD_SEEN_KEY = "pawpal_cloud_seen";
 
+// Serialized health block last synced (pushed or pulled) by this device. Health
+// data (vet records, weight, grooming, baths) is shared last-writer-wins between
+// co-owners: this marker lets a push tell whether WE changed health locally
+// (so we overwrite the cloud) or not (so we preserve the cloud's health and
+// never resurrect another co-owner's deletion on an unrelated push).
+const HEALTH_SEEN_KEY = "pawpal_health_seen";
+
 // The identity (row key) the local database currently belongs to. Used to stop
 // one account's data leaking into another's cloud row when you switch accounts
 // on the same device: pushes are blocked until the data is reconciled to match
@@ -152,6 +159,13 @@ export function autoSyncToSupabase(db: Database): void {
           ? shared.replace(/^user_/, "")
           : getCurrentUserId();
         const payload = JSON.parse(JSON.stringify(db)) as Database;
+        // Health (vet records, weight, grooming, baths) syncs last-writer-wins
+        // between co-owners: only overwrite the cloud's copy when WE changed it
+        // locally. `healthDirty` compares against the last health we synced, not
+        // the cloud, so an unrelated push (e.g. a meal) never resurrects another
+        // co-owner's health edit or deletion.
+        const localHealth = healthStr(payload);
+        const healthDirty = localHealth !== getHealthSeen();
         // Merge-before-overwrite: this push replaces the whole shared row, so
         // first pull the current cloud version and fold in any activity entries
         // (meals/walks/bathroom) another co-owner or a sitter added that we
@@ -169,6 +183,17 @@ export function autoSyncToSupabase(db: Database): void {
             if (mMeals.length) payload.meals = [...payload.meals, ...mMeals];
             if (mBath.length) payload.bathroom = [...payload.bathroom, ...mBath];
             mergedRemote = mWalks.length + mMeals.length + mBath.length > 0;
+            // We didn't touch health locally — keep whatever the cloud holds so
+            // we don't undo another co-owner's change. If it differs from ours,
+            // leave CLOUD_SEEN unstamped so the next reconcile pulls it local.
+            if (!healthDirty) {
+              const ch = healthBlock(c);
+              payload.vetRecords = ch.vetRecords;
+              payload.weightLog = ch.weightLog;
+              payload.grooming = ch.grooming;
+              payload.baths = ch.baths;
+              if (healthStr(c) !== localHealth) mergedRemote = true;
+            }
           }
         } catch {
           // Offline or fetch failed — fall back to pushing local as-is.
@@ -195,6 +220,9 @@ export function autoSyncToSupabase(db: Database): void {
         if (res.ok) {
           // The local data is now confirmed to belong to this identity.
           setDataOwner(rowKey);
+          // Our health is now the cloud's — remember it so a later unrelated
+          // push preserves it instead of stomping another co-owner's change.
+          if (healthDirty) setHealthSeen(localHealth);
           // Remember the version we just wrote so the live poll can tell our
           // own pushes apart from a sitter's remote changes. When we folded in
           // remote-only entries, leave the marker so the next reconcile pulls
@@ -258,6 +286,41 @@ function newEntries<T extends { created?: string }>(local: T[] | undefined, clou
 }
 
 /**
+ * The shared health block: vet records, weight log, grooming and grooming baths.
+ * Synced last-writer-wins between co-owners (unlike activity, which is additive)
+ * so edits and deletions propagate.
+ */
+function healthBlock(d: Partial<Database>): Pick<Database, "vetRecords" | "weightLog" | "grooming" | "baths"> {
+  return {
+    vetRecords: d.vetRecords ?? { checkups: [], vaccines: [], reminders: [], medications: [], notes: "", documents: [] },
+    weightLog: d.weightLog ?? [],
+    grooming: d.grooming ?? [],
+    baths: d.baths ?? [],
+  };
+}
+
+/** Stable serialization of the health block for change detection. */
+function healthStr(d: Partial<Database>): string {
+  return JSON.stringify(healthBlock(d));
+}
+
+function getHealthSeen(): string | null {
+  try {
+    return localStorage.getItem(HEALTH_SEEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function setHealthSeen(value: string): void {
+  try {
+    localStorage.setItem(HEALTH_SEEN_KEY, value);
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
  * Pull the latest cloud version and merge any activities that aren't local yet
  * (e.g. logged by a sitter). Additive only — never overwrites the owner's own
  * profile edits or removes local entries. Returns true if anything was merged.
@@ -301,7 +364,17 @@ export async function reconcileFromCloud(
   const profileChanged =
     cloudProfile != null &&
     JSON.stringify(cloudProfile) !== JSON.stringify(local.profile);
-  if (addWalks.length + addMeals.length + addBath.length === 0 && !profileChanged)
+  // Health (vet records, weight, grooming, baths) is shared last-writer-wins.
+  // Compare the cloud against the health we last synced (not our local copy) so
+  // our own unpushed edits aren't clobbered when the cloud only changed activity.
+  const cloudHealth = healthBlock(cloud);
+  const cloudHealthStr = JSON.stringify(cloudHealth);
+  const healthChanged = cloudHealthStr !== getHealthSeen();
+  if (
+    addWalks.length + addMeals.length + addBath.length === 0 &&
+    !profileChanged &&
+    !healthChanged
+  )
     return false;
 
   update((d) => {
@@ -309,7 +382,14 @@ export async function reconcileFromCloud(
     if (addMeals.length) d.meals = [...d.meals, ...addMeals];
     if (addBath.length) d.bathroom = [...d.bathroom, ...addBath];
     if (profileChanged && cloudProfile) d.profile = cloudProfile;
+    if (healthChanged) {
+      d.vetRecords = cloudHealth.vetRecords;
+      d.weightLog = cloudHealth.weightLog;
+      d.grooming = cloudHealth.grooming;
+      d.baths = cloudHealth.baths;
+    }
   });
+  if (healthChanged) setHealthSeen(cloudHealthStr);
 
   // A co-owner's profile edit that changes the meal count must refresh this
   // device's server-side reminder mirror so meal reminders match.

@@ -73,6 +73,10 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
   const [filter, setFilter] = useState<WalkFilter>("today");
   const [mapWalk, setMapWalk] = useState<Walk | null>(null);
   const calRef = useRef<HTMLDivElement>(null);
+  // Mirrors `visiblePage` for the scroll handler (avoids stale closures) and a
+  // debounce timer so we only react once a fling has settled.
+  const pageRef = useRef(PAGES - 1);
+  const scrollEndTimer = useRef<number | null>(null);
   // Which month window is currently in view (defaults to the newest).
   const [visiblePage, setVisiblePage] = useState(PAGES - 1);
   // Measured height of the calendar for the month in view, so months with fewer
@@ -120,17 +124,33 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
   const onCalScroll = (): void => {
     const el = calRef.current;
     if (!el) return;
-    const stride = (el.scrollWidth - el.clientWidth) / (PAGES - 1);
-    const p = stride > 0 ? Math.round(el.scrollLeft / stride) : PAGES - 1;
-    const clamped = Math.max(0, Math.min(PAGES - 1, p));
-    // Landing on a different month clears the day selection and focuses the
-    // "Month" segment on that month's walks.
-    if (clamped !== visiblePage) {
-      setVisiblePage(clamped);
-      setSelected(null);
-      setFilter("month");
-    }
+    // Defer page detection until the fling settles. Reacting on every scroll
+    // event resizes the calendar (month → height) and re-renders the cells
+    // mid-scroll, which cancels iOS momentum/snap and leaves a month parked
+    // half-visible. Waiting for the scroll to stop lets snap resolve first.
+    if (scrollEndTimer.current != null) clearTimeout(scrollEndTimer.current);
+    scrollEndTimer.current = window.setTimeout(() => {
+      const stride = (el.scrollWidth - el.clientWidth) / (PAGES - 1);
+      const p = stride > 0 ? Math.round(el.scrollLeft / stride) : PAGES - 1;
+      const clamped = Math.max(0, Math.min(PAGES - 1, p));
+      // Landing on a different month clears the day selection and focuses the
+      // "Month" segment on that month's walks.
+      if (clamped !== pageRef.current) {
+        pageRef.current = clamped;
+        setVisiblePage(clamped);
+        setSelected(null);
+        setFilter("month");
+      }
+    }, 90);
   };
+
+  useEffect(
+    () => () => {
+      if (scrollEndTimer.current != null) clearTimeout(scrollEndTimer.current);
+    },
+    [],
+  );
+
 
   const delWalk = async (index: number): Promise<void> => {
     const ok = await confirm({
