@@ -1,5 +1,6 @@
 import { Icon } from "@astryxdesign/core/Icon";
 import { useDb } from "../lib/store";
+import { tombstoneEntries, untombstoneEntries } from "../lib/supabase";
 import { useToast } from "../lib/toast";
 import { useConfirm } from "../components/ConfirmDialog";
 import { SwipeableRow } from "../components/SwipeableRow";
@@ -9,7 +10,7 @@ import { TopBar, TopBarButton } from "../components/TopBar";
 import { RevealItem } from "../components/Reveal";
 import { Icons, type AppIconName } from "../lib/icons";
 import { fmtDate } from "../lib/date";
-import type { BathroomType } from "../types";
+import type { BathroomType, BathroomLog, VetNote } from "../types";
 
 interface BathroomProps {
   onAdd: () => void;
@@ -55,15 +56,38 @@ export function Bathroom({ onAdd, onEdit }: BathroomProps): React.ReactElement {
       confirmLabel: "Delete Entry",
     });
     if (!ok) return;
+    let snap: BathroomLog | undefined;
+    let noteSnap: { entry: VetNote; index: number } | undefined;
     update((d) => {
+      snap = d.bathroom[index] ? { ...d.bathroom[index] } : undefined;
       const created = d.bathroom[index]?.created;
       d.bathroom.splice(index, 1);
       if (created) {
+        tombstoneEntries(d, created);
         const nIdx = d.vetRecords.noteItems?.findIndex((n) => n.source === created) ?? -1;
-        if (nIdx >= 0) d.vetRecords.noteItems?.splice(nIdx, 1);
+        if (nIdx >= 0) {
+          noteSnap = { entry: { ...d.vetRecords.noteItems![nIdx] }, index: nIdx };
+          d.vetRecords.noteItems?.splice(nIdx, 1);
+        }
       }
     });
-    toast("Entry deleted");
+    const undo = (): void => {
+      update((d) => {
+        if (snap) {
+          d.bathroom.splice(Math.min(index, d.bathroom.length), 0, snap);
+          if (snap.created) untombstoneEntries(d, snap.created);
+        }
+        if (noteSnap) {
+          d.vetRecords.noteItems ??= [];
+          d.vetRecords.noteItems.splice(
+            Math.min(noteSnap.index, d.vetRecords.noteItems.length),
+            0,
+            noteSnap.entry,
+          );
+        }
+      });
+    };
+    toast("Entry deleted", { label: "Undo", onClick: undo });
   };
 
   return (

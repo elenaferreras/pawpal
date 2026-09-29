@@ -8,6 +8,10 @@ import { viteSingleFile } from "vite-plugin-singlefile";
 export default defineConfig({
   root: ".",
   plugins: [react(), viteSingleFile()],
+  server: {
+    host: true,
+    allowedHosts: [".trycloudflare.com", ".ngrok-free.app"],
+  },
   resolve: {
     dedupe: ["react", "react-dom"],
   },

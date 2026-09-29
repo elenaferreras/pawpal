@@ -2,6 +2,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion, type Variants } from "motion/react";
 import { Icon } from "@astryxdesign/core/Icon";
 import { useDb } from "../lib/store";
+import { tombstoneEntries } from "../lib/supabase";
 import { useToast } from "../lib/toast";
 import { WalksBarChart, type WalksBar } from "../components/WalksBarChart";
 import { DogFace } from "../avatar/DogAvatar";
@@ -201,25 +202,28 @@ export function Dashboard({
   // Quick-log a poop onto today's own daily walk aggregate (create it if none).
   const addPoop = (): void => {
     const selfId = myLoggerId() ?? primaryOwnerId();
-    let targetId = "";
-    let wasNew = false;
+    // Resolve the target entry and its id up front. Computing these inside the
+    // `update` mutator is unsafe: React double-invokes the updater (StrictMode),
+    // so a `new Date()` id generated there desyncs from the committed entry and
+    // Undo can't find it. Deciding here keeps the add and undo in agreement.
+    const existing = db.walks.find(
+      (w) =>
+        w.date === todayISO &&
+        !(Array.isArray(w.gpsRoute) && w.gpsRoute.length > 1) &&
+        walkLoggerId(w) === selfId,
+    );
+    const wasNew = !existing;
+    const targetId = existing ? existing.created : new Date().toISOString();
     update((d) => {
-      const idx = d.walks.findIndex(
-        (w) =>
-          w.date === todayISO &&
-          !(Array.isArray(w.gpsRoute) && w.gpsRoute.length > 1) &&
-          walkLoggerId(w) === selfId,
-      );
+      const idx = d.walks.findIndex((w) => w.created === targetId);
       if (idx >= 0) {
-        const existing = d.walks[idx];
-        targetId = existing.created;
+        const cur = d.walks[idx];
         d.walks[idx] = {
-          ...existing,
-          poops: (existing.poops ?? 0) + 1,
-          loggedBy: existing.loggedBy ?? selfId,
+          ...cur,
+          poops: (cur.poops ?? 0) + 1,
+          loggedBy: cur.loggedBy ?? selfId,
         };
       } else {
-        wasNew = true;
         const walk: Walk = {
           date: todayISO,
           time: nowTime(),
@@ -231,9 +235,8 @@ export function Dashboard({
           poops: 1,
           assignee: myWalkerName(),
           loggedBy: selfId,
-          created: new Date().toISOString(),
+          created: targetId,
         };
-        targetId = walk.created;
         d.walks.push(walk);
       }
     });
@@ -243,6 +246,7 @@ export function Dashboard({
         if (i < 0) return;
         if (wasNew) {
           d.walks.splice(i, 1);
+          tombstoneEntries(d, targetId);
         } else {
           d.walks[i] = { ...d.walks[i], poops: Math.max(0, (d.walks[i].poops ?? 0) - 1) };
         }
@@ -257,7 +261,11 @@ export function Dashboard({
     update((d) => {
       const has = d.meals.some((m) => m.date === todayISO && m.mealSlot === slot);
       if (has) {
+        const removed = d.meals
+          .filter((m) => m.date === todayISO && m.mealSlot === slot)
+          .map((m) => m.created);
         d.meals = d.meals.filter((m) => !(m.date === todayISO && m.mealSlot === slot));
+        tombstoneEntries(d, ...removed);
       } else {
         d.meals.push({
           date: todayISO,
@@ -273,7 +281,11 @@ export function Dashboard({
     if (!wasEaten) {
       const undo = (): void => {
         update((d) => {
+          const removed = d.meals
+            .filter((m) => m.date === todayISO && m.mealSlot === slot)
+            .map((m) => m.created);
           d.meals = d.meals.filter((m) => !(m.date === todayISO && m.mealSlot === slot));
+          tombstoneEntries(d, ...removed);
         });
       };
       const label = ORDINALS[slot] ?? `Meal ${slot + 1}`;

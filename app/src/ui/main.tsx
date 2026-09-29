@@ -33,7 +33,9 @@ if (orientation?.lock) {
 // scroll wiring — so the app reads edge-to-edge to the very top at all times.
 
 // Register the service-worker sandbox (built separately → dist/code.js).
-if ("serviceWorker" in navigator) {
+// Skip in dev: the Vite dev server doesn't serve code.js, so registering
+// there just 404s. Only production builds ship code.js alongside the UI.
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./code.js").catch(() => {
       // Registration is best-effort; the app works fine without it.

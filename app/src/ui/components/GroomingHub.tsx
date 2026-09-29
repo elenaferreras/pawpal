@@ -7,12 +7,13 @@ import { Eyebrow, Headline, Footnote } from "./Typography";
 import { LogGroomingSheet } from "./LogGroomingSheet";
 import type { GroomingEntry, GroomingService } from "./LogGroomingSheet";
 import { useDb } from "../lib/store";
+import { tombstoneEntries, untombstoneEntries } from "../lib/supabase";
 import { useToast } from "../lib/toast";
 import { useConfirm } from "../components/ConfirmDialog";
 import { Icons } from "../lib/icons";
 import { today } from "../lib/date";
 import type { AppIconName } from "../lib/icons";
-import type { GroomingLocation } from "../types";
+import type { GroomingLocation, BathLog, GroomingLog } from "../types";
 
 const HERO = "var(--color-pawpal-hero)";
 const MUTED = "var(--color-pawpal-muted)";
@@ -120,6 +121,12 @@ export function GroomingHub({
     const created = new Date().toISOString();
     const notes = entry.notes.trim() || undefined;
     let skippedBath = false;
+    // Unique id per fanned-out entry so deleting one service (its tombstone)
+    // never strips a sibling logged in the same submit on the cloud merge.
+    const uid = (): string =>
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? `${created}-${crypto.randomUUID().slice(0, 8)}`
+        : `${created}-${Math.random().toString(36).slice(2, 10)}`;
     update((d) => {
       for (const svc of entry.services) {
         if (svc === "bath") {
@@ -128,7 +135,7 @@ export function GroomingHub({
             skippedBath = true;
             continue;
           }
-          d.baths.push({ date: entry.date, location: entry.location, ...(notes ? { notes } : {}), created });
+          d.baths.push({ date: entry.date, location: entry.location, ...(notes ? { notes } : {}), created: uid() });
         } else {
           d.grooming ??= [];
           d.grooming.push({
@@ -136,7 +143,7 @@ export function GroomingHub({
             date: entry.date,
             location: entry.location,
             ...(notes ? { notes } : {}),
-            created,
+            created: uid(),
           });
         }
       }
@@ -152,11 +159,33 @@ export function GroomingHub({
       confirmLabel: "Delete",
     });
     if (!ok) return;
+    let bathSnap: BathLog | undefined;
+    let groomSnap: GroomingLog | undefined;
     update((d) => {
-      if (key === "bath") d.baths?.splice(index, 1);
-      else d.grooming?.splice(index, 1);
+      if (key === "bath") {
+        bathSnap = d.baths?.[index] ? { ...d.baths[index] } : undefined;
+        d.baths?.splice(index, 1);
+        if (bathSnap?.created) tombstoneEntries(d, bathSnap.created);
+      } else {
+        groomSnap = d.grooming?.[index] ? { ...d.grooming[index] } : undefined;
+        d.grooming?.splice(index, 1);
+        if (groomSnap?.created) tombstoneEntries(d, groomSnap.created);
+      }
     });
-    toast("Deleted");
+    const undo = (): void => {
+      update((d) => {
+        if (key === "bath" && bathSnap) {
+          d.baths ??= [];
+          d.baths.splice(Math.min(index, d.baths.length), 0, bathSnap);
+          if (bathSnap.created) untombstoneEntries(d, bathSnap.created);
+        } else if (key !== "bath" && groomSnap) {
+          d.grooming ??= [];
+          d.grooming.splice(Math.min(index, d.grooming.length), 0, groomSnap);
+          if (groomSnap.created) untombstoneEntries(d, groomSnap.created);
+        }
+      });
+    };
+    toast("Deleted", { label: "Undo", onClick: undo });
   };
 
   return (
@@ -169,7 +198,7 @@ export function GroomingHub({
         <button
           type="button"
           aria-label="Log grooming"
-          className="glass-btn glass-btn--health"
+          className="glass-btn"
           onClick={() => setLogOpen(true)}
         >
           <Icon icon={Icons.plus} color="inherit" />

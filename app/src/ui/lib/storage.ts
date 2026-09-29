@@ -1,7 +1,14 @@
-import type { Database } from "../types";
+import type { CareItem, Database } from "../types";
 import { autoSyncToSupabase } from "./supabase";
 
 const STORAGE_KEY = "pawpal";
+
+/** Generate a stable id for a care item. */
+function careId(): string {
+  return typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `care_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+}
 
 export function defaultDatabase(): Database {
   return {
@@ -41,6 +48,41 @@ export function migrateDatabase(db: Database): Database {
     if (typeof legacyTerrain === "string") w.terrain = legacyTerrain ? [legacyTerrain] : [];
     if (w.poops == null) w.poops = w.popo ? 1 : 0;
     if (w.walksCount == null) w.walksCount = 1;
+  }
+  // Seed the unified care-items list from the legacy medications + reminders
+  // once (gated on undefined so it never re-runs or clobbers edited data). The
+  // legacy arrays are left intact for backward-compatible push scheduling.
+  if (db.careItems === undefined) {
+    const items: CareItem[] = [];
+    const nowMs = Date.now();
+    for (const m of db.vetRecords?.medications ?? []) {
+      const ended = m.end ? new Date(m.end + "T12:00:00").getTime() < nowMs : false;
+      items.push({
+        id: careId(),
+        kind: "medication" as const,
+        name: m.name,
+        dose: [m.dose, m.freq].filter(Boolean).join(" · ") || undefined,
+        notes: m.notes || undefined,
+        cadence: null,
+        nextDue: m.end || m.start || undefined,
+        history: [],
+        archived: ended,
+        created: m.created,
+      });
+    }
+    for (const r of db.vetRecords?.reminders ?? []) {
+      items.push({
+        id: careId(),
+        kind: "other" as const,
+        name: r.title,
+        cadence: null,
+        nextDue: r.date || undefined,
+        history: [],
+        archived: false,
+        created: r.created,
+      });
+    }
+    db.careItems = items;
   }
   return db;
 }

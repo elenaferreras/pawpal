@@ -8,7 +8,7 @@ import { DbProvider, useDb } from "./lib/store";
 import { ToastProvider, useToast } from "./lib/toast";
 import { ConfirmProvider } from "./components/ConfirmDialog";
 import { getNotifConfig, setupReminderChecks } from "./lib/notifications";
-import { completeOAuthRedirect, hasPendingOAuth, isSignedIn } from "./lib/auth";
+import { completeOAuthRedirect, hasPendingOAuth, hydrateOwnerNameFromCloud, isSignedIn } from "./lib/auth";
 import { myLoggerId } from "./lib/walkers";
 import {
   getRowKey,
@@ -53,7 +53,7 @@ import {
 } from "./lib/sitter";
 import { parseAvatarParam, type JoinResult } from "./lib/coowner";
 import { defaultDatabase } from "./lib/storage";
-import { subscribeToPush, syncReminderPrefs } from "./lib/push";
+import { subscribeToPush, syncReminderPrefs, hydrateReminderPrefs } from "./lib/push";
 
 export function App(): React.ReactElement {
   const isDesktop = useIsDesktop();
@@ -240,9 +240,16 @@ function Shell(): React.ReactElement {
     const sync = (): void => {
       if (!isSignedIn()) return;
       void subscribeToPush();
-      // Keep the server's reminder mirror current so reminders fire while the
-      // app is closed (see reminder-tick Edge Function).
-      void syncReminderPrefs(getNotifConfig(), getDb().profile.mealsPerDay || 4);
+      // Restore the owner's display name from the account (survives a PWA
+      // reinstall that wipes localStorage).
+      void hydrateOwnerNameFromCloud();
+      // Restore the reminder preferences from the server first, THEN mirror the
+      // (possibly just-restored) config back — mirroring first would overwrite
+      // the saved prefs with an empty config on a fresh install.
+      void (async () => {
+        await hydrateReminderPrefs();
+        void syncReminderPrefs(getNotifConfig(), getDb().profile.mealsPerDay || 4);
+      })();
     };
     sync();
     window.addEventListener("pawpal:auth", sync);

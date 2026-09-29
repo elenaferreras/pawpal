@@ -15,8 +15,8 @@ import { TopBar, TopBarAction, TopBarButton } from "./TopBar";
 import { WalkEntry } from "./WalkEntry";
 import { fmtDate } from "../lib/date";
 import { useWalkers, myLoggerId, isMyWalk } from "../lib/walkers";
-import { getSharedRowKey } from "../lib/supabase";
-import type { Walk } from "../types";
+import { getSharedRowKey, tombstoneEntries, untombstoneEntries } from "../lib/supabase";
+import type { Walk, BathroomLog } from "../types";
 
 interface WalksStatsProps {
   /** Optional back affordance; omitted when shown as a tab. */
@@ -51,6 +51,7 @@ interface DayInfo {
   date: Date;
   steps: number;
   future: boolean;
+  hasWalk: boolean;
 }
 
 /**
@@ -159,22 +160,45 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
       confirmLabel: "Delete Walk",
     });
     if (!ok) return;
+    let walkSnap: Walk | undefined;
+    let bathSnap: { entry: BathroomLog; index: number } | undefined;
     update((d) => {
+      walkSnap = d.walks[index] ? { ...d.walks[index] } : undefined;
       const walkCreated = d.walks[index]?.created;
       d.walks.splice(index, 1);
       if (walkCreated) {
+        tombstoneEntries(d, walkCreated);
         const bIdx = d.bathroom.findIndex((b) => b.source === walkCreated);
-        if (bIdx >= 0) d.bathroom.splice(bIdx, 1);
+        if (bIdx >= 0) {
+          bathSnap = { entry: { ...d.bathroom[bIdx] }, index: bIdx };
+          const bCreated = d.bathroom[bIdx]?.created;
+          d.bathroom.splice(bIdx, 1);
+          if (bCreated) tombstoneEntries(d, bCreated);
+        }
       }
     });
-    toast("Walk deleted");
+    const undo = (): void => {
+      update((d) => {
+        if (walkSnap) {
+          d.walks.splice(Math.min(index, d.walks.length), 0, walkSnap);
+          if (walkSnap.created) untombstoneEntries(d, walkSnap.created);
+        }
+        if (bathSnap) {
+          d.bathroom.splice(Math.min(bathSnap.index, d.bathroom.length), 0, bathSnap.entry);
+          if (bathSnap.entry.created) untombstoneEntries(d, bathSnap.entry.created);
+        }
+      });
+    };
+    toast("Walk deleted", { label: "Undo", onClick: undo });
   };
 
   const { pages, days } = useMemo(() => {
     const stepsByDay = new Map<string, number>();
+    const walkDays = new Set<string>();
     for (const w of db.walks) {
       const s = parseInt(String(w.steps)) || 0;
       stepsByDay.set(w.date, (stepsByDay.get(w.date) || 0) + s);
+      walkDays.add(w.date);
     }
 
     const today = new Date();
@@ -205,7 +229,7 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
       for (let i = 0; i < lead; i++) cells.push(null);
       for (let d = 1; d <= daysInMonth; d++) {
         const date = new Date(year, month, d);
-        cells.push({ date, steps: stepsByDay.get(localISO(date)) || 0, future: date > today });
+        cells.push({ date, steps: stepsByDay.get(localISO(date)) || 0, future: date > today, hasWalk: walkDays.has(localISO(date)) });
       }
       // Pad the flat array to a fixed page stride so `days` indexing stays simple,
       // but `rows` drives how many weeks actually render.
@@ -388,6 +412,7 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
                 mapStyle="voyager"
                 live
                 follow
+                interactive={false}
                 markerHtml={markerHtml}
                 accuracyM={accuracy ?? undefined}
                 lineColor="#8592E0"
@@ -460,6 +485,7 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
                     steps={day.steps}
                     max={page.max}
                     future={day.future}
+                    today={localISO(day.date) === localISO(new Date())}
                     selected={selected === gi}
                     onSelect={() => selectDay(gi)}
                   />
@@ -499,7 +525,9 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
                   ? "Not yet"
                   : selectedDay.steps > 0
                     ? `${selectedDay.steps.toLocaleString("de-DE")} steps`
-                    : "No walk"}
+                    : selectedDay.hasWalk
+                      ? "No steps"
+                      : "No walk"}
               </StatNumber>
             </p>
           </>
@@ -760,6 +788,7 @@ function DayCell({
   steps,
   max,
   future,
+  today,
   selected,
   onSelect,
 }: {
@@ -767,6 +796,7 @@ function DayCell({
   steps: number;
   max: number;
   future: boolean;
+  today: boolean;
   selected: boolean;
   onSelect: () => void;
 }): React.ReactElement {
@@ -789,7 +819,11 @@ function DayCell({
         border: "none",
         padding: 0,
         cursor: "pointer",
-        background: active ? "var(--color-walkcell)" : "var(--color-walkcell-empty)",
+        background: today
+          ? "var(--color-walkcell-today-bg)"
+          : active
+            ? "var(--color-walkcell)"
+            : "var(--color-walkcell-empty)",
         opacity: future ? 0.6 : 1,
         display: "flex",
         alignItems: "center",
@@ -805,7 +839,13 @@ function DayCell({
           width: `${dotPct}%`,
           height: `${dotPct}%`,
           borderRadius: "50%",
-          background: active ? "var(--color-walkcell-dot)" : "var(--color-walkcell-empty-dot)",
+          background: today
+            ? active
+              ? "var(--color-walkcell-today-dot)"
+              : "var(--color-walkcell-empty-dot)"
+            : active
+              ? "var(--color-walkcell-dot)"
+              : "var(--color-walkcell-empty-dot)",
         }}
       />
     </button>

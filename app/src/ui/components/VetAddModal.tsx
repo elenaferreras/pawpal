@@ -11,6 +11,13 @@ import type { Checkup, Medication, Priority, Reminder, Vaccine } from "../types"
 type RecordType = "checkup" | "vaccine" | "reminder" | "medication";
 export type { RecordType };
 
+/** Generate a stable id for a care item. */
+function careId(): string {
+  return typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `care_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+}
+
 const RECORD_TYPES: { value: RecordType; label: string }[] = [
   { value: "checkup", label: "Checkup" },
   { value: "vaccine", label: "Vaccine" },
@@ -284,21 +291,27 @@ export function VetAddModal({
           }
           // Keep the auto booster reminder in sync with the new expiry date.
           const newBoosterTitle = vName + " booster due";
-          const idx = d.vetRecords.reminders.findIndex((r) => r.title === oldBoosterTitle);
+          d.careItems ??= [];
+          const idx = d.careItems.findIndex(
+            (c) => c.kind === "vaccine" && c.name === oldBoosterTitle,
+          );
           if (vValidUntil) {
             if (idx >= 0) {
-              d.vetRecords.reminders[idx].title = newBoosterTitle;
-              d.vetRecords.reminders[idx].date = vValidUntil;
+              d.careItems[idx].name = newBoosterTitle;
+              d.careItems[idx].nextDue = vValidUntil;
             } else {
-              d.vetRecords.reminders.push({
-                title: newBoosterTitle,
-                date: vValidUntil,
-                priority: "High",
+              d.careItems.push({
+                id: careId(),
+                kind: "vaccine",
+                name: newBoosterTitle,
+                cadence: null,
+                nextDue: vValidUntil,
+                history: [],
                 created: new Date().toISOString(),
               });
             }
           } else if (idx >= 0) {
-            d.vetRecords.reminders.splice(idx, 1);
+            d.careItems.splice(idx, 1);
           }
         });
         toast("Vaccine updated");
@@ -317,10 +330,13 @@ export function VetAddModal({
       update((d) => {
         d.vetRecords.vaccines.push(rec);
         if (vValidUntil) {
-          d.vetRecords.reminders.push({
-            title: vName + " booster due",
-            date: vValidUntil,
-            priority: "High",
+          (d.careItems ??= []).push({
+            id: careId(),
+            kind: "vaccine",
+            name: vName + " booster due",
+            cadence: null,
+            nextDue: vValidUntil,
+            history: [],
             created: new Date().toISOString(),
           });
         }

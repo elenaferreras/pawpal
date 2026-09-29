@@ -7,7 +7,7 @@ import { FieldEditSheet } from "../../components/FieldEditSheet";
 import { useDb } from "../../lib/store";
 import { useToast } from "../../lib/toast";
 import { syncFromSupabase } from "../../lib/supabase";
-import { getCurrentUser, getOwnerName, setOwnerName, signIn, signOut, signUp, changePassword, type AuthUser } from "../../lib/auth";
+import { getCurrentUser, getOwnerName, saveOwnerName, signIn, signOut, signUp, changePassword, OWNER_NAME_EVENT, type AuthUser } from "../../lib/auth";
 import { subscribeToPush, unsubscribeFromPush } from "../../lib/push";
 import { SettingsPage, Panel, PanelTitle, PanelText } from "./shared";
 
@@ -32,8 +32,13 @@ export function AccountScreen({ onBack, onSignedOut }: { onBack: () => void; onS
 
   useEffect(() => {
     const onAuth = (): void => setUser(getCurrentUser());
+    const onName = (): void => setOwnerNameState(getOwnerName());
     window.addEventListener("pawpal:auth", onAuth);
-    return () => window.removeEventListener("pawpal:auth", onAuth);
+    window.addEventListener(OWNER_NAME_EVENT, onName);
+    return () => {
+      window.removeEventListener("pawpal:auth", onAuth);
+      window.removeEventListener(OWNER_NAME_EVENT, onName);
+    };
   }, []);
 
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -191,7 +196,7 @@ export function AccountScreen({ onBack, onSignedOut }: { onBack: () => void; onS
           onSave={(v) => {
             const name = v.trim();
             setOwnerNameState(name);
-            setOwnerName(name);
+            saveOwnerName(name);
             setNameOpen(false);
             toast("Name saved");
           }}

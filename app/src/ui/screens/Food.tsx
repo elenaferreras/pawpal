@@ -1,5 +1,6 @@
 import { Icon } from "@astryxdesign/core/Icon";
 import { useDb } from "../lib/store";
+import { tombstoneEntries } from "../lib/supabase";
 import { useToast } from "../lib/toast";
 import { MealBowl } from "../components/MealBowl";
 import { CardStagger } from "../components/CardStagger";
@@ -68,7 +69,11 @@ export function Food(): React.ReactElement {
 
   const undo = (slot: number): void => {
     update((d) => {
+      const removed = d.meals
+        .filter((m) => m.date === today && m.mealSlot === slot)
+        .map((m) => m.created);
       d.meals = d.meals.filter((m) => !(m.date === today && m.mealSlot === slot));
+      tombstoneEntries(d, ...removed);
     });
   };
 
@@ -91,7 +96,7 @@ export function Food(): React.ReactElement {
           padding: 20,
           display: "flex",
           alignItems: "center",
-          gap: 8,
+          gap: 20,
         }}
       >
         <MealBowl fed={doneSlots.size} total={n} width={132} />
@@ -112,7 +117,7 @@ export function Food(): React.ReactElement {
             <span
               style={{
                 fontFamily: "var(--font-ui)",
-                fontSize: 40,
+                fontSize: "clamp(24px, 9vw, 40px)",
                 fontWeight: 700,
                 lineHeight: 1,
                 color: CREAM,
@@ -128,7 +133,7 @@ export function Food(): React.ReactElement {
             <span
               style={{
                 fontFamily: "var(--font-ui)",
-                fontSize: 40,
+                fontSize: "clamp(24px, 9vw, 40px)",
                 fontWeight: 700,
                 lineHeight: 1,
                 color: CREAM,

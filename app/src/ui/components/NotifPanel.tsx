@@ -82,24 +82,24 @@ export function NotifPanel({
     });
   }
 
-  const upcoming = db.vetRecords.reminders
-    .filter((r) => {
-      if (!r.date) return false;
-      const diff = (new Date(r.date + "T12:00:00").getTime() - today.getTime()) / 86400000;
+  const upcoming = (db.careItems ?? [])
+    .filter((c) => {
+      if (c.archived || c.kind === "medication" || !c.nextDue) return false;
+      const diff = (new Date(c.nextDue + "T12:00:00").getTime() - today.getTime()) / 86400000;
       return diff >= 0 && diff <= 7;
     })
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    .sort((a, b) => new Date(a.nextDue!).getTime() - new Date(b.nextDue!).getTime());
 
-  upcoming.forEach((r) => {
+  upcoming.forEach((c) => {
     const diff = Math.round(
-      (new Date(r.date + "T12:00:00").getTime() - today.getTime()) / 86400000,
+      (new Date(c.nextDue! + "T12:00:00").getTime() - today.getTime()) / 86400000,
     );
     const when = diff === 0 ? "Today" : diff === 1 ? "Tomorrow" : `In ${diff} days`;
     items.push({
       icon: Icons.stethoscope,
       accent: "secondary",
-      title: r.title,
-      sub: `${when} · ${r.priority} priority`,
+      title: c.name,
+      sub: when,
       onClick: () => {
         onClose();
         onNavigate("vet");
@@ -107,10 +107,7 @@ export function NotifPanel({
     });
   });
 
-  const meds = db.vetRecords.medications.filter((m) => {
-    if (!m.end) return true;
-    return new Date(m.end + "T12:00:00") >= today;
-  });
+  const meds = (db.careItems ?? []).filter((c) => !c.archived && c.kind === "medication");
   if (meds.length > 0) {
     items.push({
       icon: Icons.pill,

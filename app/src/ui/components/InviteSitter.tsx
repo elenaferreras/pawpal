@@ -67,6 +67,7 @@ export function InviteSitter(): React.ReactElement {
   const [detailInvite, setDetailInvite] = useState<InviteRow | null>(null);
   const [showQr, setShowQr] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scope, setScope] = useState<"active" | "past">("active");
 
   // Collapse the QR (and any open action menu) when a different code opens.
   useEffect(() => {
@@ -239,80 +240,114 @@ export function InviteSitter(): React.ReactElement {
           </PanelText>
         </VStack>
 
+        {/* Filter between active codes and past sitters */}
+        {invites.length > 0 && (
+          <div className="sit-seg" role="tablist" aria-label="Invite filter">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={scope === "active"}
+              className={"sit-seg-btn" + (scope === "active" ? " is-on" : "")}
+              onClick={() => setScope("active")}
+            >
+              Active
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={scope === "past"}
+              className={"sit-seg-btn" + (scope === "past" ? " is-on" : "")}
+              onClick={() => setScope("past")}
+            >
+              Past
+            </button>
+          </div>
+        )}
+
         {/* Active invites — tap a code to reveal its actions */}
-        {active.length > 0 && (
-          <VStack gap={0.5}>
-            <PanelText style={{ opacity: 0.8 }}>Active codes</PanelText>
-            {active.map((inv) => (
-              <button
-                key={inv.id}
-                type="button"
-                className="invite-row-btn"
-                onClick={() => {
-                  setShowQr(false);
-                  setDetailInvite(inv);
-                }}
-              >
-                <span className="invite-row-info">
-                  <PanelTitle>{inv.alias || formatCode(inv.code)}</PanelTitle>
-                  <PanelText>
-                    {inviteStatus(inv) === "active"
-                      ? `In use${inv.claimed_by ? ` · ${inv.claimed_by}` : ""}`
-                      : "Not used yet"}{" "}
-                    · ends {fmtWhen(inv.expires_at)}
-                  </PanelText>
-                </span>
-                <span className="invite-row-caret" aria-hidden>
-                  <Icon icon={Icons.caretRight} color="inherit" />
-                </span>
-              </button>
-            ))}
-          </VStack>
+        {scope === "active" && (
+          active.length > 0 ? (
+            <VStack gap={0.5}>
+              {active.map((inv) => (
+                <button
+                  key={inv.id}
+                  type="button"
+                  className="invite-row-btn"
+                  onClick={() => {
+                    setShowQr(false);
+                    setDetailInvite(inv);
+                  }}
+                >
+                  <span className="invite-row-info">
+                    <PanelTitle>{inv.alias || formatCode(inv.code)}</PanelTitle>
+                    <PanelText>
+                      {inviteStatus(inv) === "active"
+                        ? `In use${inv.claimed_by ? ` · ${inv.claimed_by}` : ""}`
+                        : "Not used yet"}{" "}
+                      · ends {fmtWhen(inv.expires_at)}
+                    </PanelText>
+                  </span>
+                  <span className="invite-row-caret" aria-hidden>
+                    <Icon icon={Icons.caretRight} color="inherit" />
+                  </span>
+                </button>
+              ))}
+            </VStack>
+          ) : (
+            invites.length > 0 && (
+              <PanelText style={{ opacity: 0.8, padding: "8px 4px" }}>No active codes.</PanelText>
+            )
+          )
         )}
 
         {/* New invite — opens the duration chooser sheet */}
-        <Button
-          label={active.length > 0 ? "New invite" : "Invite a sitter"}
-          variant={active.length > 0 ? "secondary" : "primary"}
-          onClick={() => {
-            setEditing(null);
-            setReactivating(null);
-            setPreset("tonight");
-            setAlias("");
-            setNotes("");
-            setChoosing(true);
-          }}
-          fullWidth
-        />
+        {scope === "active" && (
+          <Button
+            label={active.length > 0 ? "New invite" : "Invite a sitter"}
+            variant={active.length > 0 ? "secondary" : "primary"}
+            onClick={() => {
+              setEditing(null);
+              setReactivating(null);
+              setPreset("tonight");
+              setAlias("");
+              setNotes("");
+              setChoosing(true);
+            }}
+            fullWidth
+          />
+        )}
 
         {/* Past codes — expired or revoked; can be reactivated or deleted */}
-        {inactive.length > 0 && (
-          <VStack gap={0.5}>
-            <PanelText style={{ opacity: 0.8 }}>Past sitters</PanelText>
-            {inactive.map((inv) => (
-              <button
-                key={inv.id}
-                type="button"
-                className="invite-row-btn"
-                onClick={() => {
-                  setShowQr(false);
-                  setDetailInvite(inv);
-                }}
-              >
-                <span className="invite-row-info">
-                  <PanelTitle>{inv.alias || formatCode(inv.code)}</PanelTitle>
-                  <PanelText>
-                    {inviteStatus(inv) === "revoked" ? "Access ended" : "Expired"}
-                    {" · "}
-                    {fmtWhen(inv.expires_at)}
-                  </PanelText>
-                </span>
-                <span className="invite-row-caret" aria-hidden>
-                  <Icon icon={Icons.caretRight} color="inherit" />
-                </span>
-              </button>
-            ))}
-          </VStack>
+        {scope === "past" && (
+          inactive.length > 0 ? (
+            <VStack gap={0.5}>
+              {inactive.map((inv) => (
+                <button
+                  key={inv.id}
+                  type="button"
+                  className="invite-row-btn"
+                  onClick={() => {
+                    setShowQr(false);
+                    setDetailInvite(inv);
+                  }}
+                >
+                  <span className="invite-row-info">
+                    <PanelTitle>{inv.alias || formatCode(inv.code)}</PanelTitle>
+                    <PanelText>
+                      {inviteStatus(inv) === "revoked" ? "Access ended" : "Expired"}
+                      {" · "}
+                      {fmtWhen(inv.expires_at)}
+                    </PanelText>
+                  </span>
+                  <span className="invite-row-caret" aria-hidden>
+                    <Icon icon={Icons.caretRight} color="inherit" />
+                  </span>
+                </button>
+              ))}
+            </VStack>
+          ) : (
+            <PanelText style={{ opacity: 0.8, padding: "8px 4px" }}>No past sitters.</PanelText>
+          )
         )}
 
       {/* Invite detail — bottom sheet with the code + actions */}

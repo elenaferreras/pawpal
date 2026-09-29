@@ -128,6 +128,70 @@ export function setOwnerName(name: string): void {
   }
 }
 
+// The owner name lives in localStorage (device-local so co-owners don't clash),
+// but a PWA reinstall wipes localStorage and the name is lost. To survive that,
+// mirror it into the signed-in user's GoTrue metadata — per-account, so each
+// co-owner still keeps their own name — and restore it on the next sign-in.
+const OWNER_NAME_META_KEY = "owner_name";
+
+/** Fired after hydration restores the owner name from the account, so any open
+ *  screen showing it can refresh. Detail is the new name. */
+export const OWNER_NAME_EVENT = "pawpal:owner-name";
+
+/** Push the owner name into the signed-in user's auth metadata (best-effort).
+ *  No-op when signed out — the name stays device-local until they sign in. */
+export async function pushOwnerNameToCloud(name: string): Promise<void> {
+  const token = await getValidAccessToken();
+  if (!token) return;
+  const { url, key } = getSBConfig();
+  try {
+    await fetch(`${url}/auth/v1/user`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: key,
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ data: { [OWNER_NAME_META_KEY]: name.trim() } }),
+    });
+  } catch {
+    // Offline / transient — the local copy still holds and re-syncs on next save.
+  }
+}
+
+/** Save the owner's display name locally and, when signed in, mirror it to the
+ *  account so a reinstall restores it. */
+export function saveOwnerName(name: string): void {
+  setOwnerName(name);
+  void pushOwnerNameToCloud(name);
+}
+
+/** Pull the owner name from the account after sign-in / on boot. Only fills an
+ *  empty local value (a fresh install), so it never clobbers a local edit. When
+ *  the account has no name yet but this device does, seed the account instead. */
+export async function hydrateOwnerNameFromCloud(): Promise<void> {
+  const token = await getValidAccessToken();
+  if (!token) return;
+  const { url, key } = getSBConfig();
+  try {
+    const res = await fetch(`${url}/auth/v1/user`, {
+      headers: { apikey: key, Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return;
+    const body = (await res.json()) as { user_metadata?: Record<string, unknown> };
+    const cloud = String(body.user_metadata?.[OWNER_NAME_META_KEY] ?? "").trim();
+    const local = getOwnerName();
+    if (!local && cloud) {
+      setOwnerName(cloud);
+      window.dispatchEvent(new CustomEvent(OWNER_NAME_EVENT, { detail: cloud }));
+    } else if (local && !cloud) {
+      void pushOwnerNameToCloud(local);
+    }
+  } catch {
+    // Offline — keep whatever the device already has.
+  }
+}
+
 export function isSignedIn(): boolean {
   return readSession() !== null;
 }

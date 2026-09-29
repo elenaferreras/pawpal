@@ -457,6 +457,7 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
               coords={coords}
               live
               follow
+              interactive={false}
               markerHtml={markerHtml}
               accuracyM={accuracy ?? undefined}
               mapStyle="voyager"
@@ -511,6 +512,7 @@ export function LiveWalkProvider({ children }: { children: ReactNode }): ReactNo
                   height={200}
                   mapStyle="voyager"
                   lineColor="#352B25"
+                  interactive={false}
                   markerHtml={markerHtml}
                 />
               </div>

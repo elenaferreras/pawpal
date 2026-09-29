@@ -79,6 +79,29 @@ export function FieldEditSheet({
     if (otherActive) otherRef.current?.focus();
   }, [otherActive]);
 
+  // Pin the full-screen editor to the visualViewport (area above the keyboard).
+  // iOS doesn't shrink dvh for the keyboard; it scrolls the page instead, which
+  // shoves a tall fixed sheet off the top. Tracking visualViewport keeps the
+  // input on screen.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!open || !vv) return;
+    const root = document.documentElement;
+    const apply = (): void => {
+      root.style.setProperty("--fs-vv-top", `${vv.offsetTop}px`);
+      root.style.setProperty("--fs-vv-height", `${vv.height}px`);
+    };
+    apply();
+    vv.addEventListener("resize", apply);
+    vv.addEventListener("scroll", apply);
+    return () => {
+      vv.removeEventListener("resize", apply);
+      vv.removeEventListener("scroll", apply);
+      root.style.removeProperty("--fs-vv-top");
+      root.style.removeProperty("--fs-vv-height");
+    };
+  }, [open]);
+
   const confirm = (): void => onSave(draft.trim());
 
   const handleSelect = (v: string): void => {

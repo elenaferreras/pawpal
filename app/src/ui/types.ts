@@ -201,6 +201,49 @@ export interface Medication {
   created: string;
 }
 
+/** Category of a recurring care item — drives the list icon. */
+export type CareKind = "medication" | "vaccine" | "treatment" | "checkup" | "other";
+
+/** Repeat interval unit for a care item's cadence. */
+export type CareCadenceUnit = "day" | "week" | "month" | "year";
+
+/** How often a care item repeats (e.g. every 6 months). */
+export interface CareCadence {
+  every: number;
+  unit: CareCadenceUnit;
+}
+
+/** A single "given / done" event in a care item's history. */
+export interface CareLog {
+  /** Day it was given/done (YYYY-MM-DD). */
+  date: string;
+  note?: string;
+}
+
+/**
+ * A recurring health item (medication, vaccine, treatment, checkup, reminder).
+ * Unifies the legacy {@link Medication} + {@link Reminder} models: each item has
+ * an optional repeat {@link CareCadence}, a computed {@link nextDue} date and a
+ * completion {@link history}. One-off items have `cadence: null`.
+ */
+export interface CareItem {
+  id: string;
+  kind: CareKind;
+  name: string;
+  /** Optional dose / strength label (e.g. "1 tablet"). */
+  dose?: string;
+  notes?: string;
+  /** Repeat schedule; null = one-off. */
+  cadence: CareCadence | null;
+  /** Next due date (YYYY-MM-DD). */
+  nextDue?: string;
+  /** Completion history, oldest first. */
+  history: CareLog[];
+  /** True once finished/archived — moves it to the Completed tab. */
+  archived?: boolean;
+  created: string;
+}
+
 export interface VetNote {
   /** The topic to raise at the next visit. */
   text: string;
@@ -235,6 +278,12 @@ export interface Database {
   weightLog?: WeightEntry[];
   /** Haircut & nail-trim grooming events. */
   grooming?: GroomingLog[];
+  /** Recurring care items (meds, vaccines, treatments, reminders) with history. */
+  careItems?: CareItem[];
+  /** Tombstones: `created` ids of deleted walks/meals/bathroom/baths/grooming
+   * entries, so the additive cloud merge can't resurrect them (and a co-owner's
+   * deletion propagates). Capped to the most recent keys. */
+  deleted?: string[];
 }
 
 export type ScreenId =

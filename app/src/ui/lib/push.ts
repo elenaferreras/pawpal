@@ -3,6 +3,7 @@
 // owner when a sitter logs activity, even while the app is closed.
 import { getCurrentUserId, getValidAccessToken } from "./auth";
 import { getRowKey, getSBConfig } from "./supabase";
+import { getNotifConfig, saveNotifConfig } from "./notifications";
 import type { NotifConfig } from "../types";
 
 // Public half of the server VAPID keypair (safe to expose). The private half
@@ -199,5 +200,54 @@ export async function syncReminderPrefs(
     });
   } catch {
     /* ignore */
+  }
+}
+
+/**
+ * Restore this owner's reminder config from the server after a fresh install
+ * (a PWA reinstall wipes localStorage). Only fills an empty local config, so it
+ * never clobbers a local edit. Best-effort: never throws. Resolves true when it
+ * restored something, so callers can refresh the UI.
+ */
+export async function hydrateReminderPrefs(): Promise<boolean> {
+  const userId = getCurrentUserId();
+  const token = await getValidAccessToken();
+  if (!userId || !token) return false;
+  // Don't overwrite a config the user already has on this device.
+  if (Object.keys(getNotifConfig()).length > 0) return false;
+  const sb = getSBConfig();
+  try {
+    const res = await fetch(
+      `${sb.url}/rest/v1/reminder_prefs?user_id=eq.${userId}&select=*&limit=1`,
+      { headers: { apikey: sb.key, Authorization: `Bearer ${token}` } },
+    );
+    if (!res.ok) return false;
+    const rows = (await res.json()) as Array<{
+      meal_enabled?: boolean;
+      meal_times?: string[];
+      walk_enabled?: boolean;
+      walk_time?: string;
+      med_enabled?: boolean;
+      vacc_enabled?: boolean;
+      vet_enabled?: boolean;
+    }>;
+    const row = rows[0];
+    if (!row) return false;
+    const [wh, wm] = String(row.walk_time ?? "09:00").split(":").map(Number);
+    const cfg: NotifConfig = {
+      mealReminders: { enabled: row.meal_enabled ?? false, times: row.meal_times ?? [] },
+      walkReminder: {
+        enabled: row.walk_enabled ?? false,
+        hour: Number.isFinite(wh) ? wh : 9,
+        minute: Number.isFinite(wm) ? wm : 0,
+      },
+      medicationReminder: { enabled: row.med_enabled ?? false },
+      vaccinationReminder: { enabled: row.vacc_enabled ?? false },
+      vetReminder: { enabled: row.vet_enabled ?? false },
+    };
+    saveNotifConfig(cfg);
+    return true;
+  } catch {
+    return false;
   }
 }

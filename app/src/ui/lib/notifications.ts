@@ -155,24 +155,23 @@ function checkReminders(db: Database): void {
     }
   }
 
-  // Medication reminders: a daily nudge (09:00) while a medication course is
-  // active (started, and not yet ended).
+  // Medication reminders: a daily nudge (09:00) while a medication care item
+  // is due or overdue.
   if (config.medicationReminder?.enabled && h === 9 && m < 5) {
     const key = "med_" + todayStr;
     if (!fired[key]) {
-      const active = db.vetRecords.medications.filter((med) => {
-        if (med.start && new Date(med.start) > now) return false;
-        if (med.end && new Date(med.end) < now) return false;
-        return true;
+      const due = (db.careItems ?? []).filter((c) => {
+        if (c.archived || c.kind !== "medication" || !c.nextDue) return false;
+        return new Date(c.nextDue + "T12:00:00").getTime() <= now.getTime();
       });
-      active.forEach((med) => {
+      due.forEach((c) => {
         sendNotification(
           "Medication reminder",
-          med.name + (med.dose ? " — " + med.dose : ""),
-          "med-" + med.name,
+          c.name + (c.dose ? " — " + c.dose : ""),
+          "med-" + c.id,
         );
       });
-      if (active.length > 0) {
+      if (due.length > 0) {
         fired[key] = true;
         saveFired(fired);
       }
@@ -206,13 +205,13 @@ function checkReminders(db: Database): void {
 
   const vetKey = "vet_" + todayStr;
   if (config.vetReminder?.enabled && !fired[vetKey] && h === 9 && m < 5) {
-    const upcoming = db.vetRecords.reminders.filter((r) => {
-      if (!r.date) return false;
-      const diff = (new Date(r.date).getTime() - now.getTime()) / 86400000;
+    const upcoming = (db.careItems ?? []).filter((c) => {
+      if (c.archived || c.kind === "medication" || !c.nextDue) return false;
+      const diff = (new Date(c.nextDue).getTime() - now.getTime()) / 86400000;
       return diff >= 0 && diff <= 1;
     });
-    upcoming.forEach((r) => {
-      sendNotification("Vet reminder", r.title + (r.date ? " — " + r.date : ""), "vet-" + r.title);
+    upcoming.forEach((c) => {
+      sendNotification("Vet reminder", c.name + (c.nextDue ? " — " + c.nextDue : ""), "vet-" + c.id);
     });
     if (upcoming.length > 0) {
       fired[vetKey] = true;

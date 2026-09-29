@@ -176,13 +176,29 @@ export function autoSyncToSupabase(db: Database): void {
           const meta = await fetchCloudMeta();
           if (meta?.payload) {
             const c = meta.payload;
-            const mWalks = newEntries(payload.walks, c.walks);
-            const mMeals = newEntries(payload.meals, c.meals);
-            const mBath = newEntries(payload.bathroom, c.bathroom);
+            // Deletions are authoritative: union both sides' tombstones, exclude
+            // them from the additive merge, and strip them from the row we push
+            // so a co-owner who still has a deleted entry locally can't push it
+            // back (and our own deletions actually persist to the cloud).
+            const tomb = tombSet(payload.deleted, c.deleted);
+            const mWalks = newEntries(payload.walks, c.walks, tomb);
+            const mMeals = newEntries(payload.meals, c.meals, tomb);
+            const mBath = newEntries(payload.bathroom, c.bathroom, tomb);
+            const mBaths = newEntries(payload.baths, c.baths, tomb);
+            const mGroom = newEntries(payload.grooming, c.grooming, tomb);
             if (mWalks.length) payload.walks = [...payload.walks, ...mWalks];
             if (mMeals.length) payload.meals = [...payload.meals, ...mMeals];
             if (mBath.length) payload.bathroom = [...payload.bathroom, ...mBath];
-            mergedRemote = mWalks.length + mMeals.length + mBath.length > 0;
+            if (mBaths.length) payload.baths = [...payload.baths, ...mBaths];
+            if (mGroom.length) payload.grooming = [...(payload.grooming ?? []), ...mGroom];
+            payload.deleted = [...tomb];
+            payload.walks = stripTombstoned(payload.walks, tomb);
+            payload.meals = stripTombstoned(payload.meals, tomb);
+            payload.bathroom = stripTombstoned(payload.bathroom, tomb);
+            payload.baths = stripTombstoned(payload.baths, tomb);
+            if (payload.grooming) payload.grooming = stripTombstoned(payload.grooming, tomb);
+            mergedRemote =
+              mWalks.length + mMeals.length + mBath.length + mBaths.length + mGroom.length > 0;
             // We didn't touch health locally — keep whatever the cloud holds so
             // we don't undo another co-owner's change. If it differs from ours,
             // leave CLOUD_SEEN unstamped so the next reconcile pulls it local.
@@ -190,8 +206,6 @@ export function autoSyncToSupabase(db: Database): void {
               const ch = healthBlock(c);
               payload.vetRecords = ch.vetRecords;
               payload.weightLog = ch.weightLog;
-              payload.grooming = ch.grooming;
-              payload.baths = ch.baths;
               if (healthStr(c) !== localHealth) mergedRemote = true;
             }
           }
@@ -279,23 +293,72 @@ function entryKey(e: { created?: string }): string {
   return e.created || JSON.stringify(e);
 }
 
-/** Cloud entries whose key isn't already present locally (append-only merge). */
-function newEntries<T extends { created?: string }>(local: T[] | undefined, cloud: T[] | undefined): T[] {
-  const have = new Set((local ?? []).map(entryKey));
-  return (cloud ?? []).filter((e) => !have.has(entryKey(e)));
+// Keep tombstones bounded — the newest keys matter most (older deletions have
+// long since been stripped from every device's cloud row).
+const MAX_TOMBSTONES = 500;
+
+/** Union two tombstone lists into a bounded set of the most recent keys. */
+function tombSet(a: string[] | undefined, b: string[] | undefined): Set<string> {
+  const merged = [...(a ?? []), ...(b ?? [])];
+  const set = new Set(merged);
+  if (set.size <= MAX_TOMBSTONES) return set;
+  return new Set([...set].slice(set.size - MAX_TOMBSTONES));
 }
 
 /**
- * The shared health block: vet records, weight log, grooming and grooming baths.
- * Synced last-writer-wins between co-owners (unlike activity, which is additive)
- * so edits and deletions propagate.
+ * Record deleted activity entry keys on the database draft so a later cloud
+ * merge can't resurrect them. Call from inside an `update`/delete mutator.
  */
-function healthBlock(d: Partial<Database>): Pick<Database, "vetRecords" | "weightLog" | "grooming" | "baths"> {
+export function tombstoneEntries(db: Database, ...keys: string[]): void {
+  const set = new Set(db.deleted ?? []);
+  for (const k of keys) if (k) set.add(k);
+  const next = [...set];
+  db.deleted = next.length > MAX_TOMBSTONES ? next.slice(next.length - MAX_TOMBSTONES) : next;
+}
+
+/**
+ * Remove tombstones for the given entry keys so a restored (undone) deletion
+ * isn't stripped again by the next cloud merge. Call from inside an `update`
+ * mutator when re-adding a previously deleted walk/meal/bathroom entry.
+ */
+export function untombstoneEntries(db: Database, ...keys: string[]): void {
+  if (!db.deleted?.length) return;
+  const drop = new Set(keys.filter(Boolean));
+  db.deleted = db.deleted.filter((k) => !drop.has(k));
+}
+
+/** Drop any entry whose key has been tombstoned. */
+function stripTombstoned<T extends { created?: string }>(list: T[] | undefined, tomb: Set<string>): T[] {
+  return (list ?? []).filter((e) => !tomb.has(entryKey(e)));
+}
+
+/**
+ * Cloud entries whose key isn't already present locally and isn't tombstoned
+ * (append-only merge that respects deletions).
+ */
+function newEntries<T extends { created?: string }>(
+  local: T[] | undefined,
+  cloud: T[] | undefined,
+  tomb?: Set<string>,
+): T[] {
+  const have = new Set((local ?? []).map(entryKey));
+  return (cloud ?? []).filter((e) => {
+    const k = entryKey(e);
+    return !have.has(k) && !(tomb?.has(k) ?? false);
+  });
+}
+
+/**
+ * The shared health block: vet records and weight log. Synced last-writer-wins
+ * between co-owners (unlike activity, which is additive) so edits and deletions
+ * propagate. Grooming (`baths`/`grooming`) is intentionally NOT here — it uses
+ * the additive+tombstone merge like walks/meals so a stale co-owner push can't
+ * silently wipe another device's entries.
+ */
+function healthBlock(d: Partial<Database>): Pick<Database, "vetRecords" | "weightLog"> {
   return {
     vetRecords: d.vetRecords ?? { checkups: [], vaccines: [], reminders: [], medications: [], notes: "", documents: [] },
     weightLog: d.weightLog ?? [],
-    grooming: d.grooming ?? [],
-    baths: d.baths ?? [],
   };
 }
 
@@ -354,9 +417,26 @@ export async function reconcileFromCloud(
 
   const local = getDb();
   const cloud = meta.payload;
-  const addWalks = newEntries(local.walks, cloud.walks);
-  const addMeals = newEntries(local.meals, cloud.meals);
-  const addBath = newEntries(local.bathroom, cloud.bathroom);
+  // Deletions are authoritative: fold the cloud's tombstones in, skip resurrecting
+  // anything tombstoned, and remove locally anything a co-owner has since deleted.
+  const tomb = tombSet(local.deleted, cloud.deleted);
+  const addWalks = newEntries(local.walks, cloud.walks, tomb);
+  const addMeals = newEntries(local.meals, cloud.meals, tomb);
+  const addBath = newEntries(local.bathroom, cloud.bathroom, tomb);
+  const addBaths = newEntries(local.baths, cloud.baths, tomb);
+  const addGroom = newEntries(local.grooming, cloud.grooming, tomb);
+  const nextWalks = stripTombstoned([...local.walks, ...addWalks], tomb);
+  const nextMeals = stripTombstoned([...local.meals, ...addMeals], tomb);
+  const nextBath = stripTombstoned([...local.bathroom, ...addBath], tomb);
+  const nextBaths = stripTombstoned([...(local.baths ?? []), ...addBaths], tomb);
+  const nextGroom = stripTombstoned([...(local.grooming ?? []), ...addGroom], tomb);
+  const keysSig = (arr: { created?: string }[]): string => arr.map(entryKey).join(",");
+  const activityChanged =
+    keysSig(nextWalks) !== keysSig(local.walks) ||
+    keysSig(nextMeals) !== keysSig(local.meals) ||
+    keysSig(nextBath) !== keysSig(local.bathroom) ||
+    keysSig(nextBaths) !== keysSig(local.baths ?? []) ||
+    keysSig(nextGroom) !== keysSig(local.grooming ?? []);
   // Profile details (meals per day, weight, vet, etc.) are shared between
   // co-owners. This cloud version is newer than anything we've written or seen,
   // so adopt its profile (last-writer-wins) when it differs from ours.
@@ -370,23 +450,20 @@ export async function reconcileFromCloud(
   const cloudHealth = healthBlock(cloud);
   const cloudHealthStr = JSON.stringify(cloudHealth);
   const healthChanged = cloudHealthStr !== getHealthSeen();
-  if (
-    addWalks.length + addMeals.length + addBath.length === 0 &&
-    !profileChanged &&
-    !healthChanged
-  )
-    return false;
+  if (!activityChanged && !profileChanged && !healthChanged) return false;
 
   update((d) => {
-    if (addWalks.length) d.walks = [...d.walks, ...addWalks];
-    if (addMeals.length) d.meals = [...d.meals, ...addMeals];
-    if (addBath.length) d.bathroom = [...d.bathroom, ...addBath];
+    d.deleted = [...tomb];
+    d.walks = stripTombstoned([...d.walks, ...addWalks], tomb);
+    d.meals = stripTombstoned([...d.meals, ...addMeals], tomb);
+    d.bathroom = stripTombstoned([...d.bathroom, ...addBath], tomb);
+    d.baths = stripTombstoned([...(d.baths ?? []), ...addBaths], tomb);
+    if (addGroom.length || (d.grooming?.length ?? 0) > 0)
+      d.grooming = stripTombstoned([...(d.grooming ?? []), ...addGroom], tomb);
     if (profileChanged && cloudProfile) d.profile = cloudProfile;
     if (healthChanged) {
       d.vetRecords = cloudHealth.vetRecords;
       d.weightLog = cloudHealth.weightLog;
-      d.grooming = cloudHealth.grooming;
-      d.baths = cloudHealth.baths;
     }
   });
   if (healthChanged) setHealthSeen(cloudHealthStr);

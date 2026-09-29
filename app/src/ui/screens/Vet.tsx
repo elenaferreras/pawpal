@@ -7,8 +7,10 @@ import { useConfirm } from "../components/ConfirmDialog";
 import { SwipeableRow } from "../components/SwipeableRow";
 import { RevealItem } from "../components/Reveal";
 import { CardStagger } from "../components/CardStagger";
-import { Group, NavRow } from "../components/SheetForm";
+import { Group, NavRow, DateRow, NumberRow, NotesField } from "../components/SheetForm";
+import { MotionSheet } from "../components/MotionSheet";
 import { GroomingHub } from "../components/GroomingHub";
+import { CareHub } from "../components/CareHub";
 import { FieldEditSheet } from "../components/FieldEditSheet";
 import { HealthDetailScreen } from "../components/HealthDetailScreen";
 import { SettingsRow } from "./settings/shared";
@@ -19,7 +21,7 @@ import { Eyebrow, Headline, Footnote } from "../components/Typography";
 import { TopBar } from "../components/TopBar";
 import { Icons } from "../lib/icons";
 import { fmtDate, today } from "../lib/date";
-import type { Avatar, Checkup, HealthDocument, Priority, Profile, Vaccine, VetNote, WeightEntry } from "../types";
+import type { Avatar, Checkup, HealthDocument, Profile, Vaccine, VetNote, WeightEntry } from "../types";
 
 type IconComponent = (typeof Icons)[keyof typeof Icons];
 
@@ -104,12 +106,6 @@ async function compressImageToDataUrl(
   }
 }
 
-const PRIORITY_COLOR: Record<Priority, string> = {
-  High: "#E96A41",
-  Medium: "#F2B84B",
-  Low: "#9DBA9C",
-};
-
 /** Keep the single `profile.weight` in step with the newest weight-log entry. */
 function syncProfileWeight(log: WeightEntry[], profile: Profile): void {
   if (log.length === 0) return;
@@ -132,7 +128,6 @@ type Collection = "checkups" | "vaccines" | "reminders" | "medications";
 
 export function Vet({
   onAdd,
-  onEditReminder,
   onEditVaccine,
   onEditCheckup,
   openNotes,
@@ -141,13 +136,14 @@ export function Vet({
   const { db, update } = useDb();
   const toast = useToast();
   const confirm = useConfirm();
-  const { checkups, vaccines, reminders, medications } = db.vetRecords;
+  const { checkups, vaccines } = db.vetRecords;
   const name = db.profile.name.trim() || "Zipi";
 
   const noteItems = db.vetRecords.noteItems ?? [];
   const [draft, setDraft] = useState("");
   const [notesOpen, setNotesOpen] = useState(false);
-  const [detail, setDetail] = useState<"care" | "vaccines" | "checkups" | null>(null);
+  const [detail, setDetail] = useState<"vaccines" | "checkups" | null>(null);
+  const [careOpen, setCareOpen] = useState(false);
   const [renameIndex, setRenameIndex] = useState<number | null>(null);
   const [openVaccineGroups, setOpenVaccineGroups] = useState<Set<string>>(new Set());
 
@@ -256,10 +252,19 @@ export function Vet({
       confirmLabel: "Delete Record",
     });
     if (!ok) return;
+    let snap: unknown;
     update((d) => {
+      snap = d.vetRecords[collection][index] ? { ...d.vetRecords[collection][index] } : undefined;
       d.vetRecords[collection].splice(index, 1);
     });
-    toast("Deleted");
+    const undo = (): void => {
+      if (!snap) return;
+      update((d) => {
+        const list = d.vetRecords[collection] as unknown[];
+        list.splice(Math.min(index, list.length), 0, snap);
+      });
+    };
+    toast("Deleted", { label: "Undo", onClick: undo });
   };
 
   const setMicrochip = (value: string): void => {
@@ -360,10 +365,19 @@ export function Vet({
       confirmLabel: "Delete Document",
     });
     if (!ok) return;
+    let snap: HealthDocument | undefined;
     update((d) => {
+      snap = d.vetRecords.documents?.[index] ? { ...d.vetRecords.documents[index] } : undefined;
       d.vetRecords.documents?.splice(index, 1);
     });
-    toast("Deleted");
+    const undo = (): void => {
+      if (!snap) return;
+      update((d) => {
+        d.vetRecords.documents ??= [];
+        d.vetRecords.documents.splice(Math.min(index, d.vetRecords.documents.length), 0, snap!);
+      });
+    };
+    toast("Deleted", { label: "Undo", onClick: undo });
   };
 
   const addWeight = (date: string, kgStr: string, note: string): void => {
@@ -387,126 +401,29 @@ export function Vet({
       confirmLabel: "Delete",
     });
     if (!ok) return;
+    let snap: WeightEntry | undefined;
     update((d) => {
+      snap = d.weightLog?.[index] ? { ...d.weightLog[index] } : undefined;
       d.weightLog?.splice(index, 1);
       if (d.weightLog) syncProfileWeight(d.weightLog, d.profile);
     });
-    toast("Deleted");
+    const undo = (): void => {
+      if (!snap) return;
+      update((d) => {
+        d.weightLog ??= [];
+        d.weightLog.splice(Math.min(index, d.weightLog.length), 0, snap!);
+        syncProfileWeight(d.weightLog, d.profile);
+      });
+    };
+    toast("Deleted", { label: "Undo", onClick: undo });
   };
 
-  const sortedReminders = reminders
-    .map((r, index) => ({ r, index }))
-    .sort((a, b) => new Date(a.r.date).getTime() - new Date(b.r.date).getTime());
   const sortedVaccines = vaccines
     .map((v, index) => ({ v, index }))
     .sort((a, b) => new Date(b.v.date).getTime() - new Date(a.v.date).getTime());
   const sortedCheckups = checkups
     .map((c, index) => ({ c, index }))
     .sort((a, b) => new Date(b.c.date).getTime() - new Date(a.c.date).getTime());
-
-  const renderReminders = (): React.ReactElement => (
-    <GroupCard>
-      {sortedReminders.length === 0 ? (
-        <Empty icon={Icons.bell} text="No upcoming reminders." />
-      ) : (
-        sortedReminders.map(({ r, index }, i) => (
-          <RecordRow
-            key={index}
-            index={i}
-            icon={Icons.bell}
-            accent={ACCENT.reminder}
-            isFirst={i === 0}
-            title={r.title}
-            meta={r.date ? fmtDate(r.date) : "No date set"}
-            extra={<PriorityPill priority={r.priority} />}
-            onEdit={() => onEditReminder(index)}
-            onDelete={() => del("reminders", index)}
-          />
-        ))
-      )}
-    </GroupCard>
-  );
-
-  const renderMedications = (): React.ReactElement => (
-    <GroupCard>
-      {medications.length === 0 ? (
-        <Empty icon={Icons.pill} text="No medications logged." />
-      ) : (
-        medications.map((m, index) => {
-          const daysLeft = m.end
-            ? Math.ceil((new Date(m.end + "T12:00:00").getTime() - Date.now()) / 86400000)
-            : null;
-          const progress =
-            m.days && m.start
-              ? Math.min(
-                  100,
-                  Math.round(
-                    ((Date.now() - new Date(m.start + "T12:00:00").getTime()) / 86400000 / m.days) * 100,
-                  ),
-                )
-              : 0;
-          const urgent = daysLeft !== null && daysLeft <= 2;
-          return (
-            <RevealItem
-              key={index}
-              index={index}
-              style={{ borderTop: index === 0 ? undefined : "1px solid rgba(255,255,255,0.07)" }}
-            >
-              <SwipeableRow
-                background={SURFACE}
-                actions={[
-                  {
-                    label: "Delete",
-                    color: "#ff3b30",
-                    icon: <Icon icon={Icons.trash} color="inherit" />,
-                    onAction: () => del("medications", index),
-                  },
-                ]}
-              >
-                <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14 }}>
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
-                    <IconChip icon={Icons.pill} accent={ACCENT.medication} />
-                    <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0 }}>
-                      <Headline color={HERO}>{m.name}</Headline>
-                      <Footnote color={MUTED}>
-                        {m.dose} {m.freq ? `· ${m.freq}` : ""}
-                      </Footnote>
-                      {m.notes && <Footnote color={MUTED}>{m.notes}</Footnote>}
-                    </div>
-                  </div>
-                  {m.days > 0 ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                        }}
-                      >
-                        <Footnote color={MUTED}>
-                          {m.start ? fmtDate(m.start) : ""} → {m.end ? fmtDate(m.end) : ""}
-                        </Footnote>
-                        <Footnote color={urgent ? "#E96A41" : HERO} weight={600}>
-                          {daysLeft !== null
-                            ? daysLeft <= 0
-                              ? "Completed"
-                              : `${daysLeft} day${daysLeft !== 1 ? "s" : ""} left`
-                            : "Ongoing"}
-                        </Footnote>
-                      </div>
-                      <ProgressTrack value={progress} color={urgent ? "#E96A41" : "#F2B84B"} />
-                    </div>
-                  ) : (
-                    <Footnote color={MUTED}>Ongoing — no end date</Footnote>
-                  )}
-                </div>
-              </SwipeableRow>
-            </RevealItem>
-          );
-        })
-      )}
-    </GroupCard>
-  );
 
   const renderVaccines = (): React.ReactElement => {
     if (sortedVaccines.length === 0) {
@@ -596,7 +513,11 @@ export function Vet({
     </GroupCard>
   );
 
-  const nextReminder = sortedReminders[0];
+  const careList = db.careItems ?? [];
+  const activeCare = careList.filter((c) => !c.archived);
+  const nextCare = activeCare
+    .filter((c) => c.nextDue)
+    .sort((a, b) => (a.nextDue! < b.nextDue! ? -1 : a.nextDue! > b.nextDue! ? 1 : 0))[0];
   const nextVaccineDue = sortedVaccines
     .map(({ v }) => v.validUntil ?? v.nextDue)
     .filter((d): d is string => Boolean(d))
@@ -726,13 +647,13 @@ export function Vet({
           iconBg={ACCENT.reminder}
           label="Reminders & meds"
           subtitle={
-            nextReminder
-              ? `Next: ${nextReminder.r.title}${nextReminder.r.date ? ` · ${fmtDate(nextReminder.r.date)}` : ""}`
-              : medications.length > 0
-                ? `${medications.length} medication${medications.length !== 1 ? "s" : ""}`
+            nextCare
+              ? `Next: ${nextCare.name}${nextCare.nextDue ? ` · ${fmtDate(nextCare.nextDue)}` : ""}`
+              : activeCare.length > 0
+                ? `${activeCare.length} active`
                 : "Nothing scheduled"
           }
-          onClick={() => setDetail("care")}
+          onClick={() => setCareOpen(true)}
         />
         <SettingsRow
           icon={Icons.syringe}
@@ -769,22 +690,7 @@ export function Vet({
         onDelete={deleteNote}
       />
 
-      <HealthDetailScreen
-        open={detail === "care"}
-        onClose={() => setDetail(null)}
-        title="Reminders & meds"
-        subtitle={
-          sortedReminders.length + medications.length > 0
-            ? `${sortedReminders.length} reminder${sortedReminders.length !== 1 ? "s" : ""} · ${medications.length} med${medications.length !== 1 ? "s" : ""}`
-            : undefined
-        }
-        action={<AddRecordButton onClick={() => onAdd(["reminder", "medication"])} />}
-      >
-        <SectionLabel>Reminders</SectionLabel>
-        {renderReminders()}
-        <SectionLabel>Medications</SectionLabel>
-        {renderMedications()}
-      </HealthDetailScreen>
+      <CareHub open={careOpen} onClose={() => setCareOpen(false)} />
 
       <HealthDetailScreen
         open={detail === "vaccines"}
@@ -827,6 +733,7 @@ export function Vet({
         breed={db.profile.breed}
         birthday={db.profile.birthday ?? ""}
         vetName={db.profile.vet}
+        vetPhone={db.profile.vetPhone}
         microchip={db.profile.microchip ?? ""}
         onMicrochip={setMicrochip}
         insuranceDoc={insuranceDoc}
@@ -986,6 +893,7 @@ function PetIdScreen({
   breed,
   birthday,
   vetName,
+  vetPhone,
   microchip,
   onMicrochip,
   insuranceDoc,
@@ -1005,6 +913,7 @@ function PetIdScreen({
   breed: string;
   birthday: string;
   vetName: string;
+  vetPhone: string;
   microchip: string;
   onMicrochip: (v: string) => void;
   insuranceDoc: HealthDocument | undefined;
@@ -1031,7 +940,7 @@ function PetIdScreen({
         <button
           type="button"
           aria-label="Add a document"
-          className="glass-btn glass-btn--health"
+          className="glass-btn"
           onClick={onAddDocument}
         >
           <Icon icon={Icons.plus} color="inherit" />
@@ -1077,6 +986,7 @@ function PetIdScreen({
         <Group title="Vet details">
           <NavRow label="Microchip" value={microchip || "Add"} onClick={() => setMicroOpen(true)} />
           <NavRow label="Vet name" value={vetName.trim() || "—"} readOnly />
+          <NavRow label="Vet phone" value={vetPhone.trim() || "—"} readOnly />
         </Group>
         <Group title="Documents">
           {insuranceDoc ? (
@@ -1202,28 +1112,22 @@ function WeightScreen({
   const [date, setDate] = useState(today());
   const [kg, setKg] = useState("");
   const [note, setNote] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
+
+  // Reset the form each time the add sheet opens.
+  useEffect(() => {
+    if (!addOpen) return;
+    setDate(today());
+    setKg("");
+    setNote("");
+  }, [addOpen]);
 
   const submit = (): void => {
+    if (!kg.trim()) return;
     onAdd(date, kg, note);
     setKg("");
     setNote("");
-  };
-
-  const fieldStyle: CSSProperties = {
-    minWidth: 0,
-    boxSizing: "border-box",
-    padding: "12px 14px",
-    borderRadius: 14,
-    border: "1px solid rgba(233, 228, 196, 0.35)",
-    background: "transparent",
-    color: HERO,
-    colorScheme: "dark",
-    fontFamily: "var(--font-ui)",
-    fontWeight: 500,
-    fontSize: 16,
-    outline: "none",
-    WebkitAppearance: "none",
-    appearance: "none",
+    setAddOpen(false);
   };
 
   return (
@@ -1232,6 +1136,7 @@ function WeightScreen({
       onClose={onClose}
       title="Weight"
       subtitle={current !== undefined ? `Currently ${current} kg` : undefined}
+      action={<AddRecordButton onClick={() => setAddOpen(true)} />}
     >
       {chartData.length > 0 ? (
         <div style={{ background: SURFACE, borderRadius: 24, padding: "16px 12px", marginBottom: 14 }}>
@@ -1242,47 +1147,6 @@ function WeightScreen({
           <Empty icon={Icons.chartColumn} text="Log a few weights to see the trend." />
         </div>
       )}
-
-      {/* Add entry */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
-        <div style={{ display: "flex", gap: 10 }}>
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...fieldStyle, flex: 1 }} />
-          <input
-            type="number"
-            inputMode="decimal"
-            value={kg}
-            onChange={(e) => setKg(e.target.value)}
-            placeholder="kg"
-            style={{ ...fieldStyle, width: 96 }}
-          />
-        </div>
-        <div style={{ display: "flex", gap: 10 }}>
-          <input
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="Note (optional)"
-            style={{ ...fieldStyle, flex: 1 }}
-          />
-          <button
-            type="button"
-            onClick={submit}
-            style={{
-              flexShrink: 0,
-              border: "none",
-              cursor: "pointer",
-              background: HERO,
-              color: DARK,
-              borderRadius: 14,
-              padding: "0 22px",
-              fontFamily: "var(--font-ui)",
-              fontWeight: 700,
-              fontSize: 15,
-            }}
-          >
-            Add
-          </button>
-        </div>
-      </div>
 
       <GroupCard>
         {entries.length === 0 ? (
@@ -1316,6 +1180,29 @@ function WeightScreen({
           })
         )}
       </GroupCard>
+
+      <MotionSheet
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        ariaLabel="Log weight"
+        scrimClassName="walk-sheet-scrim"
+        scrimStyle={{ zIndex: 1300 }}
+        sheetClassName="form-sheet vet-sheet"
+        title="Log weight"
+        confirmLabel="Log weight"
+        onConfirm={submit}
+        body={
+          <div className="wts-form">
+            <Group title="Entry">
+              <DateRow label="Date" value={date} max={today()} onChange={setDate} />
+              <NumberRow label="Weight" value={kg} onChange={setKg} suffix="kg" inputMode="decimal" />
+            </Group>
+            <Group title="Note">
+              <NotesField value={note} onChange={setNote} placeholder="Anything worth remembering?" />
+            </Group>
+          </div>
+        }
+      />
     </HealthDetailScreen>
   );
 }
@@ -1474,51 +1361,6 @@ function IconChip({ icon, accent }: { icon: IconComponent; accent: string }): Re
     >
       <Icon icon={icon} color="inherit" />
     </span>
-  );
-}
-
-function PriorityPill({ priority }: { priority: Priority }): React.ReactElement {
-  return (
-    <span
-      style={{
-        alignSelf: "flex-start",
-        fontFamily: "var(--font-ui)",
-        fontWeight: 700,
-        fontSize: 11,
-        letterSpacing: 0.4,
-        textTransform: "uppercase",
-        color: DARK,
-        background: PRIORITY_COLOR[priority],
-        borderRadius: 100,
-        padding: "3px 10px",
-        marginTop: 2,
-      }}
-    >
-      {priority} priority
-    </span>
-  );
-}
-
-function ProgressTrack({ value, color }: { value: number; color: string }): React.ReactElement {
-  return (
-    <div
-      style={{
-        height: 6,
-        borderRadius: 100,
-        background: "rgba(255,255,255,0.12)",
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          width: `${Math.max(0, Math.min(100, value))}%`,
-          height: "100%",
-          borderRadius: 100,
-          background: color,
-          transition: "width 0.3s ease",
-        }}
-      />
-    </div>
   );
 }
 

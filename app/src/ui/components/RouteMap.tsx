@@ -76,7 +76,17 @@ interface LeafletMap {
 interface LeafletStatic {
   map(
     el: HTMLElement,
-    options?: { zoomControl?: boolean; attributionControl?: boolean },
+    options?: {
+      zoomControl?: boolean;
+      attributionControl?: boolean;
+      dragging?: boolean;
+      touchZoom?: boolean;
+      scrollWheelZoom?: boolean;
+      doubleClickZoom?: boolean;
+      boxZoom?: boolean;
+      keyboard?: boolean;
+      tap?: boolean;
+    },
   ): LeafletMap;
   tileLayer(
     url: string,
@@ -205,6 +215,11 @@ interface RouteMapProps {
   /** Hide the "Leaflet" wordmark (tile attribution is always kept). */
   hideWordmark?: boolean;
   /**
+   * Allow pan/zoom/tap gestures. Previews pass `false` so tapping the map does
+   * nothing (and lets taps fall through to any parent button). Defaults to true.
+   */
+  interactive?: boolean;
+  /**
    * Live mode: the route grows as fixes arrive. Instead of a static fitBounds
    * snapshot, the map keeps a moving "current position" marker, an accuracy
    * ring, and (when `follow`) recentres on the latest fix without tearing the
@@ -229,6 +244,7 @@ export function RouteMap({
   startColor = START,
   endColor = END,
   hideWordmark = true,
+  interactive = true,
   live = false,
   follow = false,
   markerHtml,
@@ -385,6 +401,13 @@ export function RouteMap({
         const map = L.map(containerRef.current, {
           zoomControl: false,
           attributionControl: true,
+          dragging: interactive,
+          touchZoom: interactive,
+          scrollWheelZoom: interactive,
+          doubleClickZoom: interactive,
+          boxZoom: interactive,
+          keyboard: interactive,
+          tap: interactive,
         });
         mapRef.current = map;
         if (hideWordmark) map.attributionControl.setPrefix(false);
@@ -444,7 +467,7 @@ export function RouteMap({
     };
     // Rebuild only when basemap/mode/colour identity changes — NOT on coords.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resolvedStyle, lineColor, startColor, endColor, hideWordmark, live]);
+  }, [resolvedStyle, lineColor, startColor, endColor, hideWordmark, interactive, live]);
 
   // ---- Update effect: feed new points into the existing map (no teardown).
   useEffect(() => {

@@ -51,6 +51,8 @@ const pawpalTokens: Record<string, [light: string, dark: string]> = {
   "--color-walkcell-dot": ["#FFFF83", "#FFFF83"], // active day dot (yellow)
   "--color-walkcell-empty": ["#5E5349", "#5E5349"], // empty/future day cell
   "--color-walkcell-empty-dot": ["#463B32", "#463B32"], // empty day dot (brown)
+  "--color-walkcell-today-bg": ["#FBEFA0", "#FBEFA0"], // today's cell (soft yellow)
+  "--color-walkcell-today-dot": ["#9CCFFF", "#9CCFFF"], // today's dot when walked (blue)
 
   // Dashboard food-ring widget (Figma node 34:1418).
   "--color-pill-steps": ["#B3D0FB", "#B3D0FB"], // light-blue "steps" pill

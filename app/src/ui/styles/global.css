@@ -526,10 +526,12 @@ select.form-input {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  /* Cover the large viewport so the backdrop paints through the iOS bottom
-     safe-area inset (see .walk-sheet-scrim) instead of revealing the page. */
+  /* Cover the dynamic viewport so the backdrop paints through the iOS bottom
+     safe-area inset (see .walk-sheet-scrim) instead of revealing the page.
+     dvh (not lvh) so flex-end anchors the sheet to the *visible* bottom — in
+     Safari with the toolbar shown, lvh would push content behind the toolbar. */
   min-height: 100vh;
-  min-height: 100lvh;
+  min-height: 100dvh;
   background: rgba(0, 0, 0, 0.3);
   z-index: 200;
   align-items: flex-end;
@@ -802,10 +804,11 @@ body.modal-open {
   /* On iOS a `position: fixed; inset: 0` element resolves `bottom: 0` to the
      *small* (visual) viewport, so it stops above the home-indicator / browser
      toolbar inset and the brown page background shows through below the floating
-     sheet. Force coverage of the *large* viewport (full physical screen) so the
-     backdrop always paints through that bottom inset — no brown gap. */
+     sheet. Use the *dynamic* viewport so the backdrop paints through that bottom
+     inset with no brown gap, while flex-end still anchors the sheet to the
+     *visible* bottom — lvh would push the sheet behind the Safari toolbar. */
   min-height: 100vh;
-  min-height: 100lvh;
+  min-height: 100dvh;
   /* Above the full-screen dog-sitter overlay (.sit, z 1000) and the minimised
      live-walk bar (z 1100) so a tracked walk stays visible in sitter mode. */
   z-index: 1200;
@@ -1492,6 +1495,10 @@ button.wts-row {
 .groom-sheet {
   --sheet-surface: var(--color-health);
 }
+/* "Add / edit care item" sheet — health pink surface (matches the Health tab). */
+.care-sheet {
+  --sheet-surface: var(--color-health);
+}
 /* Segmented Baths / Nails / Haircuts tabs on the Grooming screen. */
 .groom-tabs {
   display: flex;
@@ -1924,11 +1931,20 @@ button.wts-row {
 /* Single-field editor. Fills the whole screen (not a compact bottom sheet) so
    the lone input sits high with the on-screen keyboard open beneath it. The
    cream surface covers the status-bar inset via the header's top padding. */
+/* Single-field editor. Fills the visible area above the on-screen keyboard so
+   the lone input stays put — pinned to the visualViewport (top/height set from
+   JS in FieldEditSheet) because iOS otherwise scrolls the whole page up to
+   reveal the focused input, shoving a tall dvh sheet off the top. Falls back to
+   100dvh before the vars are set. */
 .field-sheet {
   --sheet-surface: var(--color-pawpal-hero);
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: var(--fs-vv-top, 0px);
   width: 100%;
-  height: 100dvh;
-  max-height: 100dvh;
+  height: var(--fs-vv-height, 100dvh);
+  max-height: var(--fs-vv-height, 100dvh);
   margin-bottom: 0;
   border-radius: 0;
 }
@@ -5199,15 +5215,25 @@ button.sit-note-banner:active {
   }
   .orientation-lock-title {
     margin: 0;
-    font-family: var(--font-brand, sans-serif);
+    /* Explicit color so a global `p` rule can't override the inherited cream. */
+    color: var(--color-pawpal-hero, #e9e4c4);
+    font-family: var(--font-ui, sans-serif);
     font-size: 24px;
     font-weight: 700;
   }
   .orientation-lock-text {
     margin: 0;
+    color: var(--color-pawpal-hero, #e9e4c4);
     font-family: var(--font-ui, sans-serif);
     font-size: 15px;
     opacity: 0.75;
+  }
+}
+/* Installed PWA locks to portrait via the manifest (orientation: portrait), so
+   the rotate prompt is a browser-only fallback — never show it in standalone. */
+@media (display-mode: standalone) {
+  .orientation-lock {
+    display: none !important;
   }
 }
 @keyframes orientation-rock {
