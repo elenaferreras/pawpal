@@ -5282,7 +5282,11 @@ button.sit-note-banner:active {
   height: calc(var(--safe-top) + var(--topbar-height) + 32px);
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.25s ease;
+  /* visibility toggle is required, not just opacity: iOS/WebKit keeps painting
+     descendant backdrop-filter layers even when an ancestor has opacity:0,
+     which showed the blur (and a rectangle) at rest before any scroll. */
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0s linear 0.25s;
   background: linear-gradient(
     to bottom,
     color-mix(in srgb, var(--color-pawpal-page) 72%, transparent) 0%,
@@ -5292,6 +5296,8 @@ button.sit-note-banner:active {
 }
 .topbar[data-collapsed="true"] .topbar-blur {
   opacity: 1;
+  visibility: visible;
+  transition: opacity 0.25s ease, visibility 0s;
 }
 .topbar-blur > div {
   position: absolute;
@@ -5467,6 +5473,9 @@ button.sit-note-banner:active {
 @media (prefers-reduced-motion: reduce) {
   .topbar-blur,
   .topbar-inline {
+    transition: none;
+  }
+  .topbar[data-collapsed="true"] .topbar-blur {
     transition: none;
   }
 }
