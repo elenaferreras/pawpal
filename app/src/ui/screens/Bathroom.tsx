@@ -135,7 +135,7 @@ export function Bathroom({ onAdd, onEdit }: BathroomProps): React.ReactElement {
               color: "var(--color-pawpal-muted)",
             }}
           >
-            Log an event here, or toggle “Pooped” on a walk and it shows up automatically.
+            Log the exceptions here — like peeing indoors or anything off about their poop.
           </span>
         </div>
       ) : (

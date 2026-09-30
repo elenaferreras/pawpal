@@ -13,7 +13,7 @@ export function fmtDate(d?: string): string {
   const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
   if (d === t) return "Today";
   if (d === yesterday) return "Yesterday";
-  return dt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return dt.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
 export function calcAge(birthday?: string): string | null {

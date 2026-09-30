@@ -1621,9 +1621,9 @@ function composeDate(year: number, month: number, day: number): string {
 function prettyDate(value: string): string {
   const parsed = parseDate(value);
   if (!parsed) return "—";
-  return new Date(parsed.y, parsed.m - 1, parsed.d).toLocaleDateString("en-US", {
-    month: "short",
+  return new Date(parsed.y, parsed.m - 1, parsed.d).toLocaleDateString("en-GB", {
     day: "numeric",
+    month: "short",
     year: "numeric",
   });
 }

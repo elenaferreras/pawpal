@@ -259,7 +259,7 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
   // Name of the month currently in view (with year only when it isn't this one).
   const visibleMonth = pages[visiblePage]?.month;
   const monthLabel = visibleMonth
-    ? visibleMonth.toLocaleDateString("en-US", {
+    ? visibleMonth.toLocaleDateString("en-GB", {
         month: "long",
         ...(visibleMonth.getFullYear() === new Date().getFullYear()
           ? {}
@@ -508,7 +508,7 @@ export function WalksStats({ onBack, onAdd, onEdit }: WalksStatsProps): React.Re
                 color: "var(--color-pawpal-hero)",
               }}
             >
-              {selectedDay.date.toLocaleDateString("en-US", {
+              {selectedDay.date.toLocaleDateString("en-GB", {
                 weekday: "long",
                 day: "numeric",
                 month: "long",
@@ -805,7 +805,7 @@ function DayCell({
   const dotPct = active ? 22 + ratio * 42 : 26;
   const label = future
     ? "Upcoming day"
-    : `${date.toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long" })}, ${steps > 0 ? `${steps} steps` : "no walk"}`;
+    : `${date.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}, ${steps > 0 ? `${steps} steps` : "no walk"}`;
 
   return (
     <button

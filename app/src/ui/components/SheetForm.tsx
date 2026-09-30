@@ -198,9 +198,9 @@ export function DateRow({
   onChange: (v: string) => void;
 }): React.ReactElement {
   const display = value
-    ? new Date(value + "T12:00:00").toLocaleDateString("en-US", {
-        month: "short",
+    ? new Date(value + "T12:00:00").toLocaleDateString("en-GB", {
         day: "numeric",
+        month: "short",
         year: "numeric",
       })
     : "Pick a date";

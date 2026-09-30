@@ -805,11 +805,11 @@ function QuickCard({
       </CardTitle>
       <span
         style={{
-          width: 26,
-          height: 26,
+          width: 34,
+          height: 34,
           borderRadius: "50%",
-          background: "var(--color-pawpal-page)",
-          color: bg,
+          background: "color-mix(in srgb, var(--color-pawpal-page) 12%, transparent)",
+          color: "var(--color-pawpal-page)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",

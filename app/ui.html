@@ -8,7 +8,7 @@
     />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <!-- black-translucent lets the web content extend behind the iOS status bar
-         so the .ios-status-blur overlay can frost the content passing under it. -->
+         so the app reads edge-to-edge to the very top. -->
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="PawPal" />
     <meta name="theme-color" content="transparent" />
@@ -26,9 +26,6 @@
     />
   </head>
   <body>
-    <!-- Frosted-glass status-bar overlay for iOS home-screen (standalone) mode.
-         Purely decorative; styling + display-mode gating live in global.css. -->
-    <div class="ios-status-blur" aria-hidden="true"></div>
     <!-- Portrait-only lock: shown over the app when a touch device is rotated
          to landscape (styling + orientation gating live in global.css). -->
     <div class="orientation-lock" role="alertdialog" aria-label="Rotate your device">

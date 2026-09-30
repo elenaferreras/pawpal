@@ -38,10 +38,10 @@ function careId(): string {
 }
 
 function fullDate(date: string): string {
-  return new Date(date + "T12:00:00").toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
+  return new Date(date + "T12:00:00").toLocaleDateString("en-GB", {
     day: "numeric",
+    month: "short",
+    year: "numeric",
   });
 }
 

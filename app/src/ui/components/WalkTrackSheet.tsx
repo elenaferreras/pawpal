@@ -228,7 +228,7 @@ export function WalkTrackSheet({ open, onClose, editIndex, prefillDate, startInC
       const items = (d.vetRecords.noteItems ??= []);
       const idx = items.findIndex((n) => n.source === walkCreated);
       if (sendToVet && trimmedNotes) {
-        const stamp = new Date(dateISO + "T12:00:00").toLocaleDateString("en-US", {
+        const stamp = new Date(dateISO + "T12:00:00").toLocaleDateString("en-GB", {
           day: "numeric",
           month: "short",
         });

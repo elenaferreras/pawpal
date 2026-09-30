@@ -5117,65 +5117,17 @@ button.sit-note-banner:active {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
-   iOS home-screen (PWA) status-bar overlay
+   iOS home-screen (PWA) status-bar overlay — REMOVED
    ─────────────────────────────────────────────────────────────────────────
-   When launched from the home screen with
-   `apple-mobile-web-app-status-bar-style: black-translucent`, the web content
-   extends behind the iOS status bar. This overlay is a frosted-glass layer over
-   that area: it blurs whatever app content passes under the status bar (with a
-   soft top scrim for status-text legibility) so the app reads edge-to-edge to
-   the very top — never a flat coloured bar.
-
-   The overlay is styled but hidden by default; it's only revealed in
-   home-screen / standalone mode, so it never affects normal in-browser
-   viewing. Visibility is switched on by the `.pwa-standalone` class (set from
-   JS in main.tsx — this is what catches iOS, which reports standalone via
-   `navigator.standalone` rather than the display-mode media query). */
-:root {
-  /* Status-bar height. Falls back to 44px on devices without safe-area insets. */
-  --ios-blur-height: env(safe-area-inset-top, 44px);
-}
-
-/* Styled, but hidden until standalone mode is detected.
-
-   This is a true frosted-glass layer, not an opaque bar: the app content runs
-   full-bleed to the very top of the screen and this only blurs whatever passes
-   under the iOS status bar, with a soft top-weighted scrim (masked to fade out
-   before the bottom edge) so the white status text stays legible. No solid
-   fill, so the app never looks like it stops below a coloured bar. */
-.ios-status-blur {
-  display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: var(--ios-blur-height);
-  /* Guard against a 0px safe-area inset (older/edge devices) collapsing the bar. */
-  min-height: max(var(--ios-blur-height), 20px);
-  z-index: 1000;
-  /* Purely decorative — never intercept touches/clicks. */
-  pointer-events: none;
-  -webkit-backdrop-filter: blur(12px) saturate(150%);
-  backdrop-filter: blur(12px) saturate(150%);
-  /* No dark scrim: over the uniformly dark-brown page a tinted gradient reads as
-     a solid brown bar (worse on tall top insets like iPhone 15's Dynamic Island).
-     White status text is already legible on the dark app, so keep a pure frost
-     and only fade the blur out before its bottom edge (no hard blur seam). */
-  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 62%, transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 0%, #000 62%, transparent 100%);
-}
-
-/* Reveal in home-screen / standalone mode (JS-detected, incl. iOS). */
-.pwa-standalone .ios-status-blur {
-  display: block;
-}
-
-/* CSS-only fallback for engines that match the display-mode media query. */
-@media (display-mode: standalone) {
-  .ios-status-blur {
-    display: block;
-  }
-}
+   A frosted `.ios-status-blur` overlay used to sit over the status-bar area in
+   standalone mode. It was `position: fixed` + `backdrop-filter` + a `mask-image`
+   fade. iOS/WebKit does NOT apply `mask-image` to a `backdrop-filter` layer, so
+   the mask never feathered the blur — it painted a hard-edged frosted RECTANGLE
+   over the status bar, visible only in the installed PWA (never in the browser,
+   where it was gated to `.pwa-standalone`). It was also redundant: when the
+   page is scrolled, `.topbar-blur` already spans from y=0 (covering the status
+   area), and with `black-translucent` + the dark app the white status text is
+   legible with no overlay. The overlay (and its element in ui.html) is gone. */
 
 /* ─────────────────────────────────────────────────────────────────────────
    Portrait-only lock

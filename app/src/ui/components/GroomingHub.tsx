@@ -55,10 +55,10 @@ function daysBetween(date: string, todayIso: string): number {
 }
 
 function fullDate(date: string): string {
-  return new Date(date + "T12:00:00").toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "2-digit",
+  return new Date(date + "T12:00:00").toLocaleDateString("en-GB", {
     day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
   });
 }
 
